@@ -1,0 +1,11 @@
+package com.handsfree.be.constant;
+
+public enum NotificationType {
+    JOB_INTEREST_RECEIVED,
+    CANDIDATE_ACCEPTED,
+    CANDIDATE_REJECTED,
+    PAYMENT_RECEIVED,
+    CONNECTION_SUCCEEDED,
+    CHAT_MESSAGE_RECEIVED,
+    RATING_RECEIVED
+}
