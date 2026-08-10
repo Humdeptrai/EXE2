@@ -3,13 +3,16 @@ spring:
     import:
       - "optional:file:.env[.properties]"
       - "optional:file:./BE/.env[.properties]"
+
   application:
     name: hands-free-be
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/handsfree}
     username: ${DB_USERNAME:handsfree}
     password: ${DB_PASSWORD:handsfree_dev_password}
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
@@ -19,17 +22,23 @@ spring:
         format_sql: true
         jdbc:
           time_zone: UTC
+
   jackson:
     default-property-inclusion: non_null
+
   servlet:
     multipart:
       max-file-size: 5MB
       max-request-size: 25MB
 
+  web:
+    error:
+      include-message: never
+
+
 server:
-  port: ${SERVER_PORT:8080}
-  error:
-    include-message: never
+  port: ${PORT:${SERVER_PORT:8080}}
+
 
 app:
   jwt:
@@ -37,22 +46,28 @@ app:
     issuer: ${JWT_ISSUER:hands-free-api}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:15}
     refresh-token-days: ${JWT_REFRESH_TOKEN_DAYS:7}
+
   google:
     client-ids: ${GOOGLE_CLIENT_IDS:${GOOGLE_CLIENT_ID:}}
+
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
   storage:
     provider: ${STORAGE_PROVIDER:local}
     upload-dir: ${UPLOAD_DIR:./uploads/jobs}
     public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080/uploads/jobs}
     max-image-bytes: ${MAX_IMAGE_BYTES:5242880}
+
   cloudinary:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:}
     api-key: ${CLOUDINARY_API_KEY:}
     api-secret: ${CLOUDINARY_API_SECRET:}
     folder: ${CLOUDINARY_FOLDER:handsfree}
+
   business:
     time-zone: ${BUSINESS_TIME_ZONE:Asia/Ho_Chi_Minh}
+
 
 springdoc:
   swagger-ui:
@@ -62,11 +77,13 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+
 management:
   endpoints:
     web:
       exposure:
         include: health
+
   endpoint:
     health:
       show-details: never

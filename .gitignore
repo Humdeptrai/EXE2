@@ -1,0 +1,33 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# FE
+FE/.env
+FE/.env.*
+!FE/.env.example
+FE/node_modules/
+FE/dist/
+
+# BE
+BE/.env
+BE/.env.*
+!BE/.env.example
+BE/target/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Upload/local storage
+uploads/
+BE/uploads/
