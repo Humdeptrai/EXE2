@@ -1,3 +1,4 @@
+import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -128,7 +129,7 @@ export default function SavedJobsPage() {
   const activeResult = tab === "MATCHING" ? matchResult : result;
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="hf-page hf-page-saved-jobs space-y-4 sm:space-y-5">
       <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#779198] sm:text-xs">Danh sách cá nhân</p>
@@ -157,16 +158,16 @@ export default function SavedJobsPage() {
         <div className="grid gap-4"><div className="h-52 animate-pulse rounded-3xl bg-slate-200" /><div className="h-52 animate-pulse rounded-3xl bg-slate-200" /></div>
       ) : tab === "MATCHING" ? (
         matchResult.content.length === 0 ? (
-          <section className="rounded-3xl border border-dashed border-[#a8ccd2] bg-white p-8 text-center sm:p-12">
+          <section className="rounded-3xl border border-dashed border-[#a8ccd2] bg-white p-8 text-center sm:p-12"><EmptyArtwork />
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-[#e9f6f8] text-[#007f95]"><AppIcon name="users" className="h-8 w-8" /></div>
             <h2 className="mt-5 text-xl font-black">Chưa có Matching</h2>
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Khi chủ bài chấp nhận hồ sơ, công việc sẽ chuyển vào đây. Bạn có thể theo dõi trạng thái phí kết nối; quyền chat chỉ mở sau khi cả hai phía hoàn tất khoản phí của mình.</p>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Các kết nối được chấp nhận sẽ xuất hiện ở đây. Chat mở khi hai bên hoàn tất phí kết nối.</p>
           </section>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">{matchResult.content.map((match) => <MatchCard key={match.id} match={match} perspective="PROVIDER" />)}</div>
         )
       ) : result.content.length === 0 ? (
-        <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12">
+        <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12"><EmptyArtwork />
           <AppIcon name={tab === "SAVED" ? "bookmark" : "heart"} className="mx-auto h-10 w-10 text-slate-300" />
           <h2 className="mt-4 text-lg font-black">Chưa có công việc trong mục này</h2>
           <p className="mt-2 text-sm leading-6 text-slate-500">Khám phá feed và sử dụng các nút lưu, quan tâm hoặc rất quan tâm.</p>

@@ -1,3 +1,4 @@
+import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { AppIcon } from "../../../components/ui/AppIcon";
 
 interface PlaceholderPageProps {
@@ -9,8 +10,8 @@ interface PlaceholderPageProps {
 
 export default function PlaceholderPage({ title, description, phase, icon = "list" }: PlaceholderPageProps) {
   return (
-    <section className="grid min-h-[50dvh] place-items-center py-3 sm:min-h-[55vh]">
-      <div className="w-full max-w-lg rounded-3xl border border-dashed border-[#a9d2d9] bg-white p-5 text-center shadow-sm sm:p-8">
+    <section className="hf-page hf-page-placeholder grid min-h-[50dvh] place-items-center py-3 sm:min-h-[55vh]">
+      <div className="w-full max-w-lg rounded-3xl border border-dashed border-[#a9d2d9] bg-white p-5 text-center shadow-sm sm:p-8"><EmptyArtwork />
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[#e7f5f7] text-[#007f95] sm:h-16 sm:w-16 sm:rounded-3xl">
           <AppIcon name={icon} className="h-7 w-7 sm:h-8 sm:w-8" />
         </div>

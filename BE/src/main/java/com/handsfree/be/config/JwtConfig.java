@@ -30,6 +30,10 @@ import java.util.List;
 public class JwtConfig {
     @Bean
     public SecretKey jwtSecretKey(JwtProperties properties) {
+        if (properties.secret() == null || properties.secret().isBlank()
+                || "change-this-development-secret-to-at-least-32-characters".equals(properties.secret())) {
+            throw new IllegalStateException("Configure a private JWT_SECRET before starting the API");
+        }
         byte[] secret = properties.secret().getBytes(StandardCharsets.UTF_8);
         if (secret.length < 32) {
             throw new IllegalStateException("JWT_SECRET must contain at least 32 characters");

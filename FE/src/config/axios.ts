@@ -9,7 +9,7 @@ import type { AuthResult } from "../types/auth";
 
 export const AUTH_SESSION_EXPIRED_EVENT = "auth-session-expired";
 
-type RetryableRequest = InternalAxiosRequestConfig & { _retry?: boolean };
+type RetryableRequest = InternalAxiosRequestConfig & { _retry?: boolean; _sessionId?: string | null };
 
 const api = axios.create({
   baseURL: env.API_URL,
@@ -23,20 +23,27 @@ const refreshClient = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-let refreshPromise: Promise<string> | null = null;
+let refreshFlight: { sessionId: string | null; promise: Promise<string> } | null = null;
 
-async function refreshAccessToken(): Promise<string> {
+function sessionChanged() { return new axios.CanceledError("Authentication session changed"); }
+
+async function refreshAccessToken(sessionId: string | null): Promise<string> {
   const refreshToken = tokenService.getRefreshToken();
   if (!refreshToken) throw new Error("Missing refresh token");
 
   const response = await refreshClient.post<ApiResponse<AuthResult>>("/auth/refresh", {
     refreshToken,
   });
+  if (tokenService.getSessionId() !== sessionId) throw sessionChanged();
   tokenService.setSession(response.data.result.tokens, response.data.result.user);
   return response.data.result.tokens.accessToken;
 }
 
 api.interceptors.request.use((config) => {
+  const request = config as RetryableRequest;
+  const sessionId = tokenService.getSessionId();
+  if (request._retry && request._sessionId !== sessionId) throw sessionChanged();
+  request._sessionId = sessionId;
   const accessToken = tokenService.getAccessToken();
   const requestUrl = config.url || "";
   if (accessToken && !requestUrl.startsWith("/auth/")) {
@@ -46,7 +53,13 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const config = response.config as RetryableRequest;
+    if (!(config.url || "").startsWith("/auth/") && config._sessionId !== tokenService.getSessionId()) {
+      return Promise.reject(sessionChanged());
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequest | undefined;
     const requestUrl = originalRequest?.url || "";
@@ -60,17 +73,24 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    const sessionId = originalRequest._sessionId ?? null;
+    if (sessionId !== tokenService.getSessionId()) return Promise.reject(sessionChanged());
     originalRequest._retry = true;
     try {
-      refreshPromise ??= refreshAccessToken().finally(() => {
-        refreshPromise = null;
-      });
-      const accessToken = await refreshPromise;
+      if (!refreshFlight || refreshFlight.sessionId !== sessionId) {
+        const flight = { sessionId, promise: refreshAccessToken(sessionId) };
+        refreshFlight = flight;
+        void flight.promise.finally(() => { if (refreshFlight === flight) refreshFlight = null; }).catch(() => undefined);
+      }
+      const accessToken = await refreshFlight.promise;
+      if (sessionId !== tokenService.getSessionId()) throw sessionChanged();
       originalRequest.headers.Authorization = `Bearer ${accessToken}`;
       return api(originalRequest);
     } catch (refreshError) {
-      tokenService.clearSession();
-      window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
+      if (sessionId === tokenService.getSessionId()) {
+        tokenService.clearSession();
+        window.dispatchEvent(new CustomEvent(AUTH_SESSION_EXPIRED_EVENT));
+      }
       return Promise.reject(refreshError);
     }
   },

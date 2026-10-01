@@ -33,6 +33,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import com.handsfree.be.properties.BusinessProperties;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -46,6 +47,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class JobMatchingServiceImpl implements JobMatchingService {
+    private final BusinessProperties businessProperties;
     private static final int TOP_EXPERTISE_LIMIT = 3;
 
     private final JobPostRepository jobPostRepository;
@@ -137,7 +139,9 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     @Override
     @Transactional
     public CandidateResponse rejectCandidate(UUID consumerId, UUID jobId, UUID interestId) {
-        requireOwnedActiveJob(consumerId, jobId);
+        JobPost jobPost = jobPostRepository.findOwnedForMatchingUpdate(consumerId, jobId)
+                .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
+        requireMatchingOpen(jobPost);
         JobInterest interest = getCandidateInterest(consumerId, jobId, interestId);
         UUID applicantId = interest.getApplicant().getId();
         CandidateHiringInsightsResponse insights = buildHiringInsights(List.of(applicantId))
@@ -258,7 +262,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     }
 
     private void requireMatchingOpen(JobPost jobPost) {
-        if (jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now())) {
+        if (jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))) {
             throw new AppException(ErrorCode.JOB_MATCHING_NOT_AVAILABLE);
         }
     }

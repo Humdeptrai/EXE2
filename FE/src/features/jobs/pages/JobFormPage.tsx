@@ -212,7 +212,7 @@ export default function JobFormPage() {
   const minimumRequiredWorkers = hasActiveMatches && job ? job.requiredWorkers : 1;
 
   return (
-    <div className="mx-auto w-full max-w-5xl pb-4">
+    <div className="hf-page hf-page-job-form mx-auto w-full max-w-5xl pb-4">
       <div className="mb-4 flex items-start gap-3 sm:mb-6">
         <Link to="/posts" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="Quay lại quản lý bài đăng">
           <span className="text-xl">←</span>
@@ -220,7 +220,7 @@ export default function JobFormPage() {
         <div className="min-w-0">
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#6f8e95] sm:text-xs">Chế độ thuê việc</p>
           <h1 className="mt-1 text-2xl font-extrabold leading-tight sm:text-3xl">{isEditing ? "Chỉnh sửa công việc" : "Tạo yêu cầu mới"}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Hãy mô tả rõ công việc để người nhận việc có thể đánh giá nhanh trước khi gửi yêu cầu matching.</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Thêm nhu cầu, lịch làm việc và ngân sách.</p>
         </div>
       </div>
 
@@ -357,17 +357,17 @@ export default function JobFormPage() {
         </section>
 
         <aside className="space-y-4 lg:sticky lg:top-28">
-          <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-extrabold">Trước khi đăng</h2>
+          <details className="hf-help">
+            <summary>Trước khi đăng</summary>
             <ul className="mt-3 space-y-3 text-sm leading-6 text-slate-500">
               <li className="flex gap-2"><span className="font-extrabold text-[#007f95]">✓</span><span>Không ghi số điện thoại hoặc liên hệ ngoài nền tảng.</span></li>
               <li className="flex gap-2"><span className="font-extrabold text-[#007f95]">✓</span><span>Mô tả rõ thời gian, địa điểm và kết quả mong muốn.</span></li>
               <li className="flex gap-2"><span className="font-extrabold text-[#007f95]">✓</span><span>Bản nháp chỉ mình bạn nhìn thấy.</span></li>
             </ul>
-          </section>
+          </details>
 
           {canEdit && (
-            <div className="grid gap-3">
+            <div className="hf-form-actions grid gap-3">
               <button type="submit" disabled={Boolean(savingAction)} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#8ec6cf] bg-white px-4 py-3 font-extrabold text-[#007f95] disabled:opacity-60">
                 <AppIcon name="save" className="h-5 w-5" />
                 {savingAction === "DRAFT" ? "Đang lưu..." : "Lưu bản nháp"}

@@ -14,11 +14,9 @@ export default function JobVisual({ job, className = "", imageIndex = 0 }: JobVi
   }
 
   return (
-    <div className={`grid h-full w-full place-items-center bg-gradient-to-br from-[#dff4f7] via-[#eef8fa] to-[#dfe8fb] text-[#007f95] ${className}`}>
-      <div className="text-center">
-        <AppIcon name="briefcase" className="mx-auto h-12 w-12 opacity-70" />
-        <p className="mt-2 text-xs font-extrabold uppercase tracking-[0.14em] opacity-70">{job.category.name}</p>
-      </div>
+    <div className={`hf-job-placeholder relative h-full w-full overflow-hidden ${className}`}>
+      <img src="/images/handsfree-community.webp" alt="" aria-hidden="true" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+      <span className="hf-job-placeholder-label"><AppIcon name="briefcase" className="h-4 w-4" />{job.category.name} · Minh họa</span>
     </div>
   );
 }

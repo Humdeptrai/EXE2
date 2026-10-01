@@ -1,3 +1,4 @@
+import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -69,16 +70,16 @@ export default function MessagesPage() {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="hf-page hf-page-messages space-y-5">
       <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#779198] sm:text-xs">Phase 08 · Realtime</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#779198] sm:text-xs">Cuộc trò chuyện</p>
           <h1 className="mt-1 text-2xl font-black sm:text-3xl">Tin nhắn</h1>
-          <p className="mt-1 text-sm leading-6 text-slate-500">Trò chuyện chỉ mở cho Matching đã thanh toán phí kết nối.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">Chat mở khi cả hai bên hoàn tất phí kết nối.</p>
         </div>
         <div className="flex items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-500">
           <span className={`h-2.5 w-2.5 rounded-full ${socketStatus === "CONNECTED" ? "bg-emerald-500" : socketStatus === "CONNECTING" ? "bg-amber-400" : "bg-slate-300"}`} />
-          {socketStatus === "CONNECTED" ? "Realtime đang kết nối" : socketStatus === "CONNECTING" ? "Đang kết nối..." : "Realtime tạm ngắt"}
+          {socketStatus === "CONNECTED" ? "Đã kết nối" : socketStatus === "CONNECTING" ? "Đang kết nối..." : "Đang kết nối lại"}
           {unreadTotal > 0 && <span className="rounded-full bg-[#007f95] px-2 py-0.5 text-white">{unreadTotal}</span>}
         </div>
       </section>
@@ -88,10 +89,10 @@ export default function MessagesPage() {
       {loading ? (
         <div className="grid min-h-[45dvh] place-items-center rounded-3xl border border-slate-200 bg-white text-sm font-bold text-slate-500">Đang tải cuộc trò chuyện...</div>
       ) : result.content.length === 0 ? (
-        <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12">
+        <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12"><EmptyArtwork />
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-[#edf7f9] text-[#007f95]"><AppIcon name="chat" className="h-8 w-8" /></div>
           <h2 className="mt-5 text-xl font-black">Chưa có cuộc trò chuyện</h2>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Sau khi một Matching được thanh toán, hãy bấm <strong>Nhắn tin</strong> trên thẻ Matching để mở phòng chat đầu tiên.</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Khi cả hai bên hoàn tất phí kết nối, chọn <strong>Nhắn tin</strong> để bắt đầu.</p>
         </section>
       ) : (
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">

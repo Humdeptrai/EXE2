@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { HandsFreeLogo } from "../../../components/brand/HandsFreeLogo";
+import { AuthLayout } from "../components/AuthLayout";
 import { FormIcon } from "../../../components/ui/FormIcon";
 import { TextField } from "../../../components/ui/TextField";
 import { useAuth } from "../../../context/AuthContext";
@@ -58,16 +58,13 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen min-h-dvh bg-[#f7f8ff] px-4 py-4 text-[#0b1b35] sm:px-8 sm:py-5">
-      <section className="mx-auto flex min-h-[calc(100dvh-2rem)] sm:min-h-[calc(100dvh-2.5rem)] w-full max-w-[505px] flex-col pb-10">
-        <HandsFreeLogo className="mb-10 sm:mb-[68px]" />
-
-        <header className="mb-8 sm:mb-[48px]">
+    <AuthLayout variant="login">
+        <header className="hf-auth-heading">
           <h1 className="text-[32px] font-extrabold tracking-[-1.2px] sm:text-[38px] sm:tracking-[-1.5px]">Đăng nhập</h1>
           <p className="mt-2 text-base leading-7 text-[#4d5660] sm:text-[20px] sm:leading-8">Chào mừng bạn quay lại với Hands-free</p>
         </header>
 
-        <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+        <form className="hf-auth-form" onSubmit={handleSubmit} noValidate>
           <TextField
             id="identifier"
             label="Email hoặc Số điện thoại"
@@ -109,7 +106,7 @@ export default function LoginPage() {
 
           {message && <FormMessage {...message} />}
 
-          <button type="submit" disabled={isSubmitting} className="flex min-h-14 w-full items-center justify-center gap-4 rounded-full bg-[#0d829d] text-lg sm:min-h-[70px] sm:text-[24px] font-extrabold text-white shadow-[0_12px_22px_rgba(0,107,130,0.22)] transition hover:bg-[#006b82] disabled:opacity-60">
+          <button type="submit" disabled={isSubmitting} className="hf-auth-submit">
             {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
             {!isSubmitting && <FormIcon name="arrow" className="h-7 w-7" />}
           </button>
@@ -118,8 +115,7 @@ export default function LoginPage() {
         <AuthDivider />
         <GoogleAuthButton onCredential={handleGoogle} onError={(text) => setMessage({ kind: "error", text })} disabled={isSubmitting} />
 
-        <p className="mt-auto pt-10 text-center text-base text-[#4d5660] sm:pt-14 sm:text-[19px]">Bạn chưa có tài khoản? <Link className="font-bold text-[#006b82] hover:underline" to="/register">Đăng ký ngay</Link></p>
-      </section>
-    </main>
+        <p className="hf-auth-switch">Bạn chưa có tài khoản? <Link className="font-bold text-[#006b82] hover:underline" to="/register">Đăng ký ngay</Link></p>
+    </AuthLayout>
   );
 }

@@ -3,8 +3,19 @@ import type { TokenPair, User } from "../types/auth";
 const ACCESS_TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";
 const USER_KEY = "authUser";
+const SESSION_KEY = "authSessionId";
 
 export const tokenService = {
+  // Remains stable during token refresh, changes after logout/account replacement.
+  getSessionId(): string | null {
+    if (!localStorage.getItem(ACCESS_TOKEN_KEY) && !localStorage.getItem(REFRESH_TOKEN_KEY)) return null;
+    let id = localStorage.getItem(SESSION_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(SESSION_KEY, id);
+    }
+    return id;
+  },
   getAccessToken(): string | null {
     return localStorage.getItem(ACCESS_TOKEN_KEY);
   },
@@ -25,6 +36,10 @@ export const tokenService = {
   },
 
   setSession(tokens: TokenPair, user: User): void {
+    const previousUser = this.getStoredUser();
+    if (!this.getSessionId() || previousUser?.id !== user.id) {
+      localStorage.setItem(SESSION_KEY, crypto.randomUUID());
+    }
     localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
     localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -38,5 +53,6 @@ export const tokenService = {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(SESSION_KEY);
   },
 };

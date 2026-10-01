@@ -4,8 +4,13 @@ import ProtectedRoute from "../components/guards/ProtectedRoute";
 import { privateRoutes } from "./privateRoutes";
 import { publicRoutes } from "./publicRoutes";
 
+import LandingPageRoute from "../features/landing/pages/LandingPageRoute";
+
 export const router = createBrowserRouter([
-  { path: "/", element: <Navigate to="/login" replace /> },
+  {
+    path: "/",
+    element: <LandingPageRoute />,
+  },
   {
     element: <GuestRoute />,
     children: publicRoutes,

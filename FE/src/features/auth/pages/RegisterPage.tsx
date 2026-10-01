@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { HandsFreeLogo } from "../../../components/brand/HandsFreeLogo";
+import { AuthLayout } from "../components/AuthLayout";
 import { FormIcon } from "../../../components/ui/FormIcon";
 import { TextField } from "../../../components/ui/TextField";
 import { useAuth } from "../../../context/AuthContext";
@@ -94,16 +94,13 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen min-h-dvh bg-[#f7f8ff] px-4 py-4 text-[#0b1b35] sm:px-8 sm:py-5">
-      <section className="mx-auto w-full max-w-[505px] pb-12">
-        <HandsFreeLogo className="mb-10 sm:mb-[72px]" />
-
-        <header className="mb-8 text-center sm:mb-[48px]">
+    <AuthLayout variant="register">
+        <header className="hf-auth-heading">
           <h1 className="text-[30px] font-extrabold tracking-[-1.1px] sm:text-[36px] sm:tracking-[-1.4px]">Đăng ký tài khoản</h1>
           <p className="mx-auto mt-3 max-w-[350px] text-base leading-7 text-[#4d5660] sm:text-[20px] sm:leading-8">Tham gia cộng đồng hỗ trợ ngay hôm nay</p>
         </header>
 
-        <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+        <form className="hf-auth-form" onSubmit={handleSubmit} noValidate>
           <TextField id="fullName" label="Họ và tên" icon={<FormIcon name="user" />} placeholder="Nguyễn Văn A" autoComplete="name" value={form.fullName} error={errors.fullName} onChange={(event) => updateField("fullName", event.target.value)} />
           <TextField id="identifier" label="Email hoặc Số điện thoại" icon={<FormIcon name="at" />} placeholder="example@gmail.com" autoComplete="username" value={form.identifier} error={errors.identifier} onChange={(event) => updateField("identifier", event.target.value)} />
           <TextField id="password" label="Mật khẩu" icon={<FormIcon name="lock" />} type={showPassword ? "text" : "password"} placeholder="••••••••" autoComplete="new-password" value={form.password} error={errors.password} onChange={(event) => updateField("password", event.target.value)} trailing={<button type="button" aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"} className="ml-2 grid min-h-11 min-w-11 place-items-center text-[#7f8b91] sm:ml-3" onClick={() => setShowPassword((value) => !value)}><FormIcon name={showPassword ? "eye-off" : "eye"} /></button>} />
@@ -119,7 +116,7 @@ export default function RegisterPage() {
 
           {message && <FormMessage {...message} />}
 
-          <button type="submit" disabled={isSubmitting} className="flex min-h-14 w-full items-center justify-center gap-4 rounded-full bg-[#006b82] text-lg sm:min-h-[70px] sm:text-[23px] font-extrabold text-white shadow-[0_12px_22px_rgba(0,107,130,0.22)] transition hover:bg-[#005d72] disabled:opacity-60">
+          <button type="submit" disabled={isSubmitting} className="hf-auth-submit">
             {isSubmitting ? "Đang đăng ký..." : "Đăng ký"}
             {!isSubmitting && <FormIcon name="arrow" className="h-7 w-7" />}
           </button>
@@ -128,8 +125,7 @@ export default function RegisterPage() {
         <AuthDivider />
         <GoogleAuthButton onCredential={handleGoogle} onError={(text) => setMessage({ kind: "error", text })} disabled={isSubmitting} />
 
-        <p className="mt-10 text-center text-base text-[#4d5660] sm:mt-[52px] sm:text-[19px]">Bạn đã có tài khoản? <Link className="font-bold text-[#006b82] hover:underline" to="/login">Đăng nhập</Link></p>
-      </section>
-    </main>
+        <p className="hf-auth-switch">Bạn đã có tài khoản? <Link className="font-bold text-[#006b82] hover:underline" to="/login">Đăng nhập</Link></p>
+    </AuthLayout>
   );
 }

@@ -42,7 +42,7 @@ server:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:change-this-development-secret-to-at-least-32-characters}
+    secret: ${JWT_SECRET:}
     issuer: ${JWT_ISSUER:hands-free-api}
     access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:15}
     refresh-token-days: ${JWT_REFRESH_TOKEN_DAYS:7}

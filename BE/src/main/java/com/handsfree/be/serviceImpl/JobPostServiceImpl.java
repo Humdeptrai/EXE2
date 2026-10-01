@@ -37,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import com.handsfree.be.properties.BusinessProperties;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -45,6 +46,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class JobPostServiceImpl implements JobPostService {
+    private final BusinessProperties businessProperties;
     private static final int MAX_IMAGES = 5;
 
     private final JobPostRepository jobPostRepository;
@@ -134,7 +136,7 @@ public class JobPostServiceImpl implements JobPostService {
             return toResponse(jobPost);
         }
         requireStatus(jobPost, Set.of(JobStatus.DRAFT), ErrorCode.JOB_PUBLISH_NOT_ALLOWED);
-        if (jobPost.getScheduledDate().isBefore(LocalDate.now())) {
+        if (jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))) {
             throw new AppException(ErrorCode.JOB_SCHEDULE_IN_PAST);
         }
         jobPost.setStatus(JobStatus.PUBLISHED);

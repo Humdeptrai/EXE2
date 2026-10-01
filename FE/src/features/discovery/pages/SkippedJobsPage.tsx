@@ -1,3 +1,4 @@
+import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -47,7 +48,7 @@ export default function SkippedJobsPage() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="hf-page hf-page-skipped-jobs space-y-4 sm:space-y-5">
       <section className="flex items-start gap-3">
         <Link to="/discover" aria-label="Quay lại feed" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600"><AppIcon name="arrow-left" className="h-5 w-5" /></Link>
         <div>
@@ -62,7 +63,7 @@ export default function SkippedJobsPage() {
       {loading ? (
         <div className="grid gap-4"><div className="h-52 animate-pulse rounded-3xl bg-slate-200" /><div className="h-52 animate-pulse rounded-3xl bg-slate-200" /></div>
       ) : result.content.length === 0 ? (
-        <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12">
+        <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center sm:p-12"><EmptyArtwork />
           <AppIcon name="undo" className="mx-auto h-10 w-10 text-slate-300" />
           <h2 className="mt-4 text-lg font-black">Chưa có công việc bị bỏ qua</h2>
           <Link to="/discover" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white">Quay lại khám phá</Link>

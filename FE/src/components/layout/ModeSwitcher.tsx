@@ -27,7 +27,7 @@ export default function ModeSwitcher() {
   }
 
   return (
-    <div className="w-full rounded-2xl bg-[#e9f5f7] p-1" aria-label="Chuyển chế độ sử dụng">
+    <div className="hf-mode-switch w-full rounded-2xl bg-[#e9f5f7] p-1" aria-label="Chuyển chế độ sử dụng">
       <div className="grid grid-cols-2 gap-1">
         {options.map((option) => {
           const active = user?.currentMode === option.mode;
@@ -43,6 +43,7 @@ export default function ModeSwitcher() {
                   : "text-[#42636b] hover:bg-white/70"
               }`}
               title={option.label}
+              aria-pressed={active}
             >
               <span className="block truncate">{loadingMode === option.mode ? "Đang chuyển..." : option.shortLabel}</span>
             </button>

@@ -29,7 +29,7 @@ export default function OpenMatchConversationPage() {
 
   if (error) {
     return (
-      <section className="mx-auto max-w-xl rounded-3xl border border-red-200 bg-white p-7 text-center shadow-sm">
+      <section className="hf-page hf-page-open-match-conversation mx-auto max-w-xl rounded-3xl border border-red-200 bg-white p-7 text-center shadow-sm">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-red-50 text-red-500"><AppIcon name="info" className="h-7 w-7" /></div>
         <h1 className="mt-4 text-xl font-black">Không thể mở chat</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">{error}</p>

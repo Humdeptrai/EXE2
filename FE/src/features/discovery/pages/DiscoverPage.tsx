@@ -1,3 +1,4 @@
+import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { type FormEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -175,6 +176,12 @@ export default function DiscoverPage() {
     setDragX(Math.max(-190, Math.min(190, event.clientX - pointerRef.current.startX)));
   }
 
+  function handlePointerCancel() {
+    pointerRef.current = null;
+    setDragging(false);
+    setDragX(0);
+  }
+
   function handlePointerUp(event: ReactPointerEvent<HTMLElement>) {
     if (!pointerRef.current || pointerRef.current.id !== event.pointerId) return;
     pointerRef.current = null;
@@ -212,12 +219,12 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 sm:space-y-5">
+    <div className="hf-page hf-page-discover mx-auto max-w-5xl space-y-4 sm:space-y-5">
       <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#779198] sm:text-xs">Chế độ nhận việc</p>
           <h1 className="mt-1 text-2xl font-black sm:text-3xl">Khám phá công việc</h1>
-          <p className="mt-1 text-sm leading-6 text-slate-500">Quét trái để bỏ qua, quét phải để bày tỏ quan tâm.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">Vuốt để chọn. Chạm để xem chi tiết.</p>
         </div>
         <div className="flex gap-2">
           <Link to="/skipped" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 hover:border-[#9acbd2]">
@@ -236,7 +243,8 @@ export default function DiscoverPage() {
             <input
               value={filterForm.keyword}
               onChange={(event) => setFilterForm((current) => ({ ...current, keyword: event.target.value }))}
-              placeholder="Tìm việc theo tiêu đề, mô tả hoặc khu vực..."
+              aria-label="Tìm công việc"
+              placeholder="Công việc hoặc khu vực"
               className="min-h-12 w-full rounded-2xl border border-slate-200 bg-[#f8faff] py-3 pl-10 pr-3 text-base outline-none transition focus:border-[#58aeba] focus:ring-4 focus:ring-[#dff2f5] sm:text-sm"
             />
           </label>
@@ -292,6 +300,7 @@ export default function DiscoverPage() {
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerCancel}
             />
           </div>
 
@@ -309,15 +318,15 @@ export default function DiscoverPage() {
               <AppIcon name="heart" className="h-6 w-6" />
             </button>
           </div>
-          <p className="mt-3 text-center text-[11px] font-bold text-slate-400">Bạn cũng có thể dùng phím ← và → trên desktop</p>
+          <div className="hf-swipe-legend" aria-hidden="true"><span>Bỏ qua</span><span>Lưu</span><span>Ưu tiên</span><span>Quan tâm</span></div>
         </section>
       ) : (
-        <section className="rounded-3xl border border-dashed border-[#a8ccd2] bg-white p-8 text-center sm:p-12">
+        <section className="rounded-3xl border border-dashed border-[#a8ccd2] bg-white p-8 text-center sm:p-12"><EmptyArtwork />
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-[#e9f6f8] text-[#007f95]"><AppIcon name="check" className="h-8 w-8" /></div>
           <h2 className="mt-5 text-xl font-black">Bạn đã xem hết công việc phù hợp</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Thử thay đổi bộ lọc, khôi phục công việc đã bỏ qua hoặc quay lại sau khi có bài đăng mới.</p>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">Đổi bộ lọc hoặc xem lại việc đã bỏ qua.</p>
           <div className="mt-5 flex flex-col justify-center gap-2 min-[420px]:flex-row">
-            <button type="button" onClick={() => void loadFeed(appliedFilters, true)} className="min-h-11 rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white">Tải lại feed</button>
+            <button type="button" onClick={() => void loadFeed(appliedFilters, true)} className="min-h-11 rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white">Tải lại công việc</button>
             <Link to="/skipped" className="min-h-11 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-extrabold text-slate-600">Xem lịch sử bỏ qua</Link>
           </div>
         </section>

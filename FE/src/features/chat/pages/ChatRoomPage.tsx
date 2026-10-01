@@ -97,15 +97,15 @@ export default function ChatRoomPage() {
   }, [conversationId, markRead, user?.id]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    bottomRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "nearest" });
   }, [messages.length]);
 
   const canSend = Boolean(conversation?.canSend && socketStatus === "CONNECTED");
   const statusLabel = useMemo(() => {
     if (!conversation?.canSend) return "Chat chỉ đọc";
-    if (socketStatus === "CONNECTED") return "Đang online realtime";
+    if (socketStatus === "CONNECTED") return "Đã kết nối";
     if (socketStatus === "CONNECTING") return "Đang kết nối...";
-    return "Mất kết nối realtime";
+    return "Đang kết nối lại";
   }, [conversation?.canSend, socketStatus]);
 
   async function loadOlder() {
@@ -146,7 +146,7 @@ export default function ChatRoomPage() {
 
   if (!conversation || error) {
     return (
-        <section className="mx-auto max-w-xl rounded-3xl border border-red-200 bg-white p-7 text-center shadow-sm">
+        <section className="hf-page hf-page-chat-room mx-auto max-w-xl rounded-3xl border border-red-200 bg-white p-7 text-center shadow-sm">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-red-50 text-red-500"><AppIcon name="info" className="h-7 w-7" /></div>
           <h1 className="mt-4 text-xl font-black">Không thể mở cuộc trò chuyện</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">{error || "Phòng chat không tồn tại hoặc bạn không có quyền truy cập."}</p>
@@ -156,8 +156,8 @@ export default function ChatRoomPage() {
   }
 
   return (
-      <div className="mx-auto max-w-4xl">
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="hf-page hf-page-chat-room hf-chat-room mx-auto max-w-4xl">
+        <section className="hf-chat-surface overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <header className="border-b border-slate-100 p-3 sm:p-4">
             <div className="flex items-center gap-3">
               <Link to="/messages" aria-label="Quay lại" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-500"><AppIcon name="arrow-left" className="h-5 w-5" /></Link>
@@ -178,7 +178,7 @@ export default function ChatRoomPage() {
             <p className="mt-2 text-center text-[10px] font-bold text-slate-400 min-[430px]:hidden">{statusLabel}</p>
           </header>
 
-          <div className="h-[min(58dvh,620px)] overflow-y-auto bg-[#f7f9fc] px-3 py-4 sm:px-5">
+          <div className="hf-chat-thread h-[min(58dvh,620px)] overflow-y-auto bg-[#f7f9fc] px-3 py-4 sm:px-5">
             {hasOlder && (
                 <div className="mb-4 text-center">
                   <button type="button" disabled={loadingOlder} onClick={() => void loadOlder()} className="min-h-9 rounded-full border border-slate-200 bg-white px-4 text-xs font-extrabold text-slate-500 disabled:opacity-50">{loadingOlder ? "Đang tải..." : "Xem tin nhắn cũ hơn"}</button>
@@ -190,7 +190,7 @@ export default function ChatRoomPage() {
                   <div>
                     <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-white text-[#007f95] shadow-sm"><AppIcon name="chat" className="h-7 w-7" /></div>
                     <p className="mt-4 font-black">Bắt đầu trò chuyện</p>
-                    <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-500">Hai bên đã Matching và phí kết nối đã được xác nhận. Bạn có thể trao đổi chi tiết công việc tại đây.</p>
+                    <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-slate-500">Trao đổi lịch làm việc và những điều cần chuẩn bị.</p>
                   </div>
                 </div>
             ) : (
@@ -211,17 +211,18 @@ export default function ChatRoomPage() {
             <div ref={bottomRef} />
           </div>
 
-          <footer className="border-t border-slate-100 bg-white p-3 sm:p-4">
+          <footer className="hf-chat-composer border-t border-slate-100 bg-white p-3 sm:p-4">
             {socketError && <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">{socketError}</div>}
             {!conversation.canSend ? (
                 <div className="rounded-2xl bg-slate-100 px-4 py-3 text-center text-xs font-bold text-slate-500">Matching không còn ở trạng thái cho phép gửi tin nhắn. Lịch sử vẫn được giữ lại.</div>
             ) : (
                 <div className="flex items-end gap-2">
               <textarea
+                  aria-label="Tin nhắn"
                   value={text}
                   onChange={(event) => setText(event.target.value.slice(0, 2000))}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
+                    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                       event.preventDefault();
                       send();
                     }

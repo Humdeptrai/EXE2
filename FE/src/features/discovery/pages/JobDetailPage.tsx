@@ -104,7 +104,7 @@ export default function JobDetailPage() {
 
   if (!job) {
     return (
-      <section className="rounded-3xl border border-red-200 bg-white p-8 text-center">
+      <section className="hf-page hf-page-job-detail rounded-3xl border border-red-200 bg-white p-8 text-center">
         <h1 className="text-xl font-black">Không thể mở công việc</h1>
         <p className="mt-2 text-sm text-red-600">{error || "Công việc không còn khả dụng."}</p>
         <button type="button" onClick={() => navigate(-1)} className="mt-5 min-h-11 rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white">Quay lại</button>
@@ -115,7 +115,7 @@ export default function JobDetailPage() {
   const pendingInterest = job.interaction.interestStatus === "PENDING";
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 pb-24 lg:pb-0">
+    <div className="hf-page hf-page-job-detail mx-auto max-w-4xl space-y-4 pb-24 lg:pb-0">
       <div className="flex items-center justify-between gap-3">
         <button type="button" onClick={() => navigate(-1)} aria-label="Quay lại" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-600"><AppIcon name="arrow-left" className="h-5 w-5" /></button>
         <Link to="/discover" className="text-sm font-extrabold text-[#007f95]">Về feed khám phá</Link>
@@ -176,7 +176,7 @@ export default function JobDetailPage() {
         </div>
       </section>
 
-      <section className="fixed inset-x-0 bottom-[calc(4.7rem+env(safe-area-inset-bottom))] z-20 border-t border-slate-200 bg-white/96 p-3 backdrop-blur lg:static lg:rounded-3xl lg:border lg:p-4">
+      <section className="hf-detail-actions fixed inset-x-0 bottom-[calc(4.7rem+env(safe-area-inset-bottom))] z-20 border-t border-slate-200 bg-white/96 p-3 backdrop-blur lg:static lg:rounded-3xl lg:border lg:p-4">
         <div className="mx-auto flex max-w-4xl items-center gap-2">
           <button type="button" disabled={busy} onClick={() => void toggleSave()} aria-label={job.interaction.saved ? "Bỏ lưu" : "Lưu công việc"} className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl border disabled:opacity-50 ${job.interaction.saved ? "border-[#007f95] bg-[#e8f6f8] text-[#007f95]" : "border-slate-200 bg-white text-slate-500"}`}><AppIcon name="bookmark" className={`h-5 w-5 ${job.interaction.saved ? "fill-current" : ""}`} /></button>
 

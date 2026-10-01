@@ -1,3 +1,4 @@
+import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -110,7 +111,7 @@ export default function MyJobsPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="hf-page hf-page-my-jobs space-y-5">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#6f8e95] sm:text-xs">Chế độ thuê việc</p>
@@ -140,7 +141,7 @@ export default function MyJobsPage() {
       {loading ? (
         <div className="grid min-h-[40dvh] place-items-center rounded-3xl border border-slate-200 bg-white text-sm font-bold text-slate-500">Đang tải bài đăng...</div>
       ) : page.content.length === 0 ? (
-        <section className="grid min-h-[42dvh] place-items-center rounded-3xl border border-dashed border-[#a9d2d9] bg-white p-6 text-center">
+        <section className="grid min-h-[42dvh] place-items-center rounded-3xl border border-dashed border-[#a9d2d9] bg-white p-6 text-center"><EmptyArtwork />
           <div>
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-[#e7f5f7] text-[#007f95]"><AppIcon name="briefcase" className="h-8 w-8" /></div>
             <h2 className="mt-4 text-xl font-extrabold">Chưa có bài đăng trong mục này</h2>
@@ -183,7 +184,7 @@ export default function MyJobsPage() {
                       {job.status === "DRAFT" && <button type="button" disabled={busy} onClick={() => void runAction(job, "publish")} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[#007f95] px-3 py-2 text-xs font-extrabold text-white disabled:opacity-60"><AppIcon name="send" className="h-4 w-4" /> Đăng bài</button>}
                       {job.status === "PUBLISHED" && <Link to={`/posts/${job.id}/candidates`} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[#007f95] px-3 py-2 text-xs font-extrabold text-white"><AppIcon name="users" className="h-4 w-4" /> Xem ứng viên {job.applicantCount > 0 ? `(${job.applicantCount})` : ""}</Link>}
                       {job.status === "PUBLISHED" && job.matchedCount === 0 && <button type="button" disabled={busy} onClick={() => void runAction(job, "cancel")} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-extrabold text-amber-700 disabled:opacity-60"><AppIcon name="close" className="h-4 w-4" /> Kết thúc</button>}
-                      {job.status === "PUBLISHED" && job.matchedCount > 0 && <span className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-extrabold text-slate-400"><AppIcon name="info" className="h-4 w-4" /> Đã Matching · không hủy trực tiếp</span>}
+                      {job.status === "PUBLISHED" && job.matchedCount > 0 && <span className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-extrabold text-slate-400"><AppIcon name="info" className="h-4 w-4" /> Đã kết nối · không hủy trực tiếp</span>}
                       {(job.status === "COMPLETED" || job.status === "CANCELLED") && <button type="button" disabled={busy} onClick={() => void runAction(job, "repost")} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-[#007f95] px-3 py-2 text-xs font-extrabold text-white disabled:opacity-60"><AppIcon name="refresh" className="h-4 w-4" /> Đăng lại</button>}
                       {(job.status === "DRAFT" || job.status === "CANCELLED") && <button type="button" disabled={busy} onClick={() => void runAction(job, "delete")} className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-xs font-extrabold text-red-600 disabled:opacity-60"><AppIcon name="trash" className="h-4 w-4" /> Xóa</button>}
                     </div>

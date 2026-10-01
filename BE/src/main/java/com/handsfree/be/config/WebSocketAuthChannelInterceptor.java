@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
@@ -14,9 +15,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Set;
 
 @Component
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
+    private static final Set<String> ALLOWED_SUBSCRIPTIONS = Set.of(
+            "/user/queue/chat", "/user/queue/chat-errors", "/user/queue/notifications"
+    );
     private final JwtDecoder jwtDecoder;
 
     public WebSocketAuthChannelInterceptor(JwtDecoder jwtDecoder) {
@@ -39,6 +44,27 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
                 accessor.setUser(authentication);
             } catch (JwtException exception) {
                 throw new IllegalArgumentException("Invalid WebSocket access token", exception);
+            }
+        }
+        if (accessor != null && accessor.getCommand() != null
+                && !StompCommand.CONNECT.equals(accessor.getCommand())) {
+            if (!(accessor.getUser() instanceof Authentication authentication)
+                    || !authentication.isAuthenticated()) {
+                throw new IllegalArgumentException("Unauthenticated WebSocket frame");
+            }
+            StompCommand command = accessor.getCommand();
+            if (StompCommand.SUBSCRIBE.equals(command)) {
+                if (accessor.getDestination() == null
+                        || !ALLOWED_SUBSCRIPTIONS.contains(accessor.getDestination())) {
+                    throw new IllegalArgumentException("WebSocket subscription is not allowed");
+                }
+            } else if (StompCommand.SEND.equals(command)) {
+                if (!"/app/chat.send".equals(accessor.getDestination())) {
+                    throw new IllegalArgumentException("WebSocket destination is not allowed");
+                }
+            } else if (!Set.of(StompCommand.DISCONNECT, StompCommand.UNSUBSCRIBE,
+                    StompCommand.ACK, StompCommand.NACK).contains(command)) {
+                throw new IllegalArgumentException("WebSocket command is not allowed");
             }
         }
         return message;

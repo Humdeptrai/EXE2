@@ -13,7 +13,7 @@ interface JobListCardProps {
 
 export default function JobListCard({ job, badge, actions }: JobListCardProps) {
   return (
-    <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:border-[#a9d2d8] hover:shadow-md">
+    <article className="hf-job-list-card overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:border-[#a9d2d8] hover:shadow-md">
       <div className="grid min-w-0 gap-0 sm:grid-cols-[180px_1fr]">
         <Link to={`/jobs/${job.id}`} className="relative block aspect-[16/9] overflow-hidden bg-slate-100 sm:aspect-auto sm:min-h-48">
           <JobVisual job={job} />

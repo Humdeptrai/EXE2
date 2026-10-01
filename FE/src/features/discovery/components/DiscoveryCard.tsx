@@ -13,6 +13,7 @@ interface DiscoveryCardProps {
   onPointerDown?: (event: ReactPointerEvent<HTMLElement>) => void;
   onPointerMove?: (event: ReactPointerEvent<HTMLElement>) => void;
   onPointerUp?: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerCancel?: (event: ReactPointerEvent<HTMLElement>) => void;
 }
 
 export default function DiscoveryCard({
@@ -23,6 +24,7 @@ export default function DiscoveryCard({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onPointerCancel,
 }: DiscoveryCardProps) {
   const exitX = exiting === "left" ? -760 : exiting === "right" ? 760 : dragX;
   const rotation = exiting ? (exiting === "left" ? -18 : 18) : dragX / 28;
@@ -31,16 +33,16 @@ export default function DiscoveryCard({
 
   return (
     <article
-      className={`relative isolate overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-[0_24px_70px_rgba(22,66,78,0.2)] select-none ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+      className={`hf-swipe-card relative isolate overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-[0_24px_70px_rgba(22,66,78,0.2)] select-none ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
       style={{
         transform: `translateX(${exitX}px) rotate(${rotation}deg)`,
         transition: dragging ? "none" : "transform 220ms cubic-bezier(.2,.8,.2,1)",
-        touchAction: "none",
+        touchAction: "pan-y",
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={onPointerCancel}
     >
       <div className="relative aspect-[4/5] min-h-[390px] overflow-hidden bg-slate-100 sm:min-h-[500px]">
         <JobVisual job={job} />

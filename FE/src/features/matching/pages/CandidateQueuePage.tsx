@@ -1,3 +1,4 @@
+import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -109,6 +110,12 @@ export default function CandidateQueuePage() {
     setDragX(event.clientX - pointerRef.current.startX);
   }
 
+  function handlePointerCancel() {
+    pointerRef.current = null;
+    setDragging(false);
+    setDragX(0);
+  }
+
   function handlePointerUp(event: ReactPointerEvent<HTMLElement>) {
     if (!pointerRef.current || pointerRef.current.id !== event.pointerId) return;
     pointerRef.current = null;
@@ -132,7 +139,7 @@ export default function CandidateQueuePage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 sm:space-y-5">
+    <div className="hf-page hf-page-candidate-queue mx-auto max-w-5xl space-y-4 sm:space-y-5">
       <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <Link to="/candidates" className="inline-flex min-h-10 items-center gap-2 text-sm font-extrabold text-[#007f95]"><AppIcon name="arrow-left" className="h-4 w-4" /> Danh sách công việc</Link>
@@ -143,7 +150,7 @@ export default function CandidateQueuePage() {
         {job && (
           <div className="shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center shadow-sm">
             <p className="text-2xl font-black text-[#007f95]">{job.matchedCount}/{job.requiredWorkers}</p>
-            <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Đã Matching</p>
+            <p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">Đã kết nối</p>
           </div>
         )}
       </section>
@@ -169,6 +176,7 @@ export default function CandidateQueuePage() {
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerCancel}
             />
           </div>
 
@@ -183,10 +191,10 @@ export default function CandidateQueuePage() {
           <p className="mt-3 text-center text-[11px] font-bold text-slate-400">Desktop: ← từ chối · → chấp nhận</p>
         </section>
       ) : (
-        <section className="rounded-3xl border border-dashed border-[#a8ccd2] bg-white p-8 text-center sm:p-12">
+        <section className="rounded-3xl border border-dashed border-[#a8ccd2] bg-white p-8 text-center sm:p-12"><EmptyArtwork />
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-[#e9f6f8] text-[#007f95]"><AppIcon name="users" className="h-8 w-8" /></div>
-          <h2 className="mt-5 text-xl font-black">Không còn ứng viên PENDING</h2>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Ứng viên mới sẽ xuất hiện tại đây khi họ quét phải hoặc chọn Rất quan tâm với công việc của bạn.</p>
+          <h2 className="mt-5 text-xl font-black">Đã xem hết ứng viên</h2>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">Ứng viên mới sẽ xuất hiện khi họ quan tâm bài đăng.</p>
           <div className="mt-5 flex flex-col justify-center gap-2 min-[420px]:flex-row">
             <button type="button" onClick={() => void load()} className="min-h-11 rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white">Tải lại</button>
             <Link to="/candidates" className="min-h-11 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-extrabold text-slate-600">Xem Matching hiện tại</Link>

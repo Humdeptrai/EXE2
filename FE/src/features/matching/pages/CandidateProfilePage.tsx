@@ -1,3 +1,4 @@
+import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -55,7 +56,7 @@ export default function CandidateProfilePage() {
   const insights = candidate.hiringInsights;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 sm:space-y-5">
+    <div className="hf-page hf-page-candidate-profile mx-auto max-w-2xl space-y-4 sm:space-y-5">
       <Link to={`/posts/${jobId}/candidates`} className="inline-flex min-h-10 items-center gap-2 text-sm font-extrabold text-[#007f95]"><AppIcon name="arrow-left" className="h-4 w-4" /> Quay lại danh sách</Link>
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
 
@@ -106,7 +107,7 @@ export default function CandidateProfilePage() {
                 ))}
               </div>
             ) : (
-              <div className="mt-3 rounded-xl border border-dashed border-[#b9d9de] bg-white px-4 py-4 text-sm font-bold leading-6 text-slate-500">Ứng viên chưa có lịch sử kết nối thành công. Đây có thể là thành viên mới, vì vậy hãy cân nhắc thêm phần giới thiệu và kỹ năng tự khai.</div>
+              <div className="mt-3 rounded-xl border border-dashed border-[#b9d9de] bg-white px-4 py-4 text-sm font-bold leading-6 text-slate-500"><EmptyArtwork />Ứng viên chưa có lịch sử kết nối thành công. Đây có thể là thành viên mới, vì vậy hãy cân nhắc thêm phần giới thiệu và kỹ năng tự khai.</div>
             )}
           </section>
 
@@ -127,11 +128,11 @@ export default function CandidateProfilePage() {
           <section>
             <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#6e8c93]">Kỹ năng & đặc điểm tự khai</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {candidate.tags.length ? candidate.tags.map((tag) => <span key={tag} className="rounded-full bg-[#e7f5f7] px-3 py-1.5 text-xs font-extrabold text-[#007f95]">{tag}</span>) : <span className="text-sm text-slate-400">Chưa có tag hồ sơ.</span>}
+              {candidate.tags.length ? candidate.tags.map((tag) => <span key={tag} className="rounded-full bg-[#e7f5f7] px-3 py-1.5 text-xs font-extrabold text-[#007f95]">{tag}</span>) : <span className="text-sm text-slate-400">Chưa thêm kỹ năng.</span>}
             </div>
           </section>
           <div className="rounded-2xl border border-[#b9dde3] bg-[#eff9fb] p-4 text-xs font-bold leading-6 text-[#456a72]">
-            Matching xác nhận hai bên muốn kết nối. Sau khi chấp nhận, người thuê thanh toán 10.000đ và người nhận việc thanh toán 5.000đ; chỉ khi cả hai hoàn tất phí kết nối thì Chat realtime mới được mở.
+            Matching xác nhận hai bên muốn kết nối. Sau khi chấp nhận, người thuê thanh toán 10.000đ và người nhận việc thanh toán 5.000đ; chỉ khi cả hai hoàn tất phí kết nối thì Chat mới được mở.
           </div>
         </div>
       </section>

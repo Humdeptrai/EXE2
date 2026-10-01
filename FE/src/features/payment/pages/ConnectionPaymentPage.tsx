@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
+import { useNotifications } from "../../../context/NotificationContext";
 import { paymentService } from "../../../services/paymentService";
 import type { ConnectionPayment, PaymentMethod, PaymentStatus } from "../../../types/payment";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
@@ -34,6 +35,7 @@ function statusPill(status: PaymentStatus) {
 export default function ConnectionPaymentPage() {
   const { matchId = "" } = useParams();
   const navigate = useNavigate();
+  const { subscribeNotifications } = useNotifications();
   const [payment, setPayment] = useState<ConnectionPayment | null>(null);
   const [method, setMethod] = useState<PaymentMethod>("MOMO");
   const [loading, setLoading] = useState(true);
@@ -61,6 +63,13 @@ export default function ConnectionPaymentPage() {
     return () => window.clearTimeout(timer);
   }, [load]);
 
+  useEffect(() => subscribeNotifications((notification) => {
+    if (notification.referenceId === matchId
+        && (notification.type === "PAYMENT_RECEIVED" || notification.type === "CONNECTION_SUCCEEDED")) {
+      void load();
+    }
+  }), [matchId, load, subscribeNotifications]);
+
   async function handlePay() {
     if (!payment || payment.currentUserPaymentStatus !== "PENDING" || payment.status === "REFUNDED") return;
     setBusy(true);
@@ -82,7 +91,7 @@ export default function ConnectionPaymentPage() {
 
   if (!payment) {
     return (
-      <section className="mx-auto max-w-xl rounded-3xl border border-red-200 bg-white p-6 text-center shadow-sm">
+      <section className="hf-page hf-page-connection-payment mx-auto max-w-xl rounded-3xl border border-red-200 bg-white p-6 text-center shadow-sm">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-red-50 text-red-500"><AppIcon name="info" className="h-7 w-7" /></div>
         <h1 className="mt-4 text-xl font-black">Không thể mở thanh toán</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">{error || "Matching không tồn tại hoặc bạn không có quyền truy cập."}</p>
@@ -98,7 +107,7 @@ export default function ConnectionPaymentPage() {
   const counterpartRoleLabel = payment.currentUserIsConsumer ? "Người nhận việc" : "Người thuê";
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5 pb-6">
+    <div className="hf-page hf-page-connection-payment mx-auto max-w-2xl space-y-5 pb-6">
       <section className="flex items-center justify-between gap-3">
         <Link to={backTo} className="inline-flex min-h-10 items-center gap-2 text-sm font-extrabold text-[#007f95]"><AppIcon name="arrow-left" className="h-4 w-4" /> Quay lại Matching</Link>
         <span className={`rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide ${connectionSucceeded ? "bg-emerald-100 text-emerald-700" : payment.status === "REFUNDED" ? "bg-slate-100 text-slate-600" : "bg-amber-100 text-amber-700"}`}>{overallStatusLabel(payment)}</span>
@@ -122,7 +131,7 @@ export default function ConnectionPaymentPage() {
         <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-center sm:p-7">
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><AppIcon name="check" className="h-8 w-8" /></div>
           <h2 className="mt-4 text-xl font-black text-emerald-900">Kết nối thành công!</h2>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-emerald-800">Cả người thuê và người nhận việc đã hoàn tất phí kết nối. Phòng chat realtime hiện đã được mở cho hai bên.</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-emerald-800">Hai bên đã hoàn tất phí kết nối. Bạn có thể bắt đầu trò chuyện.</p>
           <Link to={`/messages/match/${payment.matchId}`} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white"><AppIcon name="chat" className="h-4 w-4" /> Mở phòng chat</Link>
         </section>
       )}
@@ -201,10 +210,10 @@ export default function ConnectionPaymentPage() {
         </section>
       )}
 
-      {currentUserPaid && !connectionSucceeded && payment.status !== "REFUNDED" && !justPaid && (
+      {currentUserPaid && !connectionSucceeded && payment.status !== "REFUNDED" && (
         <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
           <h2 className="font-black text-amber-900">Đang chờ {counterpartRoleLabel.toLowerCase()} thanh toán</h2>
-          <p className="mt-2 text-sm leading-6 text-amber-800">Khoản phí của bạn đã được ghi nhận. Khi phía còn lại hoàn tất khoản phí kết nối, hệ thống sẽ đánh dấu Matching là kết nối thành công và mở Chat realtime.</p>
+          <p className="mt-2 text-sm leading-6 text-amber-800">Phí của bạn đã được ghi nhận. Chat mở khi phía còn lại hoàn tất phí kết nối.</p>
           <button type="button" onClick={() => void load()} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 text-xs font-extrabold text-amber-800"><AppIcon name="refresh" className="h-4 w-4" /> Cập nhật trạng thái</button>
         </section>
       )}

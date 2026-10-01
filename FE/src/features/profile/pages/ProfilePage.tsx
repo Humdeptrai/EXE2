@@ -153,7 +153,7 @@ export default function ProfilePage() {
     .toUpperCase();
 
   return (
-    <div className="grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="hf-page hf-page-profile grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
       <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="h-24 bg-gradient-to-r from-[#007f95] to-[#66bdc6] sm:h-36" />
         <div className="px-4 pb-5 sm:px-8 sm:pb-6">
@@ -286,7 +286,7 @@ export default function ProfilePage() {
               </div>
             ))}
           </div>
-          <p className="mt-4 rounded-xl bg-[#f0f8fa] p-3 text-xs leading-5 text-[#526b72]">Số điện thoại và ảnh đại diện được khuyến khích nhưng không bắt buộc trong MVP.</p>
+          <p className="mt-4 rounded-xl bg-[#f0f8fa] p-3 text-xs leading-5 text-[#526b72]">Thêm ảnh và số điện thoại để hồ sơ dễ nhận diện hơn. Đây là thông tin tùy chọn.</p>
         </section>
 
         <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">

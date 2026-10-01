@@ -1,3 +1,4 @@
+import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -46,11 +47,11 @@ export default function CandidatesOverviewPage() {
   if (loading) return <div className="grid min-h-[50dvh] place-items-center rounded-3xl border border-slate-200 bg-white text-sm font-bold text-slate-500">Đang tải ứng viên...</div>;
 
   return (
-    <div className="space-y-5">
+    <div className="hf-page hf-page-candidates-overview space-y-5">
       <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#779198] sm:text-xs">Chế độ thuê việc</p>
-          <h1 className="mt-1 text-2xl font-black sm:text-3xl">Ứng viên & Matching</h1>
+          <h1 className="mt-1 text-2xl font-black sm:text-3xl">Ứng viên & kết nối</h1>
           <p className="mt-1 text-sm leading-6 text-slate-500">Duyệt hồ sơ theo kiểu swipe và theo dõi những người bạn đã chấp nhận.</p>
         </div>
         <Link to="/posts" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-600"><AppIcon name="list" className="h-4 w-4" /> Quản lý bài đăng</Link>
@@ -68,7 +69,7 @@ export default function CandidatesOverviewPage() {
           <div><p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#799097]">Hàng chờ ứng viên</p><h2 className="mt-1 text-lg font-black sm:text-xl">Theo từng công việc</h2></div>
         </div>
         {jobs.content.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center"><AppIcon name="users" className="mx-auto h-10 w-10 text-slate-300" /><h3 className="mt-4 font-black">Chưa có bài đang tuyển</h3><Link to="/jobs/new" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white">Đăng việc mới</Link></div>
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center"><EmptyArtwork /><AppIcon name="users" className="mx-auto h-10 w-10 text-slate-300" /><h3 className="mt-4 font-black">Chưa có bài đang tuyển</h3><Link to="/jobs/new" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white">Đăng việc mới</Link></div>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">
             {jobs.content.map((job) => {
@@ -91,7 +92,7 @@ export default function CandidatesOverviewPage() {
       <section>
         <div className="mb-3"><p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#799097]">Đã chấp nhận</p><h2 className="mt-1 text-lg font-black sm:text-xl">Matching hiện tại</h2></div>
         {matches.content.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">Chưa có Matching nào. Khi bạn quét phải một ứng viên, kết nối sẽ xuất hiện tại đây.</div>
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500"><EmptyArtwork />Chưa có Matching nào. Khi bạn quét phải một ứng viên, kết nối sẽ xuất hiện tại đây.</div>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2">{matches.content.map((match: JobMatch) => <MatchCard key={match.id} match={match} perspective="CONSUMER" />)}</div>
         )}

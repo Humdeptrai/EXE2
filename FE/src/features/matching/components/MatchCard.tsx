@@ -10,7 +10,7 @@ interface MatchCardProps {
 
 export default function MatchCard({ match, perspective }: MatchCardProps) {
   return (
-    <article className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+    <article className="hf-match-card rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
       <div className="flex items-start gap-3">
         {match.counterpart.avatarUrl ? (
           <img src={match.counterpart.avatarUrl} alt={match.counterpart.fullName} className="h-12 w-12 shrink-0 rounded-full object-cover" />
@@ -23,7 +23,7 @@ export default function MatchCard({ match, perspective }: MatchCardProps) {
               <p className="truncate text-sm font-black">{match.counterpart.fullName}</p>
               <p className="mt-0.5 text-xs font-bold text-slate-400">{perspective === "CONSUMER" ? "Người nhận việc" : "Chủ bài"}</p>
             </div>
-            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-emerald-700">Đã Matching</span>
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-emerald-700">Đã kết nối</span>
           </div>
           <h3 className="mt-4 line-clamp-2 text-base font-black">{match.jobTitle}</h3>
           <div className="mt-3 grid gap-2 text-xs font-bold text-slate-500 min-[440px]:grid-cols-2">

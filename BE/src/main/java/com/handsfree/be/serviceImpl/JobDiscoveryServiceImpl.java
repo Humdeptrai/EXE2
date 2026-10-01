@@ -35,6 +35,7 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import com.handsfree.be.properties.BusinessProperties;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -42,6 +43,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class JobDiscoveryServiceImpl implements JobDiscoveryService {
+    private final BusinessProperties businessProperties;
     private static final List<InterestStatus> HIDDEN_FROM_FEED = List.of(
             InterestStatus.PENDING,
             InterestStatus.ACCEPTED,
@@ -75,7 +77,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
         Page<JobDiscoveryResponse> result = jobPostRepository.findDiscoveryFeed(
                         userId,
                         JobStatus.PUBLISHED,
-                        LocalDate.now(),
+                        LocalDate.now(businessProperties.zoneId()),
                         categoryId,
                         normalize(keyword),
                         normalize(location),
@@ -106,7 +108,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
                 .findAllByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByCreatedAtDesc(
                         userId,
                         JobStatus.PUBLISHED,
-                        LocalDate.now(),
+                        LocalDate.now(businessProperties.zoneId()),
                         pageRequest(page, size)
                 )
                 .map(saved -> jobDiscoveryMapper.toResponse(
@@ -130,7 +132,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
                         level,
                         InterestStatus.PENDING,
                         JobStatus.PUBLISHED,
-                        LocalDate.now(),
+                        LocalDate.now(businessProperties.zoneId()),
                         pageRequest(page, size)
                 )
                 .map(interest -> jobDiscoveryMapper.toResponse(
@@ -147,7 +149,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
                 .findAllByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByCreatedAtDesc(
                         userId,
                         JobStatus.PUBLISHED,
-                        LocalDate.now(),
+                        LocalDate.now(businessProperties.zoneId()),
                         pageRequest(page, size)
                 )
                 .map(skipped -> jobDiscoveryMapper.toResponse(
@@ -162,16 +164,16 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
     public DiscoverySummaryResponse getSummary(UUID userId) {
         return new DiscoverySummaryResponse(
                 savedJobRepository.countByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
-                        userId, JobStatus.PUBLISHED, LocalDate.now()
+                        userId, JobStatus.PUBLISHED, LocalDate.now(businessProperties.zoneId())
                 ),
                 jobInterestRepository.countByApplicant_IdAndLevelAndStatusAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
-                        userId, InterestLevel.INTERESTED, InterestStatus.PENDING, JobStatus.PUBLISHED, LocalDate.now()
+                        userId, InterestLevel.INTERESTED, InterestStatus.PENDING, JobStatus.PUBLISHED, LocalDate.now(businessProperties.zoneId())
                 ),
                 jobInterestRepository.countByApplicant_IdAndLevelAndStatusAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
-                        userId, InterestLevel.VERY_INTERESTED, InterestStatus.PENDING, JobStatus.PUBLISHED, LocalDate.now()
+                        userId, InterestLevel.VERY_INTERESTED, InterestStatus.PENDING, JobStatus.PUBLISHED, LocalDate.now(businessProperties.zoneId())
                 ),
                 skippedJobRepository.countByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
-                        userId, JobStatus.PUBLISHED, LocalDate.now()
+                        userId, JobStatus.PUBLISHED, LocalDate.now(businessProperties.zoneId())
                 ),
                 jobMatchRepository.countByProvider_IdAndStatus(userId, MatchStatus.ACTIVE)
         );
@@ -263,6 +265,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
     @Override
     @Transactional
     public JobInteractionStateResponse withdrawInterest(UUID userId, UUID jobId) {
+        jobPostRepository.findDiscoveryForUpdate(jobId);
         jobInterestRepository.findByApplicant_IdAndJobPost_Id(userId, jobId)
                 .ifPresent(interest -> {
                     if (interest.getStatus() == InterestStatus.ACCEPTED) {
@@ -282,7 +285,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
         if (jobPost.getOwner().getId().equals(userId)) {
             throw new AppException(ErrorCode.OWN_JOB_INTERACTION_NOT_ALLOWED);
         }
-        if (jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now())) {
+        if (jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))) {
             throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
         }
         return jobPost;
@@ -294,7 +297,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
         if (jobPost.getOwner().getId().equals(userId)) {
             throw new AppException(ErrorCode.OWN_JOB_INTERACTION_NOT_ALLOWED);
         }
-        if (jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now())
+        if (jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))
                 || isFullyMatched(jobPost)) {
             throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
         }
