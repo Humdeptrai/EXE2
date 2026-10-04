@@ -35,7 +35,19 @@ export default function DiscoverPage() {
   const [dragging, setDragging] = useState(false);
   const [exiting, setExiting] = useState<"left" | "right" | null>(null);
   const pointerRef = useRef<{ id: number; startX: number } | null>(null);
-  const currentJob = jobs[0];
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const currentIndex = Math.max(0, jobs.findIndex((job) => job.id === selectedJobId));
+  const currentJob = jobs[currentIndex];
+
+  const browseJob = useCallback((direction: number) => {
+    if (busy || dragging) return;
+    const next = jobs[currentIndex + direction];
+    if (!next) return;
+    pointerRef.current = null;
+    setSelectedJobId(next.id);
+    setDragX(0);
+    setExiting(null);
+  }, [busy, dragging, jobs, currentIndex]);
 
   const hasFilters = useMemo(() => Object.values(appliedFilters).some((value) => value !== undefined && value !== ""), [appliedFilters]);
 
@@ -44,6 +56,7 @@ export default function DiscoverPage() {
     if (replace) setLoading(true);
     try {
       const result = await jobService.getFeed(filters, 0, 12);
+      if (replace) setSelectedJobId(null);
       setJobs((current) => {
         if (replace) return result.content;
         const currentIds = new Set(current.map((item) => item.id));
@@ -85,12 +98,14 @@ export default function DiscoverPage() {
   }, [appliedFilters]);
 
   const removeCurrent = useCallback((jobId: string) => {
+    const index = jobs.findIndex((job) => job.id === jobId);
+    setSelectedJobId(jobs[index + 1]?.id ?? jobs[index - 1]?.id ?? null);
     setJobs((current) => current.filter((item) => item.id !== jobId));
     setDragX(0);
     setExiting(null);
     setBusy(false);
     void replenish();
-  }, [replenish]);
+  }, [replenish, jobs]);
 
   const performSwipe = useCallback(async (direction: "left" | "right") => {
     if (!currentJob || busy) return;
@@ -143,7 +158,7 @@ export default function DiscoverPage() {
       const state = currentJob.interaction.saved
         ? await jobService.unsaveJob(currentJob.id)
         : await jobService.saveJob(currentJob.id);
-      setJobs((current) => current.map((item, index) => index === 0
+      setJobs((current) => current.map((item) => item.id === currentJob.id
         ? { ...item, interaction: state }
         : item));
       setNotice(state.saved ? "Đã lưu công việc." : "Đã bỏ lưu công việc.");
@@ -156,13 +171,14 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     function handleKeyboard(event: KeyboardEvent) {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || busy) return;
-      if (event.key === "ArrowLeft") void performSwipe("left");
-      if (event.key === "ArrowRight") void performSwipe("right");
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select, button, a, [contenteditable], dialog")) return;
+      if (busy) return;
+      if (event.key === "ArrowLeft") { event.preventDefault(); browseJob(-1); }
+      if (event.key === "ArrowRight") { event.preventDefault(); browseJob(1); }
     }
     window.addEventListener("keydown", handleKeyboard);
     return () => window.removeEventListener("keydown", handleKeyboard);
-  }, [busy, performSwipe]);
+  }, [busy, browseJob]);
 
   function handlePointerDown(event: ReactPointerEvent<HTMLElement>) {
     if (busy) return;
@@ -224,7 +240,7 @@ export default function DiscoverPage() {
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#779198] sm:text-xs">Chế độ nhận việc</p>
           <h1 className="mt-1 text-2xl font-black sm:text-3xl">Khám phá công việc</h1>
-          <p className="mt-1 text-sm leading-6 text-slate-500">Vuốt để chọn. Chạm để xem chi tiết.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">Dùng mũi tên để xem việc. Vuốt để bỏ qua hoặc quan tâm.</p>
         </div>
         <div className="flex gap-2">
           <Link to="/skipped" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-600 hover:border-[#9acbd2]">
@@ -248,7 +264,7 @@ export default function DiscoverPage() {
               className="min-h-12 w-full rounded-2xl border border-slate-200 bg-[#f8faff] py-3 pl-10 pr-3 text-base outline-none transition focus:border-[#58aeba] focus:ring-4 focus:ring-[#dff2f5] sm:text-sm"
             />
           </label>
-          <button type="submit" className="min-h-12 shrink-0 rounded-2xl bg-[#0b1c30] px-4 text-sm font-extrabold text-white">Tìm</button>
+          <button type="submit" className="min-h-12 shrink-0 rounded-2xl bg-[#007f95] px-4 text-sm font-extrabold text-white transition hover:bg-[#006b7d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#007f95]">Tìm</button>
         </div>
 
         {showFilters && (
@@ -289,10 +305,16 @@ export default function DiscoverPage() {
       {loading ? (
         <div className="mx-auto aspect-[4/5] w-full max-w-md animate-pulse rounded-[2rem] bg-slate-200" />
       ) : currentJob ? (
-        <section className="mx-auto w-full max-w-md pb-3">
+        <section className="hf-job-browser mx-auto w-full max-w-md pb-3">
+          <div className="hf-job-navigation mb-3 flex items-center justify-between gap-3" aria-label="Chuyển công việc">
+            <button type="button" onClick={() => browseJob(-1)} disabled={busy || dragging || currentIndex === 0} aria-label="Công việc trước" className="hf-job-prev flex h-12 items-center justify-center gap-2 rounded-full border border-[#b7dce2] bg-white px-4 font-bold text-[#007f95] shadow-sm transition hover:bg-[#e8f6f8] disabled:opacity-35"><AppIcon name="chevron-left" className="h-5 w-5" /><span className="sm:sr-only">Trước</span></button>
+            <span aria-live="polite" className="text-xs font-bold text-slate-500">Công việc {currentIndex + 1}/{jobs.length}</span>
+            <button type="button" onClick={() => browseJob(1)} disabled={busy || dragging || currentIndex >= jobs.length - 1} aria-label="Công việc tiếp theo" className="hf-job-next flex h-12 items-center justify-center gap-2 rounded-full border border-[#b7dce2] bg-white px-4 font-bold text-[#007f95] shadow-sm transition hover:bg-[#e8f6f8] disabled:opacity-35"><span className="sm:sr-only">Tiếp</span><AppIcon name="chevron-right" className="h-5 w-5" /></button>
+          </div>
           <div className="relative">
-            {jobs[1] && <div className="absolute inset-x-5 inset-y-3 translate-y-4 rounded-[2rem] bg-[#dcebee] shadow-sm" aria-hidden="true" />}
+            {jobs[currentIndex + 1] && <div className="absolute inset-x-5 inset-y-3 translate-y-4 rounded-[2rem] bg-[#dcebee] shadow-sm" aria-hidden="true" />}
             <DiscoveryCard
+              key={currentJob.id}
               job={currentJob}
               dragX={dragX}
               dragging={dragging}

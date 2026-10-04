@@ -35,3 +35,12 @@
 @media(min-width:768px) and (max-width:1199px){.hf-home-hero{min-height:300px}.hf-home-hero-copy{max-width:560px;padding:28px}}
 @media(max-width:767px){.hf-home-hero{min-height:290px}.hf-home-hero-image{height:100%;object-position:60% center}.hf-home-hero-copy{max-width:100%;padding:24px}.hf-home-hero::before{background:linear-gradient(90deg,rgba(5,39,48,.82),rgba(5,39,48,.5))}}
 @media(max-width:359px){.hf-home-hero-copy{padding:20px}}
+
+/* Discovery photos remain separate from readable job information. */
+.hf-swipe-card.hf-discovery-gallery > .hf-discovery-photo{aspect-ratio:auto;min-height:0;height:clamp(180px,30dvh,300px)}
+.hf-discovery-photo > img{max-height:100%;max-width:100%;width:auto;height:auto;pointer-events:none}
+.hf-discovery-photo > .hf-job-placeholder{height:100%;width:100%}
+.hf-discovery-photo .hf-job-placeholder-label{top:12px;bottom:auto}
+
+.hf-job-browser{position:relative}
+@media(min-width:768px){.hf-job-navigation .hf-job-prev,.hf-job-navigation .hf-job-next{position:absolute;top:clamp(90px,15dvh,150px);z-index:5;width:52px;padding:0}.hf-job-navigation .hf-job-prev{left:-72px}.hf-job-navigation .hf-job-next{right:-72px}.hf-job-navigation{justify-content:center}}

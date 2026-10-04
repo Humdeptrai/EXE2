@@ -5,12 +5,13 @@ interface JobVisualProps {
   job: JobDiscovery;
   className?: string;
   imageIndex?: number;
+  fit?: "cover" | "original";
 }
 
-export default function JobVisual({ job, className = "", imageIndex = 0 }: JobVisualProps) {
+export default function JobVisual({ job, className = "", imageIndex = 0, fit = "cover" }: JobVisualProps) {
   const image = job.media[imageIndex]?.url || job.media[0]?.url;
   if (image) {
-    return <img src={image} alt={job.title} className={`h-full w-full object-cover ${className}`} />;
+    return <img src={image} alt={job.title} decoding="async" className={`${fit === "original" ? "mx-auto block h-auto w-auto max-h-[70dvh] max-w-full object-contain" : "h-full w-full object-cover"} ${className}`} />;
   }
 
   return (

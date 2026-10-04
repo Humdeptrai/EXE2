@@ -31,6 +31,11 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+        // Spring also generates DISCONNECT during session cleanup, without a Principal.
+        // It carries no application data and must be allowed even after CONNECT fails.
+        if (accessor != null && StompCommand.DISCONNECT.equals(accessor.getCommand())) {
+            return message;
+        }
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
             String authorization = accessor.getFirstNativeHeader("Authorization");
             if (!StringUtils.hasText(authorization)) {

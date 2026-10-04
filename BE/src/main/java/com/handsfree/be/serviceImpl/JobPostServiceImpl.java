@@ -27,6 +27,7 @@ import com.handsfree.be.repository.UserRepository;
 import com.handsfree.be.service.JobPostService;
 import com.handsfree.be.service.MediaStorageService;
 import com.handsfree.be.storage.StoredFile;
+import com.handsfree.be.storage.JobImageBatchUploader;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -58,6 +59,7 @@ public class JobPostServiceImpl implements JobPostService {
     private final JobCategoryRepository jobCategoryRepository;
     private final UserRepository userRepository;
     private final MediaStorageService mediaStorageService;
+    private final JobImageBatchUploader jobImageBatchUploader;
     private final JobPostMapper jobPostMapper;
 
     @Override
@@ -186,7 +188,7 @@ public class JobPostServiceImpl implements JobPostService {
     @Override
     @Transactional
     public List<JobMediaResponse> addMedia(UUID userId, UUID jobId, List<MultipartFile> files) {
-        JobPost jobPost = getOwnedJob(userId, jobId);
+        JobPost jobPost = getOwnedJobForUpdate(userId, jobId);
         requireStatus(jobPost, Set.of(JobStatus.DRAFT, JobStatus.PUBLISHED), ErrorCode.JOB_EDIT_NOT_ALLOWED);
         if (files == null || files.isEmpty()) {
             throw new AppException(ErrorCode.EMPTY_FILE);
@@ -195,12 +197,11 @@ public class JobPostServiceImpl implements JobPostService {
             throw new AppException(ErrorCode.TOO_MANY_JOB_IMAGES);
         }
 
-        List<StoredFile> storedFiles = new ArrayList<>();
+        List<StoredFile> storedFiles = jobImageBatchUploader.upload(files);
         try {
             int startOrder = jobPost.getMedia().size();
             for (int index = 0; index < files.size(); index++) {
-                StoredFile stored = mediaStorageService.storeJobImage(files.get(index));
-                storedFiles.add(stored);
+                StoredFile stored = storedFiles.get(index);
                 jobPost.addMedia(JobMedia.builder()
                         .storedName(stored.storedName())
                         .originalName(stored.originalName())
@@ -210,10 +211,16 @@ public class JobPostServiceImpl implements JobPostService {
                         .displayOrder(startOrder + index)
                         .build());
             }
-            JobPost saved = jobPostRepository.save(jobPost);
+            JobPost saved = jobPostRepository.saveAndFlush(jobPost);
             return saved.getMedia().stream().map(jobPostMapper::toMediaResponse).toList();
         } catch (RuntimeException exception) {
-            storedFiles.forEach(stored -> mediaStorageService.delete(stored.storedName()));
+            for (StoredFile stored : storedFiles) {
+                try {
+                    mediaStorageService.delete(stored.storedName());
+                } catch (RuntimeException cleanupFailure) {
+                    exception.addSuppressed(cleanupFailure);
+                }
+            }
             throw exception;
         }
     }

@@ -1,5 +1,7 @@
-import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import ImageViewer from "../../../components/ui/ImageViewer";
+import VndInput from "../../../components/ui/VndInput";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
 import { jobService } from "../../../services/jobService";
@@ -68,9 +70,12 @@ export default function JobFormPage() {
   const [categories, setCategories] = useState<JobCategory[]>([]);
   const [job, setJob] = useState<JobPost | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingAction, setSavingAction] = useState<"DRAFT" | "PUBLISH" | null>(null);
+  const savingRef = useRef(false);
+  const [savingLabel, setSavingLabel] = useState("Đang lưu bài...");
   const [message, setMessage] = useState<{ type: "error" | "info"; text: string } | null>(null);
 
   const previews = useMemo(
@@ -159,7 +164,9 @@ export default function JobFormPage() {
   }
 
   async function save(action: "DRAFT" | "PUBLISH") {
-    if (savingAction) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSavingLabel("Đang lưu bài...");
     setSavingAction(action);
     setMessage(null);
     try {
@@ -175,12 +182,15 @@ export default function JobFormPage() {
       if (!persistedJobId) setPersistedJobId(saved.id);
 
       if (newFiles.length) {
+        setSavingLabel(`Đang tải ${newFiles.length} ảnh...`);
         const media = await jobService.uploadMedia(saved.id, newFiles);
         saved = { ...saved, media };
         setNewFiles([]);
+        setJob(saved);
       }
 
       if (action === "PUBLISH" && saved.status === "DRAFT") {
+        setSavingLabel("Đang đăng bài...");
         saved = await jobService.publish(saved.id);
       }
 
@@ -192,6 +202,7 @@ export default function JobFormPage() {
     } catch (error) {
       setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể lưu bài đăng. Vui lòng thử lại.") });
     } finally {
+      savingRef.current = false;
       setSavingAction(null);
     }
   }
@@ -213,6 +224,7 @@ export default function JobFormPage() {
 
   return (
     <div className="hf-page hf-page-job-form mx-auto w-full max-w-5xl pb-4">
+      {previewImage && <ImageViewer image={previewImage} onClose={() => setPreviewImage(null)} />}
       <div className="mb-4 flex items-start gap-3 sm:mb-6">
         <Link to="/posts" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm" aria-label="Quay lại quản lý bài đăng">
           <span className="text-xl">←</span>
@@ -315,7 +327,7 @@ export default function JobFormPage() {
             <div className="mt-3 grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
               <label className="relative block">
                 <span className="sr-only">Số tiền</span>
-                <input inputMode="numeric" value={form.budgetAmount} onChange={(event) => setField("budgetAmount", event.target.value.replace(/\D/g, "").slice(0, 12))} required disabled={!canEditCore} placeholder="150000" className="min-h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-16 text-base font-extrabold outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed] disabled:bg-slate-50" />
+                <VndInput value={form.budgetAmount} onValueChange={(value) => setField("budgetAmount", value)} required disabled={!canEditCore} placeholder="150.000" className="min-h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-16 text-base font-extrabold outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed] disabled:bg-slate-50" />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-extrabold text-slate-400">VNĐ</span>
               </label>
               <label className="block text-sm font-extrabold">
@@ -334,13 +346,17 @@ export default function JobFormPage() {
             <div className="mt-3 grid grid-cols-2 gap-3 min-[520px]:grid-cols-3">
               {job?.media.map((media) => (
                 <div key={media.id} className="group relative aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-                  <img src={media.url} alt={media.originalName} className="h-full w-full object-cover" />
+                  <button type="button" onClick={() => setPreviewImage({ url: media.url, name: media.originalName })} aria-label={`Xem lớn ảnh ${media.originalName}`} className="block h-full w-full cursor-zoom-in focus-visible:outline-4 focus-visible:outline-[#007f95]">
+                    <img src={media.url} alt={media.originalName} className="h-full w-full object-contain" />
+                  </button>
                   {canEdit && <button type="button" onClick={() => void removeExistingMedia(media.id)} className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-black/65 text-white" aria-label="Xóa ảnh"><AppIcon name="close" className="h-4 w-4" /></button>}
                 </div>
               ))}
               {previews.map((preview, index) => (
                 <div key={`${preview.file.name}-${preview.file.lastModified}`} className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
-                  <img src={preview.url} alt={preview.file.name} className="h-full w-full object-cover" />
+                  <button type="button" onClick={() => setPreviewImage({ url: preview.url, name: preview.file.name })} aria-label={`Xem lớn ảnh ${preview.file.name}`} className="block h-full w-full cursor-zoom-in focus-visible:outline-4 focus-visible:outline-[#007f95]">
+                    <img src={preview.url} alt={preview.file.name} className="h-full w-full object-contain" />
+                  </button>
                   <button type="button" onClick={() => setNewFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))} className="absolute right-2 top-2 grid h-9 w-9 place-items-center rounded-full bg-black/65 text-white" aria-label="Bỏ ảnh đã chọn"><AppIcon name="close" className="h-4 w-4" /></button>
                 </div>
               ))}
@@ -370,11 +386,11 @@ export default function JobFormPage() {
             <div className="hf-form-actions grid gap-3">
               <button type="submit" disabled={Boolean(savingAction)} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-[#8ec6cf] bg-white px-4 py-3 font-extrabold text-[#007f95] disabled:opacity-60">
                 <AppIcon name="save" className="h-5 w-5" />
-                {savingAction === "DRAFT" ? "Đang lưu..." : "Lưu bản nháp"}
+                {savingAction === "DRAFT" ? savingLabel : "Lưu bản nháp"}
               </button>
               <button type="button" onClick={() => void save("PUBLISH")} disabled={Boolean(savingAction)} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#007f95] px-4 py-3 font-extrabold text-white shadow-[0_12px_28px_rgba(0,127,149,0.24)] disabled:opacity-60">
                 <AppIcon name="send" className="h-5 w-5" />
-                {savingAction === "PUBLISH" ? "Đang đăng..." : job?.status === "PUBLISHED" ? "Lưu thay đổi" : "Đăng bài ngay"}
+                {savingAction === "PUBLISH" ? savingLabel : job?.status === "PUBLISHED" ? "Lưu thay đổi" : "Đăng bài ngay"}
               </button>
             </div>
           )}

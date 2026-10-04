@@ -125,8 +125,12 @@ export default function JobDetailPage() {
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="relative aspect-[16/11] max-h-[590px] overflow-hidden bg-slate-100 sm:aspect-[16/9]">
-          <JobVisual job={job} imageIndex={imageIndex} />
+        <div className="relative flex min-h-56 items-center justify-center overflow-hidden bg-slate-100">
+          {job.media[imageIndex]?.url ? (
+            <a href={job.media[imageIndex].url} target="_blank" rel="noopener noreferrer" className="block max-w-full" aria-label="Mở ảnh gốc trong tab mới">
+              <JobVisual job={job} imageIndex={imageIndex} fit="original" />
+            </a>
+          ) : <JobVisual job={job} imageIndex={imageIndex} fit="original" /> }
           {job.media.length > 1 && (
             <>
               <button type="button" onClick={() => setImageIndex((value) => (value - 1 + job.media.length) % job.media.length)} aria-label="Ảnh trước" className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-black/35 text-white backdrop-blur"><AppIcon name="chevron-left" className="h-5 w-5" /></button>
