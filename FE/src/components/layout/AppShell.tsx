@@ -1,3 +1,4 @@
+import FeedbackProvider from "../feedback/FeedbackProvider";
 import { useViewportHeight } from "./useViewportHeight";
 import "./app-ui.css";
 import { NavLink, Outlet } from "react-router-dom";
@@ -37,7 +38,7 @@ function Avatar() {
   );
 }
 
-export default function AppShell() {
+function AppShellLayout() {
   useViewportHeight();
   const { user, logout } = useAuth();
   const { unreadCount } = useNotifications();
@@ -105,13 +106,15 @@ export default function AppShell() {
               <p className="mt-1 text-sm font-bold text-slate-500">Việc nhỏ, kết nối lớn</p>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <div className="hidden w-72 sm:block lg:hidden"><ModeSwitcher /></div>
+              <NavLink to="/wallet" className="rounded-full bg-[#e8f6f8] px-3 py-2 text-xs font-bold text-[#007f95]">Ví</NavLink>
+              {(user?.role === "ADMIN" || user?.role === "STAFF") && <NavLink to="/management" className="rounded-full bg-[#e8f6f8] px-3 py-2 text-xs font-bold text-[#007f95]">Quản lý</NavLink>}
+              <div className="hidden w-72 md:block lg:hidden"><ModeSwitcher /></div>
               <NavLink to="/profile" aria-label="Mở hồ sơ" className="rounded-full focus:outline-none focus:ring-2 focus:ring-[#007f95] focus:ring-offset-2">
                 <Avatar />
               </NavLink>
             </div>
           </div>
-          <div className="mt-3 sm:hidden"><ModeSwitcher /></div>
+          <div className="mt-3 md:hidden"><ModeSwitcher /></div>
         </header>
 
         <main className="hf-main mx-auto w-full max-w-6xl px-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-5 lg:px-8 lg:pb-10">
@@ -145,4 +148,8 @@ export default function AppShell() {
       </nav>
     </div>
   );
+}
+
+export default function AppShell() {
+  return <FeedbackProvider><AppShellLayout /></FeedbackProvider>;
 }

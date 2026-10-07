@@ -1,6 +1,5 @@
 package com.handsfree.be.mapper;
 
-import com.handsfree.be.constant.InterestStatus;
 import com.handsfree.be.dto.response.CandidateHiringInsightsResponse;
 import com.handsfree.be.dto.response.CandidateResponse;
 import com.handsfree.be.dto.response.JobCategoryResponse;
@@ -14,19 +13,24 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 @Component
+@lombok.RequiredArgsConstructor
 public class JobMatchingMapper {
+    private final com.handsfree.be.serviceImpl.ContactAccess contactAccess;
+    private final com.handsfree.be.repository.JobMatchRepository matches;
     public CandidateResponse toCandidateResponse(JobInterest interest, CandidateHiringInsightsResponse hiringInsights) {
         User applicant = interest.getApplicant();
-        boolean identityRevealed = interest.getStatus() == InterestStatus.ACCEPTED;
+        var matched = matches.findByJobInterest_Id(interest.getId());
+        boolean identityRevealed = matched.map(contactAccess::unlocked).orElse(false);
+        String name = identityRevealed ? contactAccess.user(applicant, matched.orElseThrow()).fullName() : "Người dùng Hands-free";
         return new CandidateResponse(
                 interest.getId(),
                 interest.getJobPost().getId(),
                 applicant.getId(),
-                identityRevealed ? applicant.getFullName() : "Người dùng Hands-free",
+                name,
                 identityRevealed ? applicant.getAvatarUrl() : null,
-                applicant.getLocation(),
-                applicant.getBio(),
-                applicant.getProfileTags() == null ? List.of() : List.copyOf(applicant.getProfileTags()),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(applicant.getLocation()),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(applicant.getBio()),
+                applicant.getProfileTags() == null ? List.of() : applicant.getProfileTags().stream().map(com.handsfree.be.serviceImpl.ContactPrivacy::redact).toList(),
                 applicant.isProfileCompleted(),
                 identityRevealed,
                 interest.getLevel(),
@@ -53,23 +57,15 @@ public class JobMatchingMapper {
                 match.getJobPost().getCategory().getDescription(),
                 match.getJobPost().getCategory().getIcon()
         );
-        MatchUserResponse user = new MatchUserResponse(
-                counterpart.getId(),
-                counterpart.getFullName(),
-                counterpart.getAvatarUrl(),
-                counterpart.getLocation(),
-                counterpart.getBio(),
-                counterpart.getProfileTags() == null ? List.of() : List.copyOf(counterpart.getProfileTags()),
-                counterpart.isProfileCompleted()
-        );
+        MatchUserResponse user = contactAccess.user(counterpart, match);
         return new MatchResponse(
                 match.getId(),
                 match.getJobPost().getId(),
-                match.getJobPost().getTitle(),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(match.getJobPost().getTitle()),
                 category,
                 match.getJobPost().getScheduledDate(),
                 match.getJobPost().getStartTime(),
-                match.getJobPost().getLocation(),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(match.getJobPost().getLocation()),
                 match.getJobPost().getBudgetAmount(),
                 match.getJobPost().getBudgetType(),
                 match.getJobPost().getRequiredWorkers(),
@@ -77,8 +73,8 @@ public class JobMatchingMapper {
                 user,
                 match.getMatchedAt(),
                 match.getConnectionSucceededAt(),
-                match.getConnectionSucceededAt() != null,
-                match.getConnectionSucceededAt() != null && match.getChatUnlockedAt() != null
+                contactAccess.unlocked(match),
+                contactAccess.unlocked(match) && match.getChatUnlockedAt() != null
         );
     }
 }

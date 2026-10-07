@@ -115,6 +115,7 @@ export default function LoginPage() {
         <AuthDivider />
         <GoogleAuthButton onCredential={handleGoogle} onError={(text) => setMessage({ kind: "error", text })} disabled={isSubmitting} />
 
+        <p className="hf-auth-switch"><Link className="font-bold text-[#006b82] hover:underline" to="/management/login">Đăng nhập dành cho ADMIN / STAFF</Link></p>
         <p className="hf-auth-switch">Bạn chưa có tài khoản? <Link className="font-bold text-[#006b82] hover:underline" to="/register">Đăng ký ngay</Link></p>
     </AuthLayout>
   );

@@ -14,6 +14,7 @@ export interface AuthContextValue {
   isBootstrapping: boolean;
   register: (payload: RegisterRequest) => Promise<void>;
   login: (payload: LoginRequest) => Promise<void>;
+  loginOperator: (payload: LoginRequest) => Promise<User>;
   loginWithGoogle: (payload: GoogleLoginRequest) => Promise<void>;
   updateProfile: (payload: UpdateProfileRequest) => Promise<User>;
   uploadAvatar: (file: File) => Promise<User>;

@@ -19,6 +19,11 @@ export const authService = {
     return response.data.result;
   },
 
+  async loginOperator(payload: LoginRequest): Promise<AuthResult> {
+    const response = await api.post<ApiResponse<AuthResult>>("/auth/management/login", payload);
+    return response.data.result;
+  },
+
   async loginWithGoogle(payload: GoogleLoginRequest): Promise<AuthResult> {
     const response = await api.post<ApiResponse<AuthResult>>("/auth/google", payload);
     return response.data.result;

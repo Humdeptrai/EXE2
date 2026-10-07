@@ -37,6 +37,10 @@ public record ConnectionPaymentResponse(
         Instant connectionSucceededAt,
         boolean chatUnlocked,
         Instant paidAt,
+        Instant paymentDeadlineAt,
+        com.handsfree.be.constant.MatchStatus matchStatus,
+        Instant refundedAt,
+        Instant serverTime,
         MatchUserResponse counterpart
 ) {
 }

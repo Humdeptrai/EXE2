@@ -97,6 +97,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     saveAuthResult(await authService.login(payload), sessionId);
   }, [saveAuthResult]);
 
+  const loginOperator = useCallback(async (payload: LoginRequest) => {
+    const sessionId = tokenService.getSessionId();
+    const result = await authService.loginOperator(payload);
+    saveAuthResult(result, sessionId);
+    return result.user;
+  }, [saveAuthResult]);
+
   const loginWithGoogle = useCallback(async (payload: GoogleLoginRequest) => {
     const sessionId = tokenService.getSessionId();
     saveAuthResult(await authService.loginWithGoogle(payload), sessionId);
@@ -144,6 +151,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     isBootstrapping,
     register,
     login,
+    loginOperator,
     loginWithGoogle,
     updateProfile,
     uploadAvatar,
@@ -156,6 +164,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     isBootstrapping,
     register,
     login,
+    loginOperator,
     loginWithGoogle,
     updateProfile,
     uploadAvatar,

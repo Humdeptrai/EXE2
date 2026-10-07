@@ -48,6 +48,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JobPostServiceImpl implements JobPostService {
     private final BusinessProperties businessProperties;
+    private final IdentityService identity;
     private static final int MAX_IMAGES = 5;
 
     private final JobPostRepository jobPostRepository;
@@ -133,6 +134,7 @@ public class JobPostServiceImpl implements JobPostService {
     @Override
     @Transactional
     public JobPostResponse publish(UUID userId, UUID jobId) {
+        identity.requireVerified(userId);
         JobPost jobPost = getOwnedJob(userId, jobId);
         if (jobPost.getStatus() == JobStatus.PUBLISHED) {
             return toResponse(jobPost);
@@ -274,6 +276,9 @@ public class JobPostServiceImpl implements JobPostService {
     }
 
     private void apply(JobPost jobPost, JobUpsertRequest request) {
+        ContactPrivacy.validate(request.title());
+        ContactPrivacy.validate(request.description());
+        ContactPrivacy.validate(request.location());
         JobCategory category = jobCategoryRepository.findByIdAndActiveTrue(request.categoryId())
                 .orElseThrow(() -> new AppException(ErrorCode.JOB_CATEGORY_NOT_FOUND));
         jobPost.setCategory(category);

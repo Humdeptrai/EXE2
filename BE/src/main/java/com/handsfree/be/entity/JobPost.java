@@ -85,6 +85,10 @@ public class JobPost extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private JobStatus status;
 
+    @Builder.Default
+    @Column(name="moderation_hidden",nullable=false,columnDefinition="boolean default false")
+    private boolean moderationHidden = false;
+
     @Column(name = "published_at")
     private Instant publishedAt;
 

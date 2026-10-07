@@ -1,3 +1,4 @@
+import UserNotice from "../../../components/feedback/UserNotice";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -57,7 +58,7 @@ export default function CandidatesOverviewPage() {
         <Link to="/posts" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-extrabold text-slate-600"><AppIcon name="list" className="h-4 w-4" /> Quản lý bài đăng</Link>
       </section>
 
-      {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+      {error && <UserNotice message={error} error />}
 
       <section className="grid gap-3 min-[420px]:grid-cols-2">
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-2xl font-black text-[#007f95]">{pendingTotal}</p><p className="mt-1 text-xs font-bold text-slate-500">Ứng viên đang chờ</p></article>

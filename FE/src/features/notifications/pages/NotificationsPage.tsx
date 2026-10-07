@@ -1,3 +1,5 @@
+import UserNotice from "../../../components/feedback/UserNotice";
+import { getApiErrorMessage } from "../../auth/utils/apiError";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -48,8 +50,8 @@ export default function NotificationsPage() {
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50);
         });
       })
-      .catch(() => {
-        if (active) setError("Không thể tải thông báo lúc này.");
+      .catch((error) => {
+        if (active) setError(getApiErrorMessage(error, "Không thể tải thông báo lúc này."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -87,8 +89,8 @@ export default function NotificationsPage() {
       const now = new Date().toISOString();
       setItems((current) => current.map((item) => item.read ? item : { ...item, read: true, readAt: now }));
       clearUnreadLocally();
-    } catch {
-      setError("Không thể đánh dấu đã đọc. Vui lòng thử lại.");
+    } catch (error) {
+      setError(getApiErrorMessage(error, "Không thể đánh dấu đã đọc. Vui lòng thử lại."));
     } finally {
       setMarkingAll(false);
     }
@@ -114,7 +116,7 @@ export default function NotificationsPage() {
       {loading ? (
         <div className="p-8 text-center text-sm font-bold text-slate-400">Đang tải thông báo...</div>
       ) : error ? (
-        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">{error}</div>
+        <UserNotice message={error} error className="hf-notice-inset" />
       ) : items.length === 0 ? (
         <div className="hf-empty px-5 py-16 text-center"><EmptyArtwork variant="notification" />
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-400"><AppIcon name="bell" className="h-6 w-6" /></div>

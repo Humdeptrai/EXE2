@@ -7,7 +7,9 @@ export function useViewportHeight() {
     const resize = () => {
       const height = window.visualViewport?.height ?? window.innerHeight;
       root.style.setProperty("--hf-viewport-height", `${height}px`);
-      root.classList.toggle("hf-keyboard-open", window.innerHeight - height > 140);
+      const focused = document.activeElement instanceof HTMLElement && document.activeElement.matches("input:not([type=checkbox]):not([type=radio]), textarea");
+      const unzoomed = (window.visualViewport?.scale ?? 1) < 1.05;
+      root.classList.toggle("hf-keyboard-open", focused && unzoomed && window.innerHeight - height > 140);
     };
     resize();
     const observer = new ResizeObserver((entries) => {
@@ -19,9 +21,13 @@ export function useViewportHeight() {
     for (const element of document.querySelectorAll(".hf-app-header, .hf-bottomnav")) observer.observe(element);
     window.visualViewport?.addEventListener("resize", resize);
     window.addEventListener("resize", resize);
+    document.addEventListener("focusin", resize);
+    document.addEventListener("focusout", resize);
     return () => {
       window.visualViewport?.removeEventListener("resize", resize);
       window.removeEventListener("resize", resize);
+      document.removeEventListener("focusin", resize);
+      document.removeEventListener("focusout", resize);
       observer.disconnect();
       root.style.removeProperty("--hf-header-height");
       root.style.removeProperty("--hf-nav-height");

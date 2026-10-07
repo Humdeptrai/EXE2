@@ -44,6 +44,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JobDiscoveryServiceImpl implements JobDiscoveryService {
     private final BusinessProperties businessProperties;
+    private final IdentityService identity;
     private static final List<InterestStatus> HIDDEN_FROM_FEED = List.of(
             InterestStatus.PENDING,
             InterestStatus.ACCEPTED,
@@ -105,7 +106,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
     @Transactional(readOnly = true)
     public PageResponse<JobDiscoveryResponse> getSaved(UUID userId, int page, int size) {
         Page<JobDiscoveryResponse> result = savedJobRepository
-                .findAllByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByCreatedAtDesc(
+                .findAllByUser_IdAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByCreatedAtDesc(
                         userId,
                         JobStatus.PUBLISHED,
                         LocalDate.now(businessProperties.zoneId()),
@@ -127,7 +128,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
             int size
     ) {
         Page<JobDiscoveryResponse> result = jobInterestRepository
-                .findAllByApplicant_IdAndLevelAndStatusAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByUpdatedAtDesc(
+                .findAllByApplicant_IdAndLevelAndStatusAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByUpdatedAtDesc(
                         userId,
                         level,
                         InterestStatus.PENDING,
@@ -146,7 +147,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
     @Transactional(readOnly = true)
     public PageResponse<JobDiscoveryResponse> getSkipped(UUID userId, int page, int size) {
         Page<JobDiscoveryResponse> result = skippedJobRepository
-                .findAllByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByCreatedAtDesc(
+                .findAllByUser_IdAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByCreatedAtDesc(
                         userId,
                         JobStatus.PUBLISHED,
                         LocalDate.now(businessProperties.zoneId()),
@@ -163,16 +164,16 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
     @Transactional(readOnly = true)
     public DiscoverySummaryResponse getSummary(UUID userId) {
         return new DiscoverySummaryResponse(
-                savedJobRepository.countByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
+                savedJobRepository.countByUser_IdAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
                         userId, JobStatus.PUBLISHED, LocalDate.now(businessProperties.zoneId())
                 ),
-                jobInterestRepository.countByApplicant_IdAndLevelAndStatusAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
+                jobInterestRepository.countByApplicant_IdAndLevelAndStatusAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
                         userId, InterestLevel.INTERESTED, InterestStatus.PENDING, JobStatus.PUBLISHED, LocalDate.now(businessProperties.zoneId())
                 ),
-                jobInterestRepository.countByApplicant_IdAndLevelAndStatusAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
+                jobInterestRepository.countByApplicant_IdAndLevelAndStatusAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
                         userId, InterestLevel.VERY_INTERESTED, InterestStatus.PENDING, JobStatus.PUBLISHED, LocalDate.now(businessProperties.zoneId())
                 ),
-                skippedJobRepository.countByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
+                skippedJobRepository.countByUser_IdAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
                         userId, JobStatus.PUBLISHED, LocalDate.now(businessProperties.zoneId())
                 ),
                 jobMatchRepository.countByProvider_IdAndStatus(userId, MatchStatus.ACTIVE)
@@ -230,6 +231,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
     @Override
     @Transactional
     public JobInteractionStateResponse expressInterest(UUID userId, UUID jobId, InterestLevel level) {
+        identity.requireVerified(userId);
         JobPost jobPost = getDiscoverableJobForUpdate(userId, jobId);
         User applicant = getActiveUser(userId);
         JobInterest interest = jobInterestRepository.findByApplicant_IdAndJobPost_Id(userId, jobId)
@@ -285,7 +287,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
         if (jobPost.getOwner().getId().equals(userId)) {
             throw new AppException(ErrorCode.OWN_JOB_INTERACTION_NOT_ALLOWED);
         }
-        if (jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))) {
+        if (jobPost.isModerationHidden() || jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))) {
             throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
         }
         return jobPost;
@@ -297,7 +299,7 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
         if (jobPost.getOwner().getId().equals(userId)) {
             throw new AppException(ErrorCode.OWN_JOB_INTERACTION_NOT_ALLOWED);
         }
-        if (jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))
+        if (jobPost.isModerationHidden() || jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))
                 || isFullyMatched(jobPost)) {
             throw new AppException(ErrorCode.JOB_NOT_AVAILABLE);
         }

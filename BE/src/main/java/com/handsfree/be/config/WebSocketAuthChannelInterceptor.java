@@ -23,9 +23,11 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             "/user/queue/chat", "/user/queue/chat-errors", "/user/queue/notifications"
     );
     private final JwtDecoder jwtDecoder;
+    private final com.handsfree.be.serviceImpl.AccountAccess accountAccess;
 
-    public WebSocketAuthChannelInterceptor(JwtDecoder jwtDecoder) {
+    public WebSocketAuthChannelInterceptor(JwtDecoder jwtDecoder, com.handsfree.be.serviceImpl.AccountAccess accountAccess) {
         this.jwtDecoder = jwtDecoder;
+        this.accountAccess = accountAccess;
     }
 
     @Override
@@ -44,6 +46,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             String token = bearerToken(authorization);
             try {
                 Jwt jwt = jwtDecoder.decode(token);
+                accountAccess.active(java.util.UUID.fromString(jwt.getSubject()));
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(jwt.getSubject(), token, List.of());
                 accessor.setUser(authentication);
@@ -57,6 +60,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
                     || !authentication.isAuthenticated()) {
                 throw new IllegalArgumentException("Unauthenticated WebSocket frame");
             }
+            accountAccess.active(java.util.UUID.fromString(authentication.getName()));
             StompCommand command = accessor.getCommand();
             if (StompCommand.SUBSCRIBE.equals(command)) {
                 if (accessor.getDestination() == null

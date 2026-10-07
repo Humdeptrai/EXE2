@@ -1,3 +1,4 @@
+import UserNotice from "../feedback/UserNotice";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AppIcon } from "./AppIcon";
@@ -93,7 +94,7 @@ export default function ImageViewer({ image, onClose }: ImageViewerProps) {
           </div>
         </header>
         <div ref={viewportRef} className="min-h-0 flex-1 overflow-auto overscroll-contain">
-          {failed ? <p role="alert" className="p-6 text-center">Không thể tải ảnh. Bạn có thể thử mở ảnh gốc.</p> : (
+          {failed ? <UserNotice message="Không thể tải ảnh. Bạn có thể thử mở ảnh gốc." error className="hf-notice-inset" /> : (
             <div className="grid min-h-full min-w-full place-items-center" style={size ? { width: size.width * zoom, height: size.height * zoom } : undefined}>
               <img ref={imageRef} src={image.url} alt={image.name} onLoad={(event) => fitSize(event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)}
                 onError={() => setFailed(true)} className="block object-contain" style={size ? { width: size.width * zoom, height: size.height * zoom, maxWidth: "none" } : { maxWidth: "100%", maxHeight: "75dvh" }} />
@@ -101,7 +102,7 @@ export default function ImageViewer({ image, onClose }: ImageViewerProps) {
           )}
         </div>
         <footer className="shrink-0 px-3 py-2 text-center text-xs text-white/85">
-          {downloadError && <p role="alert" className="mb-2 text-amber-100">{downloadError}</p>}
+          {downloadError && <UserNotice message={downloadError} error className="hf-notice-space-bottom" />}
           <span>Phóng to rồi cuộn để xem ảnh · Escape để đóng</span>
           <a href={image.url} target="_blank" rel="noopener noreferrer" className="ml-3 underline underline-offset-2">Mở ảnh gốc</a>
         </footer>

@@ -40,6 +40,7 @@ public class RatingServiceImpl implements RatingService {
     private final MatchRatingRepository matchRatingRepository;
     private final UserRepository userRepository;
     private final RatingMapper ratingMapper;
+    private final ContactAccess contactAccess;
     private final BusinessProperties businessProperties;
     private final NotificationService notificationService;
 
@@ -52,15 +53,15 @@ public class RatingServiceImpl implements RatingService {
         User counterpart = counterpart(match, currentUserId);
         Instant scheduledAt = scheduledAt(match);
         Instant eligibleAt = scheduledAt.plusSeconds(RATING_DELAY_HOURS * 3600L);
-        boolean connectionSucceeded = match.getConnectionSucceededAt() != null;
+        boolean connectionSucceeded = match.getConnectionSucceededAt() != null && contactAccess.unlocked(match);
         boolean ratingWindowOpen = !Instant.now().isBefore(eligibleAt);
         boolean alreadyRated = myRating != null;
 
         return new MatchRatingStateResponse(
                 match.getId(),
                 match.getJobPost().getId(),
-                match.getJobPost().getTitle(),
-                ratingMapper.toMatchUser(counterpart),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(match.getJobPost().getTitle()),
+                contactAccess.user(counterpart, match),
                 connectionSucceeded,
                 match.getConnectionSucceededAt(),
                 scheduledAt,
@@ -77,7 +78,7 @@ public class RatingServiceImpl implements RatingService {
     @Transactional
     public MatchRatingResponse rateMatch(UUID currentUserId, UUID matchId, MatchRatingRequest request) {
         JobMatch match = requireParticipantMatch(currentUserId, matchId);
-        if (match.getConnectionSucceededAt() == null) {
+        if (match.getConnectionSucceededAt() == null || !contactAccess.unlocked(match)) {
             throw new AppException(ErrorCode.RATING_CONNECTION_REQUIRED);
         }
 

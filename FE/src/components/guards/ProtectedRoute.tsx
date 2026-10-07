@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 export default function ProtectedRoute() {
-  const { isAuthenticated, isBootstrapping } = useAuth();
+  const { user, isAuthenticated, isBootstrapping } = useAuth();
   const location = useLocation();
 
   if (isBootstrapping) {
@@ -13,5 +13,7 @@ export default function ProtectedRoute() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
+  if (user?.role === "ADMIN") return <Navigate to="/admin" replace />;
+  if (user?.role === "STAFF") return <Navigate to="/staff" replace />;
   return <Outlet />;
 }

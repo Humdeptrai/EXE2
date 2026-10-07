@@ -36,6 +36,8 @@ public class ChatServiceImpl implements ChatService {
     private static final int MAX_MESSAGE_LENGTH = 2_000;
     private static final int MAX_PREVIEW_LENGTH = 160;
 
+    private final ContactAccess contactAccess;
+    private final AccountAccess accountAccess;
     private final JobMatchRepository jobMatchRepository;
     private final ChatConversationRepository chatConversationRepository;
     private final ChatMessageRepository chatMessageRepository;
@@ -45,6 +47,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public PageResponse<ChatConversationResponse> getConversations(UUID currentUserId, int page, int size) {
+        accountAccess.active(currentUserId);
         backfillUnlockedConversations(currentUserId);
         Page<ChatConversationResponse> result = chatConversationRepository
                 .findAllForParticipant(currentUserId, pageRequest(page, size))
@@ -166,7 +169,7 @@ public class ChatServiceImpl implements ChatService {
         )) {
             JobMatch match = jobMatchRepository.findParticipantMatchForUpdate(matchId, currentUserId)
                     .orElse(null);
-            if (match == null || match.getStatus() != MatchStatus.ACTIVE || match.getConnectionSucceededAt() == null || match.getChatUnlockedAt() == null) {
+            if (match == null || match.getStatus() != MatchStatus.ACTIVE || match.getConnectionSucceededAt() == null || match.getChatUnlockedAt() == null || !contactAccess.unlocked(match)) {
                 continue;
             }
             chatConversationRepository.findByJobMatch_Id(matchId)
@@ -185,15 +188,18 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private ChatConversation requireParticipantConversation(UUID currentUserId, UUID conversationId) {
-        return chatConversationRepository.findParticipantConversation(conversationId, currentUserId)
+        accountAccess.active(currentUserId);
+        ChatConversation conversation = chatConversationRepository.findParticipantConversation(conversationId, currentUserId)
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        if (!contactAccess.unlocked(conversation.getJobMatch())) throw new AppException(ErrorCode.CHAT_NOT_UNLOCKED);
+        return conversation;
     }
 
     private void requireChatUnlocked(JobMatch match) {
         if (match.getStatus() != MatchStatus.ACTIVE) {
             throw new AppException(ErrorCode.CHAT_MATCH_NOT_ACTIVE);
         }
-        if (match.getConnectionSucceededAt() == null || match.getChatUnlockedAt() == null) {
+        if (!contactAccess.unlocked(match) || match.getChatUnlockedAt() == null) {
             throw new AppException(ErrorCode.CHAT_NOT_UNLOCKED);
         }
     }

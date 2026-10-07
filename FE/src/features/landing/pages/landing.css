@@ -15,3 +15,12 @@
 @media(prefers-reduced-motion:reduce){.hf-landing *{transition:none!important;animation:none!important}}
 
 @media(max-width:620px){.hf-landing .hf-role-picker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);width:100%}.hf-landing .hf-role-picker button{min-width:0;justify-content:center;font-size:12px;white-space:normal}.hf-landing .hf-header-inner{gap:12px}.hf-landing .hf-button-small svg{display:none}}
+
+/* Public user pages: readable text and touch targets at phone/tablet widths. */
+.hf-landing :where(.hf-header-inner,.hf-hero-copy,.hf-footer>div,.hf-faq-section>div){min-width:0}
+.hf-landing :where(h1,h2,h3,p){overflow-wrap:anywhere}
+.hf-landing .hf-hero-actions{flex-wrap:wrap}
+.hf-landing :where(.hf-mobile-nav a,.hf-login,.hf-menu-button){min-height:44px;display:inline-flex;align-items:center}
+@media(min-width:621px) and (max-width:900px){.hf-landing .hf-hero{grid-template-columns:minmax(0,1fr);gap:28px}.hf-landing .hf-hero-copy{max-width:620px}.hf-landing .hf-hero h1{font-size:clamp(38px,6vw,52px)}.hf-landing .hf-artwork-photo{max-width:620px}}
+@media(max-width:620px){.hf-landing :where(.hf-category p,.hf-benefit p,.hf-step p,.hf-faq-list details>p,.hf-section-heading>p){font-size:14px;line-height:1.7}.hf-landing .hf-faq-list summary{font-size:15px;line-height:1.6}.hf-landing .hf-value-strip span{font-size:12px}.hf-landing .hf-footer nav a{min-height:44px;display:inline-flex;align-items:center}}
+@media(max-width:359px){.hf-landing .hf-header-inner{gap:8px}.hf-landing .hf-header-inner .hf-logo-link span{font-size:21px}.hf-landing .hf-category-grid{grid-template-columns:minmax(0,1fr)}.hf-landing .hf-category:last-child{grid-column:auto}.hf-landing .hf-value-strip>.hf-container{grid-template-columns:minmax(0,1fr)}}

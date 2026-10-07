@@ -14,7 +14,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Component
+@lombok.RequiredArgsConstructor
 public class ChatMapper {
+    private final com.handsfree.be.serviceImpl.ContactAccess contactAccess;
     public ChatConversationResponse toConversationResponse(
             ChatConversation conversation,
             UUID currentUserId,
@@ -24,16 +26,8 @@ public class ChatMapper {
         User counterpart = match.getConsumer().getId().equals(currentUserId)
                 ? match.getProvider()
                 : match.getConsumer();
-        MatchUserResponse counterpartResponse = new MatchUserResponse(
-                counterpart.getId(),
-                counterpart.getFullName(),
-                counterpart.getAvatarUrl(),
-                counterpart.getLocation(),
-                counterpart.getBio(),
-                counterpart.getProfileTags() == null ? List.of() : List.copyOf(counterpart.getProfileTags()),
-                counterpart.isProfileCompleted()
-        );
-        boolean chatUnlocked = match.getConnectionSucceededAt() != null && match.getChatUnlockedAt() != null;
+        MatchUserResponse counterpartResponse = contactAccess.user(counterpart, match);
+        boolean chatUnlocked = contactAccess.unlocked(match) && match.getChatUnlockedAt() != null;
         boolean canSend = match.getStatus() == MatchStatus.ACTIVE && chatUnlocked;
         return new ChatConversationResponse(
                 conversation.getId(),

@@ -20,17 +20,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class ConnectionPaymentServiceImpl implements ConnectionPaymentService {
-    private static final BigDecimal CONSUMER_FEE = BigDecimal.valueOf(10_000);
-    private static final BigDecimal PROVIDER_FEE = BigDecimal.valueOf(5_000);
-    private static final BigDecimal PLATFORM_FEE = BigDecimal.valueOf(15_000);
-
+    private final WalletService walletService;
+    private final MatchExpiryService expiry;
+    private final PlatformSettingsService settingsService;
+    private final AccountAccess accountAccess;
     private final JobMatchRepository jobMatchRepository;
     private final ConnectionPaymentRepository connectionPaymentRepository;
     private final ChatConversationRepository chatConversationRepository;
@@ -40,9 +39,11 @@ public class ConnectionPaymentServiceImpl implements ConnectionPaymentService {
     @Override
     @Transactional
     public ConnectionPaymentResponse getPayment(UUID currentUserId, UUID matchId) {
+        accountAccess.active(currentUserId);
         JobMatch match = jobMatchRepository.findParticipantMatchForUpdate(matchId, currentUserId)
                 .orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
         ConnectionPayment payment = getOrCreatePayment(match);
+        expiry.expireLocked(match);
         normalizeLegacyPayment(payment, match);
         finalizeConnectionIfReady(payment, match);
         return connectionPaymentMapper.toResponse(payment, currentUserId);
@@ -51,16 +52,25 @@ public class ConnectionPaymentServiceImpl implements ConnectionPaymentService {
     @Override
     @Transactional
     public ConnectionPaymentResponse pay(UUID currentUserId, UUID matchId, PaymentMethod paymentMethod) {
+        accountAccess.active(currentUserId);
         JobMatch match = jobMatchRepository.findParticipantMatchForUpdate(matchId, currentUserId)
                 .orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
+        if (MatchExpiryService.due(match, Instant.now()) || match.getStatus() == MatchStatus.EXPIRED)
+            throw new AppException(ErrorCode.PAYMENT_DEADLINE_EXPIRED);
         if (match.getStatus() != MatchStatus.ACTIVE) {
             throw new AppException(ErrorCode.PAYMENT_MATCH_NOT_ACTIVE);
         }
 
+        accountAccess.active(match.getConsumer().getId());
+        accountAccess.active(match.getProvider().getId());
         ConnectionPayment payment = getOrCreatePayment(match);
         normalizeLegacyPayment(payment, match);
         if (payment.getStatus() == PaymentStatus.REFUNDED) {
             throw new AppException(ErrorCode.PAYMENT_ALREADY_REFUNDED);
+        }
+
+        if (paymentMethod != PaymentMethod.WALLET) {
+            throw new AppException(ErrorCode.VALIDATION_FAILED);
         }
 
         boolean currentUserIsConsumer = match.getConsumer().getId().equals(currentUserId);
@@ -70,7 +80,11 @@ public class ConnectionPaymentServiceImpl implements ConnectionPaymentService {
 
         boolean newlyPaid = currentStatus != PaymentStatus.PAID;
         if (newlyPaid) {
+            walletService.debit(currentUserId, currentUserIsConsumer ? payment.getConsumerFee() : payment.getProviderFee(), "CONNECT:" + matchId + ":" + currentUserId);
             Instant now = Instant.now();
+            if (MatchExpiryService.due(match, now))
+                throw new AppException(ErrorCode.PAYMENT_DEADLINE_EXPIRED);
+            paymentMethod = PaymentMethod.WALLET;
             if (currentUserIsConsumer) {
                 payment.setConsumerPaymentStatus(PaymentStatus.PAID);
                 payment.setConsumerPaymentMethod(paymentMethod);
@@ -117,50 +131,23 @@ public class ConnectionPaymentServiceImpl implements ConnectionPaymentService {
         return connectionPaymentMapper.toResponse(payment, currentUserId);
     }
 
-    /**
-     * Phase 07 stored one PAID state for the consumer and unlocked chat immediately.
-     * The new two-sided model upgrades that row lazily: legacy PAID becomes
-     * consumer=PAID/provider=PENDING and chat is locked until the provider pays.
-     */
+    /** Simulated MVP flags are not treated as wallet-backed payments. */
     private void normalizeLegacyPayment(ConnectionPayment payment, JobMatch match) {
-        boolean paymentChanged = false;
-        boolean matchChanged = false;
-
-        if (payment.getConsumerPaymentStatus() == null) {
-            PaymentStatus legacyConsumerStatus = switch (payment.getStatus()) {
-                case PAID -> PaymentStatus.PAID;
-                case REFUNDED -> PaymentStatus.REFUNDED;
-                default -> PaymentStatus.PENDING;
-            };
-            payment.setConsumerPaymentStatus(legacyConsumerStatus);
-            if (legacyConsumerStatus == PaymentStatus.PAID || legacyConsumerStatus == PaymentStatus.REFUNDED) {
-                payment.setConsumerPaymentMethod(payment.getPaymentMethod());
-                payment.setConsumerPaidAt(payment.getPaidAt());
-            }
-            paymentChanged = true;
+        if (payment.getStatus() == PaymentStatus.REFUNDED) return;
+        // The prior MVP only simulated payments. Those flags are not proof of funds.
+        if (payment.getConsumerPaymentMethod() != PaymentMethod.WALLET) {
+            payment.setConsumerPaymentStatus(PaymentStatus.PENDING);
+            payment.setConsumerPaidAt(null);
         }
-
-        if (payment.getProviderPaymentStatus() == null) {
+        if (payment.getProviderPaymentMethod() != PaymentMethod.WALLET) {
             payment.setProviderPaymentStatus(PaymentStatus.PENDING);
-            paymentChanged = true;
+            payment.setProviderPaidAt(null);
         }
-
-        boolean bothPaid = bothSidesPaid(payment);
-        if (!bothPaid && payment.getStatus() == PaymentStatus.PAID) {
+        if (!bothSidesPaid(payment)) {
             payment.setStatus(PaymentStatus.PENDING);
-            paymentChanged = true;
-        }
-
-        if (!bothPaid && match.getConnectionSucceededAt() == null && match.getChatUnlockedAt() != null) {
+            payment.setPaidAt(null);
+            match.setConnectionSucceededAt(null);
             match.setChatUnlockedAt(null);
-            matchChanged = true;
-        }
-
-        if (paymentChanged) {
-            connectionPaymentRepository.save(payment);
-        }
-        if (matchChanged) {
-            jobMatchRepository.save(match);
         }
     }
 
@@ -189,7 +176,9 @@ public class ConnectionPaymentServiceImpl implements ConnectionPaymentService {
     }
 
     private boolean bothSidesPaid(ConnectionPayment payment) {
-        return payment.getConsumerPaymentStatus() == PaymentStatus.PAID
+        return payment.getConsumerPaymentMethod() == PaymentMethod.WALLET
+                && payment.getProviderPaymentMethod() == PaymentMethod.WALLET
+                && payment.getConsumerPaymentStatus() == PaymentStatus.PAID
                 && payment.getProviderPaymentStatus() == PaymentStatus.PAID;
     }
 
@@ -219,9 +208,9 @@ public class ConnectionPaymentServiceImpl implements ConnectionPaymentService {
         return connectionPaymentRepository.findByJobMatch_Id(match.getId())
                 .orElseGet(() -> connectionPaymentRepository.save(ConnectionPayment.builder()
                         .jobMatch(match)
-                        .consumerFee(CONSUMER_FEE)
-                        .providerFee(PROVIDER_FEE)
-                        .platformFee(PLATFORM_FEE)
+                        .consumerFee(settingsService.get().getConsumerFee())
+                        .providerFee(settingsService.get().getProviderFee())
+                        .platformFee(settingsService.get().getConsumerFee().add(settingsService.get().getProviderFee()))
                         .status(PaymentStatus.PENDING)
                         .consumerPaymentStatus(PaymentStatus.PENDING)
                         .providerPaymentStatus(PaymentStatus.PENDING)

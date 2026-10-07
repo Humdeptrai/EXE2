@@ -1,3 +1,5 @@
+import UserNotice from "../../../components/feedback/UserNotice";
+import { useFeedback } from "../../../components/feedback/FeedbackContext";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -13,6 +15,7 @@ function ratingLabel(candidate: Candidate) {
 }
 
 export default function CandidateProfilePage() {
+  const { confirm } = useFeedback();
   const { jobId = "", interestId = "" } = useParams();
   const navigate = useNavigate();
   const [candidate, setCandidate] = useState<Candidate | null>(null);
@@ -33,7 +36,7 @@ export default function CandidateProfilePage() {
     const confirmation = action === "accept"
       ? "Chấp nhận ứng viên này và tạo Matching?"
       : "Từ chối ứng viên này?";
-    if (!window.confirm(confirmation)) return;
+    if (!await confirm({ title: action === "accept" ? "Chấp nhận ứng viên" : "Từ chối ứng viên", message: confirmation, confirmLabel: action === "accept" ? "Chấp nhận" : "Từ chối", danger: action === "reject" })) return;
     setBusy(true);
     setError("");
     try {
@@ -51,14 +54,14 @@ export default function CandidateProfilePage() {
   }
 
   if (loading) return <div className="grid min-h-[55dvh] place-items-center text-sm font-bold text-slate-500">Đang tải hồ sơ...</div>;
-  if (!candidate) return <div className="rounded-3xl border border-red-200 bg-red-50 p-5 text-sm font-bold text-red-700">{error || "Không tìm thấy ứng viên."}</div>;
+  if (!candidate) return <UserNotice message={error || "Không tìm thấy ứng viên."} error />;
 
   const insights = candidate.hiringInsights;
 
   return (
     <div className="hf-page hf-page-candidate-profile mx-auto max-w-2xl space-y-4 sm:space-y-5">
       <Link to={`/posts/${jobId}/candidates`} className="inline-flex min-h-10 items-center gap-2 text-sm font-extrabold text-[#007f95]"><AppIcon name="arrow-left" className="h-4 w-4" /> Quay lại danh sách</Link>
-      {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+      {error && <UserNotice message={error} error />}
 
       <section className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
         <div className="bg-gradient-to-b from-[#dff2f5] to-white px-5 pb-6 pt-8 text-center sm:px-8">
@@ -132,13 +135,13 @@ export default function CandidateProfilePage() {
             </div>
           </section>
           <div className="rounded-2xl border border-[#b9dde3] bg-[#eff9fb] p-4 text-xs font-bold leading-6 text-[#456a72]">
-            Matching xác nhận hai bên muốn kết nối. Sau khi chấp nhận, người thuê thanh toán 10.000đ và người nhận việc thanh toán 5.000đ; chỉ khi cả hai hoàn tất phí kết nối thì Chat mới được mở.
+            Sau khi chấp nhận, mỗi bên xác nhận trả phí từ ví. Mức phí cụ thể được hiển thị ở trang phí kết nối; chỉ khi cả hai hoàn tất thì thông tin liên hệ và chat mới được mở.
           </div>
         </div>
       </section>
 
       {candidate.interestStatus === "PENDING" && (
-        <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] grid grid-cols-2 gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur lg:bottom-4">
+        <div className="hf-candidate-actions sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] grid grid-cols-2 gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur lg:bottom-4">
           <button type="button" disabled={busy} onClick={() => void decide("reject")} className="min-h-12 rounded-xl border border-rose-200 text-sm font-extrabold text-rose-600 disabled:opacity-50">Từ chối</button>
           <button type="button" disabled={busy} onClick={() => void decide("accept")} className="min-h-12 rounded-xl bg-[#007f95] text-sm font-extrabold text-white disabled:opacity-50">Chấp nhận Matching</button>
         </div>

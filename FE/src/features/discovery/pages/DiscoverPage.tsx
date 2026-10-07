@@ -1,3 +1,4 @@
+import UserNotice from "../../../components/feedback/UserNotice";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { type FormEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -300,7 +301,7 @@ export default function DiscoverPage() {
       )}
 
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
-      {notice && <div className="fixed left-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl bg-[#0b1c30] px-4 py-3 text-center text-sm font-bold text-white shadow-xl">{notice}</div>}
+      {notice && <div className="hf-user-toast"><UserNotice message={notice} onClose={() => setNotice("")} /></div>}
 
       {loading ? (
         <div className="mx-auto aspect-[4/5] w-full max-w-md animate-pulse rounded-[2rem] bg-slate-200" />

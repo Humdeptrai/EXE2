@@ -1,3 +1,4 @@
+import { useFeedback } from "../../../components/feedback/FeedbackContext";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -30,6 +31,7 @@ interface LocationState {
 }
 
 export default function MyJobsPage() {
+  const { confirm } = useFeedback();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,7 +86,7 @@ export default function MyJobsPage() {
       delete: "Xóa vĩnh viễn bài đăng này?",
       repost: "Tạo một bản nháp mới từ bài đăng này?",
     };
-    if (!window.confirm(confirmations[action])) return;
+    if (busyId || !await confirm({ title: { publish: "Đăng công việc", cancel: "Kết thúc bài đăng", delete: "Xóa bài đăng", repost: "Tạo bản nháp mới" }[action], message: confirmations[action], confirmLabel: { publish: "Đăng ngay", cancel: "Kết thúc", delete: "Xóa bài", repost: "Tạo bản nháp" }[action], danger: action === "delete" || action === "cancel" })) return;
 
     setBusyId(job.id);
     setMessage(null);

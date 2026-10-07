@@ -22,7 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/matches/{matchId}/payment")
 @RequiredArgsConstructor
-@Tag(name = "7. Connection Payment", description = "MVP simulated two-sided matching fees and connection unlock")
+@Tag(name = "7. Connection Payment", description = "Wallet-backed matching fees and contact unlock")
 public class ConnectionPaymentController {
     private final ConnectionPaymentService connectionPaymentService;
 
@@ -40,7 +40,7 @@ public class ConnectionPaymentController {
     }
 
     @PostMapping("/pay")
-    @Operation(summary = "Simulate the current participant connection fee; unlock chat only after both sides pay")
+    @Operation(summary = "Debit the wallet once; unlock contact/chat after both participants pay")
     public ResponseEntity<ApiResponse<ConnectionPaymentResponse>> pay(
             Authentication authentication,
             @PathVariable UUID matchId,

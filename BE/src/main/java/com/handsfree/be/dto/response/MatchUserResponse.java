@@ -10,6 +10,10 @@ public record MatchUserResponse(
         String location,
         String bio,
         List<String> tags,
-        boolean profileCompleted
+        boolean profileCompleted,
+        String phone,
+        String email,
+        String verifiedFaceUrl,
+        boolean identityVerified
 ) {
 }

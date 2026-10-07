@@ -1,7 +1,7 @@
 import type { MatchUser } from "./matching";
 
 export type PaymentStatus = "PENDING" | "PAID" | "REFUNDED";
-export type PaymentMethod = "MOMO" | "ZALOPAY" | "BANK_TRANSFER";
+export type PaymentMethod = "WALLET" | "MOMO" | "ZALOPAY" | "BANK_TRANSFER";
 
 export interface ConnectionPayment {
   id: string;

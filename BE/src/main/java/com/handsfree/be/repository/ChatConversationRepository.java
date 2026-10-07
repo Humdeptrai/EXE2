@@ -24,6 +24,11 @@ public interface ChatConversationRepository extends JpaRepository<ChatConversati
             where c.id = :conversationId
               and c.jobMatch.connectionSucceededAt is not null
               and c.jobMatch.chatUnlockedAt is not null
+              and exists (select p.id from ConnectionPayment p where p.jobMatch = c.jobMatch
+                and p.consumerPaymentMethod = com.handsfree.be.constant.PaymentMethod.WALLET
+                and p.providerPaymentMethod = com.handsfree.be.constant.PaymentMethod.WALLET
+                and p.consumerPaymentStatus = com.handsfree.be.constant.PaymentStatus.PAID
+                and p.providerPaymentStatus = com.handsfree.be.constant.PaymentStatus.PAID)
               and (c.jobMatch.consumer.id = :userId or c.jobMatch.provider.id = :userId)
             """)
     Optional<ChatConversation> findParticipantConversation(
@@ -38,7 +43,12 @@ public interface ChatConversationRepository extends JpaRepository<ChatConversati
                     from ChatConversation c
                     where c.jobMatch.connectionSucceededAt is not null
                       and c.jobMatch.chatUnlockedAt is not null
-                      and (c.jobMatch.consumer.id = :userId or c.jobMatch.provider.id = :userId)
+                      and exists (select p.id from ConnectionPayment p where p.jobMatch = c.jobMatch
+                and p.consumerPaymentMethod = com.handsfree.be.constant.PaymentMethod.WALLET
+                and p.providerPaymentMethod = com.handsfree.be.constant.PaymentMethod.WALLET
+                and p.consumerPaymentStatus = com.handsfree.be.constant.PaymentStatus.PAID
+                and p.providerPaymentStatus = com.handsfree.be.constant.PaymentStatus.PAID)
+              and (c.jobMatch.consumer.id = :userId or c.jobMatch.provider.id = :userId)
                     order by coalesce(c.lastMessageAt, c.createdAt) desc
                     """,
             countQuery = """
@@ -46,7 +56,12 @@ public interface ChatConversationRepository extends JpaRepository<ChatConversati
                     from ChatConversation c
                     where c.jobMatch.connectionSucceededAt is not null
                       and c.jobMatch.chatUnlockedAt is not null
-                      and (c.jobMatch.consumer.id = :userId or c.jobMatch.provider.id = :userId)
+                      and exists (select p.id from ConnectionPayment p where p.jobMatch = c.jobMatch
+                and p.consumerPaymentMethod = com.handsfree.be.constant.PaymentMethod.WALLET
+                and p.providerPaymentMethod = com.handsfree.be.constant.PaymentMethod.WALLET
+                and p.consumerPaymentStatus = com.handsfree.be.constant.PaymentStatus.PAID
+                and p.providerPaymentStatus = com.handsfree.be.constant.PaymentStatus.PAID)
+              and (c.jobMatch.consumer.id = :userId or c.jobMatch.provider.id = :userId)
                     """
     )
     Page<ChatConversation> findAllForParticipant(@Param("userId") UUID userId, Pageable pageable);

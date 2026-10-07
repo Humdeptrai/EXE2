@@ -37,6 +37,8 @@ export interface Candidate {
 }
 
 export interface MatchUser {
+  phone?: string | null;
+  email?: string | null;
   id: string;
   fullName: string;
   avatarUrl: string | null;

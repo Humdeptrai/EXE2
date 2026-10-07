@@ -29,6 +29,13 @@ public class GlobalExceptionHandler {
         return build(ErrorCode.VALIDATION_FAILED, errors);
     }
 
+    @ExceptionHandler({org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class,
+            org.springframework.http.converter.HttpMessageNotReadableException.class})
+    public ResponseEntity<ErrorResponse> handleMalformedRequest() {
+        return build(ErrorCode.VALIDATION_FAILED, Map.of());
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleMaxUploadSize() {
         return build(ErrorCode.MAX_UPLOAD_SIZE_EXCEEDED, Map.of());

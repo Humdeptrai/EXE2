@@ -10,6 +10,7 @@ import com.handsfree.be.dto.response.AuthResponse;
 public interface AuthService {
     AuthResponse register(RegisterRequest request);
     AuthResponse login(LoginRequest request);
+    AuthResponse loginOperator(LoginRequest request);
     AuthResponse loginWithGoogle(GoogleLoginRequest request);
     AuthResponse refresh(RefreshTokenRequest request);
     void logout(LogoutRequest request);

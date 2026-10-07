@@ -124,6 +124,7 @@ export default function JobDetailPage() {
       {notice && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{notice}</div>}
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
 
+      <Link to={`/reports?targetType=JOB&targetId=${job.id}`} className="inline-block text-sm font-bold text-[#007f95]">Báo cáo bài đăng</Link>
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="relative flex min-h-56 items-center justify-center overflow-hidden bg-slate-100">
           {job.media[imageIndex]?.url ? (

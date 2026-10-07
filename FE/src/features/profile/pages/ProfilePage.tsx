@@ -1,3 +1,4 @@
+import UserNotice from "../../../components/feedback/UserNotice";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import { useAuth } from "../../../context/AuthContext";
@@ -257,7 +258,7 @@ export default function ProfilePage() {
                 </div>
               </fieldset>
 
-              {message && <div className={`rounded-xl border px-4 py-3 text-sm font-bold ${message.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>{message.text}</div>}
+              {message && <UserNotice message={message.text} tone={message.type} />}
 
               <button disabled={saving} className="min-h-12 w-full rounded-xl bg-[#007f95] px-5 py-3.5 font-extrabold text-white shadow-[0_10px_25px_rgba(0,127,149,0.2)] disabled:opacity-60">
                 {saving ? "Đang lưu..." : "Lưu hồ sơ"}
@@ -265,7 +266,7 @@ export default function ProfilePage() {
             </form>
           )}
 
-          {!editing && message && <div className={`mt-5 rounded-xl border px-4 py-3 text-sm font-bold ${message.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>{message.text}</div>}
+          {!editing && message && <UserNotice message={message.text} tone={message.type} />}
         </div>
       </section>
 

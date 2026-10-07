@@ -1,0 +1,19 @@
+.hf-confirm-dialog{margin:auto;width:min(460px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;border:1px solid #d8e9ec;border-radius:24px;padding:28px;color:#153944;background:#fff;box-shadow:0 24px 90px #12394440;font-family:inherit;overscroll-behavior:contain}
+.hf-confirm-dialog::backdrop{background:#0c263c80;backdrop-filter:blur(4px)}
+.hf-confirm-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:16px;background:#e7f5f7;color:#007f95;margin-bottom:18px}.hf-confirm-icon .hf-notice-icon{width:24px;height:24px}.hf-confirm-danger{background:#fff1f2;color:#be123c}
+.hf-confirm-dialog h2{font-size:21px;font-weight:800;line-height:1.4;margin:0 0 10px;overflow-wrap:anywhere}.hf-confirm-dialog>p{font-size:15px;line-height:1.7;color:#58717a;margin:0;overflow-wrap:anywhere}
+.hf-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:26px}.hf-confirm-actions button{min-height:48px;border-radius:12px;padding:10px 14px;background:#f5f9fa;border:1px solid #d8e9ec;font-size:15px;font-weight:800;color:#365d68}.hf-confirm-actions .hf-confirm-primary{background:#007f95;border-color:#007f95;color:#fff}.hf-confirm-actions .hf-confirm-danger-button{background:#be123c;border-color:#be123c}.hf-confirm-dialog button:focus-visible,.hf-user-notice button:focus-visible{outline:3px solid #17a5ad;outline-offset:3px}
+.hf-user-notice{display:flex;align-items:flex-start;gap:12px;border:1px solid #b9dde3;border-radius:16px;padding:14px 16px;background:#eef9fb;color:#176270;box-shadow:0 8px 24px #1239440b;font-size:14px;line-height:1.6;font-weight:600}.hf-user-notice p{margin:0;flex:1;min-width:0;overflow-wrap:anywhere}.hf-notice-icon{width:20px;height:20px;flex-shrink:0}.hf-user-notice>.hf-notice-icon{margin-top:2px}.hf-user-notice-error{background:#fff5f5;border-color:#fecdd3;color:#a52741}.hf-user-notice button{display:grid;place-items:center;flex-shrink:0;width:44px;height:44px;margin:-10px -10px -10px 0;border-radius:10px;color:inherit;background:transparent;border:0}
+.hf-user-toast{position:fixed;z-index:60;top:calc(var(--hf-header-height,80px) + 12px);right:20px;width:min(420px,calc(100% - 32px));pointer-events:auto}
+@media(max-width:767px){.hf-user-toast{top:auto;bottom:calc(var(--hf-nav-height,80px) + env(safe-area-inset-bottom) + 12px);right:16px}.hf-confirm-dialog{padding:24px 20px;border-radius:20px}.hf-confirm-actions{gap:8px}.hf-confirm-actions button{font-size:14px;padding:10px}}
+@media(max-height:450px){.hf-confirm-dialog{padding:18px}.hf-confirm-icon{display:none}.hf-confirm-actions{margin-top:16px}}
+
+.hf-keyboard-open .hf-user-toast{bottom:12px}
+
+/* One presentation for API, validation, realtime and upload errors. */
+.hf-user-notice-success{background:#effaf5;border-color:#b8e3cd;color:#21674a}
+.hf-user-notice-compact{padding:8px 10px;border-radius:10px;font-size:13px;box-shadow:none;gap:8px}
+.hf-user-notice-compact .hf-notice-icon{width:16px;height:16px;margin-top:2px}
+.hf-user-notice.hf-notice-space-top{margin-top:12px}.hf-user-notice.hf-notice-space-bottom{margin-bottom:12px}.hf-user-notice.hf-notice-inset{margin:16px}
+.hf-user-notice.hf-user-notice > p{color:inherit;font-size:inherit;line-height:inherit;letter-spacing:normal;font-weight:inherit;text-align:left}
+.hf-user-notice :where(button){padding:0;box-shadow:none}

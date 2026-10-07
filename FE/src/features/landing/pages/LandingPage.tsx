@@ -16,7 +16,7 @@ const questions = [
   { question: "HandsFree dành cho ai?", answer: "Cho người cần hỗ trợ những công việc ngắn hạn và người muốn tìm việc phù hợp với thời gian, kỹ năng của mình. Bạn có thể chuyển giữa chế độ thuê việc và nhận việc trong cùng một tài khoản." },
   { question: "Tôi bắt đầu thuê người như thế nào?", answer: "Tạo tài khoản, chọn chế độ thuê việc và đăng nhu cầu với lịch, địa điểm, ngân sách. Khi có ứng viên quan tâm, bạn xem hồ sơ và quyết định chấp nhận người phù hợp." },
   { question: "Tôi có thể trao đổi với đối phương khi nào?", answer: "Sau khi được chấp nhận và cả hai phía hoàn tất phí kết nối, phòng chat của công việc được mở. Bạn có thể trao đổi trực tiếp và xem lại lịch sử tin nhắn." },
-  { question: "Phí kết nối được tính như thế nào?", answer: "Bản MVP hiện mô phỏng phí 10.000đ cho người thuê và 5.000đ cho người nhận việc trên mỗi kết nối. Hệ thống chưa thu tiền qua MoMo, ZaloPay hay ngân hàng thật. Ngân sách công việc là một khoản riêng." },
+  { question: "Phí kết nối được tính như thế nào?", answer: "Bạn nạp tiền qua payOS vào ví để trả phí mở liên hệ. Phí mặc định là 10.000đ cho người thuê và 5.000đ cho người nhận việc, có thể được điều chỉnh; số tiền áp dụng được hiển thị trước khi xác nhận. Ngân sách công việc là khoản riêng." },
   { question: "Tôi tìm việc và theo dõi kết quả ở đâu?", answer: "Chuyển sang chế độ nhận việc, hoàn thiện hồ sơ, khám phá công việc và bày tỏ quan tâm. Trong tài khoản, bạn có thể theo dõi công việc đã lưu, mức độ quan tâm và các matching được chấp nhận." },
 ];
 

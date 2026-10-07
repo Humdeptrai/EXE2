@@ -19,14 +19,14 @@ public interface SavedJobRepository extends JpaRepository<SavedJob, UUID> {
     boolean existsByUser_IdAndJobPost_Id(UUID userId, UUID jobId);
 
     @EntityGraph(attributePaths = {"jobPost", "jobPost.category", "jobPost.owner"})
-    Page<SavedJob> findAllByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByCreatedAtDesc(
+    Page<SavedJob> findAllByUser_IdAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByCreatedAtDesc(
             UUID userId,
             JobStatus status,
             LocalDate today,
             Pageable pageable
     );
 
-    long countByUser_IdAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
+    long countByUser_IdAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
             UUID userId,
             JobStatus status,
             LocalDate today

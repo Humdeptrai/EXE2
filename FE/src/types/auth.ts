@@ -1,4 +1,4 @@
-export type UserRole = "USER" | "ADMIN";
+export type UserRole = "USER" | "STAFF" | "ADMIN";
 export type UserMode = "CONSUMER" | "PROVIDER";
 export type AuthProvider = "LOCAL" | "GOOGLE" | "BOTH";
 

@@ -22,7 +22,7 @@ public interface JobInterestRepository extends JpaRepository<JobInterest, UUID> 
     Optional<JobInterest> findByApplicant_IdAndJobPost_Id(UUID applicantId, UUID jobId);
 
     @EntityGraph(attributePaths = {"jobPost", "jobPost.category", "jobPost.owner"})
-    Page<JobInterest> findAllByApplicant_IdAndLevelAndStatusAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByUpdatedAtDesc(
+    Page<JobInterest> findAllByApplicant_IdAndLevelAndStatusAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqualOrderByUpdatedAtDesc(
             UUID applicantId,
             InterestLevel level,
             InterestStatus status,
@@ -52,7 +52,7 @@ public interface JobInterestRepository extends JpaRepository<JobInterest, UUID> 
     @EntityGraph(attributePaths = {"applicant", "jobPost", "jobPost.owner"})
     Optional<JobInterest> findByIdAndJobPost_IdAndJobPost_Owner_Id(UUID id, UUID jobId, UUID ownerId);
 
-    long countByApplicant_IdAndLevelAndStatusAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
+    long countByApplicant_IdAndLevelAndStatusAndJobPost_ModerationHiddenFalseAndJobPost_StatusAndJobPost_ScheduledDateGreaterThanEqual(
             UUID applicantId,
             InterestLevel level,
             InterestStatus status,

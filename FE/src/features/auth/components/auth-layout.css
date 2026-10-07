@@ -22,3 +22,10 @@
 /* Tablet landscape/portrait: shorter form while keeping readable controls. */
 @media(min-width:600px) and (max-width:999px){.hf-auth-register .hf-auth-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.hf-auth-register .hf-auth-form>div:not(.space-y-2),.hf-auth-register .hf-auth-form>button{grid-column:1/-1}.hf-auth-shell{max-width:500px}.hf-auth-topbar{max-width:500px}}
 .hf-auth :where(input,button,textarea,select){touch-action:manipulation}.hf-auth-panel{padding-bottom:max(22px,env(safe-area-inset-bottom))}
+
+/* Touch and landscape layouts retain scroll access to the entire form. */
+.hf-auth :where(input,textarea,select){max-width:100%;min-width:0;font-size:16px}
+.hf-auth .hf-auth-switch{overflow-wrap:anywhere}
+.hf-auth .hf-auth-back{min-height:44px;display:inline-flex;align-items:center}
+@media(max-height:540px){.hf-auth-shell{align-items:start;padding:16px 0}.hf-auth-story{display:none}.hf-auth-shell{grid-template-columns:minmax(0,1fr);max-width:500px}.hf-auth-topbar{max-width:500px}.hf-auth-panel{padding:20px}}
+@media(max-width:359px){.hf-auth{padding:12px}.hf-auth-panel{padding:18px 14px}.hf-auth-topbar> a:first-child span{font-size:21px}.hf-auth-back{padding:8px;font-size:11px}}

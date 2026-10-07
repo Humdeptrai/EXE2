@@ -1,3 +1,5 @@
+import { getApiErrorMessage } from "../../features/auth/utils/apiError";
+import { useFeedback } from "../feedback/FeedbackContext";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -9,6 +11,7 @@ const options: Array<{ mode: UserMode; label: string; shortLabel: string }> = [
 ];
 
 export default function ModeSwitcher() {
+  const { notify } = useFeedback();
   const { user, switchMode } = useAuth();
   const navigate = useNavigate();
   const [loadingMode, setLoadingMode] = useState<UserMode | null>(null);
@@ -19,8 +22,8 @@ export default function ModeSwitcher() {
     try {
       await switchMode(mode);
       navigate(mode === "PROVIDER" ? "/discover" : "/home");
-    } catch {
-      window.alert("Không thể chuyển chế độ lúc này. Vui lòng thử lại.");
+    } catch (error) {
+      notify(getApiErrorMessage(error, "Không thể chuyển chế độ lúc này. Vui lòng thử lại."));
     } finally {
       setLoadingMode(null);
     }

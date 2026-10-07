@@ -11,24 +11,17 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @Component
+@lombok.RequiredArgsConstructor
 public class ConnectionPaymentMapper {
+    private final com.handsfree.be.serviceImpl.ContactAccess contactAccess;
     public ConnectionPaymentResponse toResponse(ConnectionPayment payment, UUID currentUserId) {
         JobMatch match = payment.getJobMatch();
         boolean currentUserIsConsumer = match.getConsumer().getId().equals(currentUserId);
         User counterpart = currentUserIsConsumer ? match.getProvider() : match.getConsumer();
-        MatchUserResponse counterpartResponse = new MatchUserResponse(
-                counterpart.getId(),
-                counterpart.getFullName(),
-                counterpart.getAvatarUrl(),
-                counterpart.getLocation(),
-                counterpart.getBio(),
-                counterpart.getProfileTags() == null ? List.of() : List.copyOf(counterpart.getProfileTags()),
-                counterpart.isProfileCompleted()
-        );
+        MatchUserResponse counterpartResponse = contactAccess.user(counterpart, match);
 
         BigDecimal currentUserFee = currentUserIsConsumer ? payment.getConsumerFee() : payment.getProviderFee();
         PaymentStatus currentUserPaymentStatus = currentUserIsConsumer
@@ -43,17 +36,17 @@ public class ConnectionPaymentMapper {
         PaymentStatus counterpartStatus = currentUserIsConsumer
                 ? payment.getProviderPaymentStatus()
                 : payment.getConsumerPaymentStatus();
-        boolean connectionSucceeded = match.getConnectionSucceededAt() != null;
+        boolean connectionSucceeded = contactAccess.unlocked(match);
         boolean chatUnlocked = connectionSucceeded && match.getChatUnlockedAt() != null;
 
         return new ConnectionPaymentResponse(
                 payment.getId(),
                 match.getId(),
                 match.getJobPost().getId(),
-                match.getJobPost().getTitle(),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(match.getJobPost().getTitle()),
                 match.getJobPost().getScheduledDate(),
                 match.getJobPost().getStartTime(),
-                match.getJobPost().getLocation(),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(match.getJobPost().getLocation()),
                 payment.getConsumerFee(),
                 payment.getProviderFee(),
                 payment.getPlatformFee(),
@@ -74,6 +67,10 @@ public class ConnectionPaymentMapper {
                 match.getConnectionSucceededAt(),
                 chatUnlocked,
                 payment.getPaidAt(),
+                match.getPaymentDeadlineAt(),
+                match.getStatus(),
+                payment.getRefundedAt(),
+                Instant.now(),
                 counterpartResponse
         );
     }

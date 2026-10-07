@@ -1,3 +1,4 @@
+import UserNotice from "../../../components/feedback/UserNotice";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -79,7 +80,7 @@ export default function MatchRatingPage() {
         <section className="hf-page hf-page-match-rating mx-auto max-w-xl rounded-3xl border border-red-200 bg-white p-6 text-center shadow-sm">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-red-50 text-red-500"><AppIcon name="info" className="h-7 w-7" /></div>
           <h1 className="mt-4 text-xl font-black">Không thể mở đánh giá</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{error || "Matching không tồn tại hoặc bạn không có quyền truy cập."}</p>
+          <UserNotice message={error || "Matching không tồn tại hoặc bạn không có quyền truy cập."} error className="hf-notice-space-top" />
           <button type="button" onClick={() => navigate(-1)} className="mt-5 min-h-11 rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white">Quay lại</button>
         </section>
     );
@@ -114,7 +115,7 @@ export default function MatchRatingPage() {
           </div>
         </section>
 
-        {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+        {error && <UserNotice message={error} error />}
         {notice && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{notice}</div>}
 
         {!state.connectionSucceeded ? (

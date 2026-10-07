@@ -28,8 +28,8 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 25MB
+      max-file-size: 10MB
+      max-request-size: 30MB
 
   web:
     error:
@@ -41,6 +41,15 @@ server:
 
 
 app:
+  identity:
+    enabled: ${IDENTITY_ENABLED:false}
+    api-key: ${FPT_EKYC_API_KEY:}
+    encryption-key: ${IDENTITY_ENCRYPTION_KEY:}
+    ocr-url: ${FPT_EKYC_OCR_URL:https://api.fpt.ai/vision/idr/vnm/}
+    liveness-url: ${FPT_EKYC_LIVENESS_URL:https://api.fpt.ai/dmp/liveness/v3}
+    face-match-url: ${FPT_EKYC_FACE_MATCH_URL:https://api.fpt.ai/dmp/checkface/v1/}
+    min-similarity: ${FPT_EKYC_MIN_SIMILARITY:80}
+
   jwt:
     secret: ${JWT_SECRET:}
     issuer: ${JWT_ISSUER:hands-free-api}
@@ -64,6 +73,17 @@ app:
     api-key: ${CLOUDINARY_API_KEY:}
     api-secret: ${CLOUDINARY_API_SECRET:}
     folder: ${CLOUDINARY_FOLDER:handsfree}
+
+  payos:
+    enabled: ${PAYOS_ENABLED:false}
+    client-id: ${PAYOS_CLIENT_ID:}
+    api-key: ${PAYOS_API_KEY:}
+    checksum-key: ${PAYOS_CHECKSUM_KEY:}
+    return-url: ${PAYOS_RETURN_URL:}
+    cancel-url: ${PAYOS_CANCEL_URL:}
+
+  operator-bootstrap:
+    enabled: ${OPERATOR_BOOTSTRAP_ENABLED:true}
 
   business:
     time-zone: ${BUSINESS_TIME_ZONE:Asia/Ho_Chi_Minh}

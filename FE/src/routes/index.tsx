@@ -4,9 +4,14 @@ import ProtectedRoute from "../components/guards/ProtectedRoute";
 import { privateRoutes } from "./privateRoutes";
 import { publicRoutes } from "./publicRoutes";
 
+import { operatorRoutes } from "./operatorRoutes";
+import LegacyManagementRoute from "../features/management/components/LegacyManagementRoute";
+
 import LandingPageRoute from "../features/landing/pages/LandingPageRoute";
 
 export const router = createBrowserRouter([
+  ...operatorRoutes,
+  { path: "/management", element: <LegacyManagementRoute /> },
   {
     path: "/",
     element: <LandingPageRoute />,

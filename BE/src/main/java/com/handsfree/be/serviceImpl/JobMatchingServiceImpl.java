@@ -47,7 +47,10 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class JobMatchingServiceImpl implements JobMatchingService {
+    private final com.handsfree.be.service.ConnectionPaymentService connectionPaymentService;
     private final BusinessProperties businessProperties;
+    private final PlatformSettingsService settings;
+    private final IdentityService identity;
     private static final int TOP_EXPERTISE_LIMIT = 3;
 
     private final JobPostRepository jobPostRepository;
@@ -106,6 +109,8 @@ public class JobMatchingServiceImpl implements JobMatchingService {
             throw new AppException(ErrorCode.CANDIDATE_ALREADY_RESPONDED);
         }
 
+        identity.requireVerified(consumerId);
+        identity.requireVerified(interest.getApplicant().getId());
         long matchedCount = jobMatchRepository.countByJobPost_IdAndStatus(jobId, MatchStatus.ACTIVE);
         if (matchedCount >= jobPost.getRequiredWorkers()) {
             throw new AppException(ErrorCode.JOB_MATCH_CAPACITY_FULL);
@@ -123,8 +128,10 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                 .jobInterest(interest)
                 .status(MatchStatus.ACTIVE)
                 .matchedAt(now)
+                .paymentDeadlineAt(now.plusSeconds(settings.get().getPaymentWindowMinutes() * 60L))
                 .build();
-        JobMatch saved = jobMatchRepository.save(match);
+        JobMatch saved = jobMatchRepository.saveAndFlush(match);
+        connectionPaymentService.getPayment(consumerId, saved.getId());
         notificationService.create(
                 interest.getApplicant(),
                 NotificationType.CANDIDATE_ACCEPTED,
@@ -262,7 +269,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     }
 
     private void requireMatchingOpen(JobPost jobPost) {
-        if (jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))) {
+        if (jobPost.isModerationHidden() || jobPost.getStatus() != JobStatus.PUBLISHED || jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))) {
             throw new AppException(ErrorCode.JOB_MATCHING_NOT_AVAILABLE);
         }
     }

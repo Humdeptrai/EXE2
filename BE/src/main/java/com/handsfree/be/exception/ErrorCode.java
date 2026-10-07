@@ -5,6 +5,22 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
+    IDENTITY_REQUIRED(40360, HttpStatus.FORBIDDEN, "Vui lòng xác thực danh tính trước khi đăng bài hoặc nhận việc"),
+    IDENTITY_NOT_CONFIGURED(50360, HttpStatus.SERVICE_UNAVAILABLE, "Xác thực danh tính chưa được cấu hình; vui lòng liên hệ hỗ trợ"),
+    IDENTITY_BUSY(40960, HttpStatus.CONFLICT, "Hồ sơ đang được xử lý; vui lòng chờ vài phút trước khi gửi lại"),
+    IDENTITY_INVALID_MEDIA(40060, HttpStatus.BAD_REQUEST, "Cần ảnh JPEG rõ nét và video MP4 5–6 giây; ảnh tối đa 5 MB, video tối đa 10 MB"),
+    IDENTITY_GATEWAY_ERROR(50260, HttpStatus.BAD_GATEWAY, "Dịch vụ xác thực chưa phản hồi hợp lệ; vui lòng thử lại sau"),
+    IDENTITY_NOT_FOUND(40460, HttpStatus.NOT_FOUND, "Chưa có hồ sơ xác thực"),
+    PAYMENT_DEADLINE_EXPIRED(40961, HttpStatus.CONFLICT, "Đã hết hạn thanh toán; phí thực tế đã trả sẽ được hoàn về ví"),
+    PAYMENT_NOT_CONFIGURED(50301, HttpStatus.SERVICE_UNAVAILABLE, "Nạp tiền chưa được cấu hình trên máy chủ"),
+    PAYMENT_GATEWAY_ERROR(50201, HttpStatus.BAD_GATEWAY, "Cổng thanh toán chưa phản hồi hợp lệ; vui lòng kiểm tra lại đơn nạp"),
+    PAYMENT_SIGNATURE_INVALID(40050, HttpStatus.BAD_REQUEST, "Chữ ký thanh toán không hợp lệ"),
+    PAYMENT_MISMATCH(40950, HttpStatus.CONFLICT, "Thông tin giao dịch không khớp với đơn nạp"),
+    INSUFFICIENT_BALANCE(40951, HttpStatus.CONFLICT, "Số dư ví không đủ; vui lòng nạp thêm tiền"),
+    CONTACT_NOT_ALLOWED(40051, HttpStatus.BAD_REQUEST, "Không đưa số điện thoại, email hoặc đường dẫn liên hệ vào nội dung công khai"),
+    CUSTOMER_LOGIN_REQUIRED(40351, HttpStatus.FORBIDDEN, "Tài khoản ADMIN/STAFF vui lòng đăng nhập tại /management/login"),
+    OPERATOR_LOGIN_REQUIRED(40352, HttpStatus.FORBIDDEN, "Khu vực này chỉ dành cho ADMIN/STAFF; tài khoản người dùng vui lòng đăng nhập tại /login"),
+    FORBIDDEN(40350, HttpStatus.FORBIDDEN, "Bạn không có quyền thực hiện thao tác này"),
     INVALID_IDENTIFIER(40001, HttpStatus.BAD_REQUEST, "Email hoặc số điện thoại không hợp lệ"),
     VALIDATION_FAILED(40002, HttpStatus.BAD_REQUEST, "Dữ liệu gửi lên chưa hợp lệ"),
     INVALID_GOOGLE_TOKEN(40003, HttpStatus.BAD_REQUEST, "Google credential không hợp lệ hoặc đã hết hạn"),

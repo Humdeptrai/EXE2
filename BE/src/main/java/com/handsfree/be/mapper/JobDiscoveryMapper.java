@@ -23,13 +23,13 @@ public class JobDiscoveryMapper {
 
         JobOwnerSummaryResponse owner = new JobOwnerSummaryResponse(
                 jobPost.getOwner().getId(),
-                jobPost.getOwner().getFullName(),
-                jobPost.getOwner().getAvatarUrl(),
-                jobPost.getOwner().getLocation(),
+                "Người thuê HandsFree",
+                null,
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(jobPost.getOwner().getLocation()),
                 jobPost.getOwner().isProfileCompleted(),
                 jobPost.getOwner().getProfileTags() == null
                         ? List.of()
-                        : List.copyOf(jobPost.getOwner().getProfileTags())
+                        : jobPost.getOwner().getProfileTags().stream().map(com.handsfree.be.serviceImpl.ContactPrivacy::redact).toList()
         );
 
         List<JobMediaResponse> media = jobPost.getMedia() == null
@@ -37,7 +37,7 @@ public class JobDiscoveryMapper {
                 : jobPost.getMedia().stream()
                 .map(item -> new JobMediaResponse(
                         item.getId(),
-                        item.getOriginalName(),
+                        com.handsfree.be.serviceImpl.ContactPrivacy.redact(item.getOriginalName()),
                         item.getContentType(),
                         item.getFileSize(),
                         item.getPublicUrl(),
@@ -49,11 +49,11 @@ public class JobDiscoveryMapper {
                 jobPost.getId(),
                 owner,
                 category,
-                jobPost.getTitle(),
-                jobPost.getDescription(),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(jobPost.getTitle()),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(jobPost.getDescription()),
                 jobPost.getScheduledDate(),
                 jobPost.getStartTime(),
-                jobPost.getLocation(),
+                com.handsfree.be.serviceImpl.ContactPrivacy.redact(jobPost.getLocation()),
                 jobPost.getBudgetAmount(),
                 jobPost.getBudgetType(),
                 jobPost.getRequiredWorkers(),

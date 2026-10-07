@@ -70,6 +70,9 @@ public class JobMatch extends BaseEntity {
     @Column(name = "matched_at", nullable = false)
     private Instant matchedAt;
 
+    @Column(name = "payment_deadline_at")
+    private Instant paymentDeadlineAt;
+
     @Column(name = "disconnected_at")
     private Instant disconnectedAt;
 

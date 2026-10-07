@@ -96,4 +96,8 @@ public class User extends BaseEntity {
     @Builder.Default
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    @Builder.Default
+    @Column(name="wallet_balance", nullable=false, precision=18, scale=0, columnDefinition="numeric(18,0) default 0")
+    private java.math.BigDecimal walletBalance = java.math.BigDecimal.ZERO;
 }

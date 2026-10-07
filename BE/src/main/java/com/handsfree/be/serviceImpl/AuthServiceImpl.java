@@ -62,6 +62,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request) {
+        return loginForPortal(request, false);
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse loginOperator(LoginRequest request) {
+        return loginForPortal(request, true);
+    }
+
+    private AuthResponse loginForPortal(LoginRequest request, boolean operator) {
         Identifier identifier = normalizeIdentifier(request.identifier());
         User user = findByIdentifier(identifier)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
@@ -73,6 +83,10 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
         }
 
+        boolean isOperator = user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.STAFF;
+        if (operator ? !isOperator : user.getRole() != UserRole.USER) {
+            throw new AppException(operator ? ErrorCode.OPERATOR_LOGIN_REQUIRED : ErrorCode.CUSTOMER_LOGIN_REQUIRED);
+        }
         return createAuthResponse(user);
     }
 
@@ -107,6 +121,9 @@ public class AuthServiceImpl implements AuthService {
         } else {
             if (!user.isActive()) {
                 throw new AppException(ErrorCode.USER_DISABLED);
+            }
+            if (user.getRole() != UserRole.USER) {
+                throw new AppException(ErrorCode.CUSTOMER_LOGIN_REQUIRED);
             }
             user.setGoogleSubject(profile.subject());
             user.setAuthProvider(user.getPasswordHash() == null ? AuthProvider.GOOGLE : AuthProvider.BOTH);

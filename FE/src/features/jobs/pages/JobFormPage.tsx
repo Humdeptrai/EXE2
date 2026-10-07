@@ -1,3 +1,4 @@
+import { useFeedback } from "../../../components/feedback/FeedbackContext";
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import ImageViewer from "../../../components/ui/ImageViewer";
@@ -63,6 +64,7 @@ function jobToForm(job: JobPost): FormState {
 }
 
 export default function JobFormPage() {
+  const { confirm } = useFeedback();
   const { jobId } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(jobId);
@@ -140,7 +142,7 @@ export default function JobFormPage() {
 
   async function removeExistingMedia(mediaId: string) {
     const currentJobId = persistedJobId;
-    if (!currentJobId || !window.confirm("Xóa hình ảnh này khỏi bài đăng?")) return;
+    if (!currentJobId || !await confirm({ title: "Xóa hình ảnh", message: "Xóa hình ảnh này khỏi bài đăng?", confirmLabel: "Xóa ảnh", danger: true })) return;
     try {
       await jobService.deleteMedia(currentJobId, mediaId);
       setJob((current) => current ? { ...current, media: current.media.filter((media) => media.id !== mediaId) } : current);

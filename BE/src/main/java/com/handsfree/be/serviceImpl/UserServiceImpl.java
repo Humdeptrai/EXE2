@@ -45,6 +45,10 @@ public class UserServiceImpl implements UserService {
             throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS);
         }
 
+        ContactPrivacy.validate(request.fullName());
+        ContactPrivacy.validate(request.bio());
+        ContactPrivacy.validate(request.location());
+        if (request.tags() != null) request.tags().forEach(ContactPrivacy::validate);
         user.setFullName(request.fullName().trim());
         user.setPhone(phone);
         if (!StringUtils.hasText(user.getAvatarStorageKey())) {

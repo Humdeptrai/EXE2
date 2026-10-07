@@ -61,6 +61,7 @@ public interface JobPostRepository extends JpaRepository<JobPost, UUID> {
             select job
             from JobPost job
             where job.status = :status
+              and job.moderationHidden = false
               and job.owner.id <> :userId
               and job.scheduledDate >= :today
               and (:categoryId is null or job.category.id = :categoryId)

@@ -1,3 +1,4 @@
+import UserNotice from "../../../components/feedback/UserNotice";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -160,8 +161,8 @@ export default function CandidateQueuePage() {
           Đã đủ {job?.requiredWorkers} người. Ứng viên PENDING còn lại được giữ làm dự phòng; bạn vẫn có thể từ chối nhưng không thể accept thêm cho đến khi có slot trống ở luồng ngắt kết nối sau này.
         </div>
       )}
-      {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
-      {notice && <div className="fixed left-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl bg-[#0b1c30] px-4 py-3 text-center text-sm font-bold text-white shadow-xl">{notice}</div>}
+      {error && <UserNotice message={error} error />}
+      {notice && <div className="hf-user-toast"><UserNotice message={notice} onClose={() => setNotice("")} /></div>}
 
       {currentCandidate ? (
         <section className="mx-auto w-full max-w-md pb-3">

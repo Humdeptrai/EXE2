@@ -1,3 +1,5 @@
+import WalletPage from "../features/payment/pages/WalletPage";
+import ReportsPage from "../features/management/pages/ReportsPage";
 import AppShell from "../components/layout/AppShell";
 import ChatRoomPage from "../features/chat/pages/ChatRoomPage";
 import MessagesPage from "../features/chat/pages/MessagesPage";
@@ -21,6 +23,8 @@ export const privateRoutes = [
   {
     element: <AppShell />,
     children: [
+      { path: "wallet", element: <WalletPage /> },
+      { path: "reports", element: <ReportsPage /> },
       { path: "home", element: <HomePage /> },
       { path: "discover", element: <DiscoverPage /> },
       { path: "profile", element: <ProfilePage /> },

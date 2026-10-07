@@ -20,6 +20,12 @@ import java.util.UUID;
 
 @Repository
 public interface JobMatchRepository extends JpaRepository<JobMatch, UUID> {
+    @Query("select m.id from JobMatch m where m.status = :status and m.paymentDeadlineAt <= :now and m.connectionSucceededAt is null order by m.paymentDeadlineAt")
+    List<UUID> findDueIds(@Param("status") MatchStatus status, @Param("now") java.time.Instant now, Pageable page);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select m from JobMatch m where m.id = :id")
+    java.util.Optional<JobMatch> lockForAdmin(@org.springframework.data.repository.query.Param("id") UUID id);
     long countByJobPost_IdAndStatus(UUID jobId, MatchStatus status);
 
     long countByProvider_IdAndStatus(UUID providerId, MatchStatus status);
