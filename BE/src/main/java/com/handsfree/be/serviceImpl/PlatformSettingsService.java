@@ -18,9 +18,12 @@ public class PlatformSettingsService {
     @Transactional
     public PlatformSettings get() {
         jdbc.update(
-                "insert into"
-                    + " platform_settings(id,consumer_fee,provider_fee,min_top_up,max_top_up,top_up_enabled,version)"
-                    + " values(1,10000,5000,10000,5000000,true,0) on conflict do nothing");
+                "insert into platform_settings"
+                        + "(id,consumer_fee,provider_fee,min_top_up,max_top_up,"
+                        + "top_up_enabled,payment_window_minutes,version)"
+                        + " values(1,10000,5000,10000,5000000,true,1440,0)"
+                        + " on conflict do nothing"
+        );
         return settings.findById(1).orElseThrow();
     }
 }

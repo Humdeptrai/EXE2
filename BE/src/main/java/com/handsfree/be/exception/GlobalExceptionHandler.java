@@ -47,7 +47,9 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleDataIntegrity() {
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException exception) {
+        log.error("Database integrity violation", exception);
         return build(ErrorCode.DATA_CONFLICT, Map.of());
     }
 
