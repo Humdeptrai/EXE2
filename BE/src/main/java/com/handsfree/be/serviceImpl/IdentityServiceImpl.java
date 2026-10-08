@@ -14,7 +14,7 @@ import java.time.Instant;
 import java.util.*;
 
 @Service @RequiredArgsConstructor
-public class IdentityService {
+public class IdentityServiceImpl implements com.handsfree.be.service.IdentityService {
     private final IdentityRepository identities;
     private final UserRepository users;
     private final AccountAccess access;
@@ -22,8 +22,10 @@ public class IdentityService {
     private final IdentityCrypto crypto;
     private final FptIdentityClient provider;
     private final TransactionTemplate transactions;
-    public record Status(UUID userId, String status, String reason, Instant submittedAt, Instant verifiedAt, boolean enabled) {}
-    public record Dossier(Status verification, String fullName, String documentData, Double similarity, Boolean live) {}
+    private final JobMatchRepository matches;
+    private final ContactAccess contacts;
+    private final ManagementService management;
+
 
     public Status status(UUID user) {
         access.active(user);
@@ -81,6 +83,7 @@ public class IdentityService {
     public Dossier dossier(UUID actor, UUID user) {
         access.operator(actor, true);
         var i = get(user);
+        management.log(actor, "IDENTITY_VIEW", user.toString());
         return new Dossier(summary(i), crypto.text(i.getFullName()), crypto.text(i.getDocumentData()), i.getSimilarity(), i.getLive());
     }
     public byte[] adminImage(UUID actor, UUID user, String kind) {
@@ -88,12 +91,28 @@ public class IdentityService {
         var i = get(user);
         byte[] data = switch(kind) { case "front" -> i.getFrontImage(); case "back" -> i.getBackImage(); case "face" -> i.getFaceImage(); default -> throw new AppException(ErrorCode.FORBIDDEN); };
         if (data == null) throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
+        management.log(actor, "IDENTITY_IMAGE_VIEW", user + " " + kind);
         return crypto.decrypt(data);
     }
     public byte[] verifiedFace(UUID user) {
         var i = get(user);
         if (!"VERIFIED".equals(i.getStatus()) || i.getFaceImage() == null) throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
         return crypto.decrypt(i.getFaceImage());
+    }
+    @Override public com.handsfree.be.dto.response.PageResponse<Status> list(UUID actor, int page) {
+        access.operator(actor, false);
+        return com.handsfree.be.dto.response.PageResponse.from(identities.findAllProjectedBy(
+            org.springframework.data.domain.PageRequest.of(Math.max(page, 0), 20,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "submittedAt"))).map(this::summary));
+    }
+    @Override @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public byte[] counterpartFace(UUID actor, UUID match) {
+        access.active(actor);
+        var m = matches.findById(match).orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
+        if (!m.getConsumer().getId().equals(actor) && !m.getProvider().getId().equals(actor)) throw new AppException(ErrorCode.MATCH_NOT_FOUND);
+        if (!contacts.unlocked(m)) throw new AppException(ErrorCode.CHAT_NOT_UNLOCKED);
+        UUID other = m.getConsumer().getId().equals(actor) ? m.getProvider().getId() : m.getConsumer().getId();
+        return verifiedFace(other);
     }
     private IdentityVerification get(UUID user) { return identities.findById(user).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_NOT_FOUND)); }
     private byte[] jpeg(MultipartFile file) {

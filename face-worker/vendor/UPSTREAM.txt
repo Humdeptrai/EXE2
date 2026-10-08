@@ -1,0 +1,3 @@
+minivision-ai/Silent-Face-Anti-Spoofing
+Revision: b6d5f04ad78778917853b25c778acef6d5626d15
+MiniFASNet.py unchanged, Apache-2.0; see MINIVISION_LICENSE.
