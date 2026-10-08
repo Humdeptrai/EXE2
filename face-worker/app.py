@@ -1,4 +1,4 @@
-"""Private stateless comparison service. No OCR, liveness or identity verification."""
+"""Private local RGB PAD / motion / OCR service. Never certifies identity or document authenticity."""
 import hmac
 import io
 import math
@@ -27,14 +27,17 @@ async def lifespan(app):
         raise RuntimeError("Configure a shared key of at least 32 characters and a valid threshold")
     app.state.detector = cv2.FaceDetectorYN.create(str(MODELS / "yunet.onnx"), "", (320, 320), 0.9, 0.3, 5000)
     app.state.recognizer = cv2.FaceRecognizerSF.create(str(MODELS / "sface.onnx"), "")
+    from liveness import initialize
+    initialize(app, MODELS)
     yield
+    app.state.landmarker.close()
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
 @app.middleware("http")
 async def limit_body(request: Request, call_next):
     # Reject before multipart parsing, including chunked requests.
-    if request.url.path == "/compare":
+    if request.url.path != "/health":
         if not hmac.compare_digest(request.headers.get("x-face-key", ""), KEY) or len(KEY) < 32:
             from fastapi.responses import JSONResponse
             return JSONResponse({"detail": "Unauthorized"}, status_code=401)
@@ -81,34 +84,45 @@ def feature(app, image):
     aligned = recognizer.alignCrop(image, faces[0])
     return recognizer.feature(aligned)
 
-@app.post("/compare")
-async def compare(request: Request, x_face_key: str = Header(default="")):
-    if not hmac.compare_digest(x_face_key, KEY) or len(KEY) < 32:
-        raise HTTPException(401, "Unauthorized")
-    async with request.form(max_files=2, max_fields=0, max_part_size=MAX_IMAGE) as form:
-        if set(form.keys()) != {"front", "face"} or len(form.getlist("front")) != 1 or len(form.getlist("face")) != 1:
-            raise HTTPException(422, "Expected front and face")
-        data = []
-        for name in ("front", "face"):
-            upload = form[name]
-            if getattr(upload, "content_type", None) != "image/jpeg":
-                raise HTTPException(422, "JPEG required")
-            data.append(await upload.read(MAX_IMAGE + 1))
-    # CPU inference runs off the event loop; models are not used concurrently.
-    from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(infer, request.app, data)
+# The worker is private: browser traffic always goes through authenticated BE.
+def locked(operation, *args):
+    if not LOCK.acquire(blocking=False): raise HTTPException(429, "Busy")
+    try: return operation(*args)
+    finally: LOCK.release()
 
-def infer(app, data):
-    if not LOCK.acquire(blocking=False):
-        raise HTTPException(429, "Busy")
-    try:
-        card, portrait = (decode(raw) for raw in data)
-        a, b = feature(app, card), feature(app, portrait)
-        score = float(app.state.recognizer.match(a, b, cv2.FaceRecognizerSF_FR_COSINE))
-        if not math.isfinite(score):
-            raise HTTPException(422, "Unable to compare")
-        score = max(-1.0, min(1.0, score))
-        return {"decision": "MATCH" if score >= THRESHOLD else "NO_MATCH",
-                "cosineScore": score, "threshold": THRESHOLD}
-    finally:
-        LOCK.release()
+@app.post("/sessions")
+async def begin():
+    from liveness import start
+    from starlette.concurrency import run_in_threadpool
+    return await run_in_threadpool(locked, start)
+
+@app.delete("/sessions/{sid}")
+async def cancel(sid: str):
+    from liveness import SESSIONS
+    from starlette.concurrency import run_in_threadpool
+    await run_in_threadpool(locked, lambda: SESSIONS.pop(sid, None))
+    return {"cancelled": True}
+
+@app.post("/sessions/{sid}/frame")
+async def scan(request: Request, sid: str):
+    from liveness import frame
+    from starlette.concurrency import run_in_threadpool
+    async with request.form(max_files=1, max_fields=0, max_part_size=MAX_IMAGE) as form:
+        if set(form.keys()) != {"face"}: raise HTTPException(422, "Expected face")
+        upload = form["face"]
+        if getattr(upload, "content_type", None) != "image/jpeg": raise HTTPException(422, "JPEG required")
+        raw = await upload.read(MAX_IMAGE + 1)
+    return await run_in_threadpool(locked, frame, request.app, sid, raw, decode, feature)
+
+@app.post("/sessions/{sid}/finish")
+async def finalize(request: Request, sid: str):
+    from liveness import finish
+    from starlette.concurrency import run_in_threadpool
+    async with request.form(max_files=2, max_fields=0, max_part_size=MAX_IMAGE) as form:
+        if set(form.keys()) != {"front", "back"}: raise HTTPException(422, "Expected front and back")
+        data=[]
+        for name in ("front", "back"):
+            upload=form[name]
+            if getattr(upload, "content_type", None) != "image/jpeg": raise HTTPException(422, "JPEG required")
+            data.append(await upload.read(MAX_IMAGE + 1))
+    return await run_in_threadpool(locked, finish, request.app, sid, *data, decode, feature, THRESHOLD)

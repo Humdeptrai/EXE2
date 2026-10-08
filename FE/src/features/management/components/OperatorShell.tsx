@@ -9,6 +9,7 @@ const items = [
   { path: "revenue", title: "Doanh thu", icon: "star" as const, admin: true },
   { path: "reports", title: "Báo cáo", icon: "bell" as const, group: "Quản lý" },
   { path: "jobs", title: "Bài đăng", icon: "briefcase" as const },
+  { path: "identities", title: "Hồ sơ xác thực", icon: "users" as const },
   { path: "users", title: "Tài khoản", icon: "users" as const, admin: true },
   { path: "matches", title: "Kết nối", icon: "chat" as const, admin: true },
   { path: "topups", title: "Đơn nạp tiền", icon: "list" as const, admin: true, group: "Tài chính & hệ thống" },

@@ -155,6 +155,7 @@ export default function ProfilePage() {
 
   return (
     <div className="hf-page hf-page-profile grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <a className="hf-face-entry" href="/face-comparison" style={{ gridColumn: "1 / -1", padding: "16px 20px", borderRadius: 16, background: "#eaf7f9", color: "#006b82", fontWeight: 600 }}>Xác thực danh tính → Quét khuôn mặt & CCCD</a>
       <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="h-24 bg-gradient-to-r from-[#007f95] to-[#66bdc6] sm:h-36" />
         <div className="px-4 pb-5 sm:px-8 sm:pb-6">
