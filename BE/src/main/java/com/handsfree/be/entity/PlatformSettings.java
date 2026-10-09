@@ -33,6 +33,7 @@ public class PlatformSettings {
     private int paymentWindowMinutes = 1440;
 
     @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("360")
     private int ratingDelayMinutes = 360;
 
     @Version private long version;

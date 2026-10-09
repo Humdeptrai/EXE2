@@ -6,6 +6,8 @@ Migration `005_job_end_rating_window.sql` cần các migration trước đó (00
 
 Neon: chọn đúng project/branch/database, mở SQL Editor, chạy toàn bộ nội dung `005_job_end_rating_window.sql`. Thành công sẽ kết thúc bằng `COMMIT`. Sau đó deploy backend mới trên Render. Frontend và backend phải cùng phiên bản.
 
+Nếu Render báo `rating_delay_minutes ... contains null values` nhưng vẫn hiển thị Live, Hibernate đang cố thêm cột bắt buộc vào bảng đã có dữ liệu mà không có giá trị mặc định. Chạy lại bản migration 005 hiện tại trong Neon: script thêm cột với mặc định 360, điền các giá trị NULL và giữ nguyên thời gian ADMIN đã cấu hình. Sau đó chạy migration 006 cho phase report nếu chưa chạy. Chỉ khi các migration thành công, đặt `JPA_DDL_AUTO=validate` trong Environment của backend Render và redeploy để phát hiện schema thiếu ngay khi khởi động.
+
 Docker local, PowerShell từ thư mục `BE`:
 
 ```powershell
