@@ -1,5 +1,8 @@
+import { useNavigate, useSearchParams } from "react-router-dom";
+import IdentityProfileCard from "../../identity/components/IdentityProfileCard";
+import { identityService, onboardingUrl, safeNext, type Eligibility } from "../../../services/identityService";
 import UserNotice from "../../../components/feedback/UserNotice";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import { useAuth } from "../../../context/AuthContext";
 import { ratingService } from "../../../services/ratingService";
@@ -28,7 +31,16 @@ function emptyForm(): UpdateProfileRequest {
 
 export default function ProfilePage() {
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout } = useAuth();
-  const [editing, setEditing] = useState(!user?.profileCompleted);
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const onboarding = params.get("onboarding") === "1";
+  const next = safeNext(params.get("next"));
+  const [editing, setEditing] = useState(onboarding || !user?.profileCompleted);
+  useEffect(() => {
+    if (!onboarding) return;
+    const timer = window.setTimeout(() => setEditing(true), 0);
+    return () => window.clearTimeout(timer);
+  }, [onboarding]);
   const [form, setForm] = useState<UpdateProfileRequest>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
@@ -59,13 +71,30 @@ export default function ProfilePage() {
     return () => { active = false; };
   }, [user?.id]);
 
-  const completedItems = useMemo(() => [
-    Boolean(form.fullName.trim()),
-    Boolean(form.location.trim()),
-    Boolean(form.bio.trim()),
-    form.tags.length > 0,
-  ], [form]);
-  const progress = completedItems.filter(Boolean).length * 25;
+  const [identity, setIdentity] = useState<Eligibility | null>(null);
+  const [identityError, setIdentityError] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    void identityService.eligibility(controller.signal).then((result) => {
+      if (!controller.signal.aborted) { setIdentity(result); setIdentityError(""); }
+    }).catch((error) => {
+      if (!controller.signal.aborted) { setIdentity(null); setIdentityError(getApiErrorMessage(error, "Không tải được trạng thái xác minh. Vui lòng tải lại trang.")); }
+    });
+    return () => controller.abort();
+  }, [user?.id, user?.updatedAt]);
+
+  // Count saved fields only; editing an unsaved draft must not report 100%.
+  const completedItems = [
+    Boolean(user?.fullName?.trim()),
+    Boolean(user?.location?.trim()),
+    Boolean(user?.bio?.trim()),
+    Boolean(user?.tags?.length),
+    /^0\d{9}$/.test(user?.phone?.trim() || ""),
+    Boolean(user?.email?.trim()),
+    Boolean(user?.avatarUrl?.trim()),
+    identity?.identityVerified === true,
+  ];
+  const progress = Math.floor(completedItems.filter(Boolean).length * 100 / completedItems.length);
 
   function setField<K extends keyof UpdateProfileRequest>(field: K, value: UpdateProfileRequest[K]) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -125,6 +154,10 @@ export default function ProfilePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (onboarding && (!form.fullName.trim() || !/^0\d{9}$/.test(form.phone.trim()) || !form.location.trim() || !form.bio.trim() || !form.tags.length)) {
+      setMessage({ type: "error", text: "Vui lòng điền họ tên, số điện thoại hợp lệ, nơi ở, giới thiệu và ít nhất một kỹ năng trước khi tiếp tục." });
+      return;
+    }
     setSaving(true);
     setMessage(null);
     try {
@@ -136,7 +169,10 @@ export default function ProfilePage() {
         bio: form.bio.trim(),
         location: form.location.trim(),
       });
-      setMessage({ type: "success", text: updated.profileCompleted ? "Hồ sơ đã hoàn tất và sẵn sàng cho matching." : "Đã lưu thông tin hồ sơ." });
+      setMessage({ type: "success", text: identity?.identityVerified ? "Đã lưu thông tin hồ sơ." : "Đã lưu thông tin hồ sơ. Bạn cần hoàn tất xác thực danh tính để đăng hoặc nhận việc." });
+      if (onboarding && updated.profileCompleted && updated.phone && updated.location) {
+        navigate(onboardingUrl(next), { replace: true });
+      }
       setEditing(false);
     } catch (error) {
       setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể cập nhật hồ sơ lúc này.") });
@@ -155,7 +191,7 @@ export default function ProfilePage() {
 
   return (
     <div className="hf-page hf-page-profile grid min-w-0 gap-4 sm:gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <a className="hf-face-entry" href="/face-comparison" style={{ gridColumn: "1 / -1", padding: "16px 20px", borderRadius: 16, background: "#eaf7f9", color: "#006b82", fontWeight: 600 }}>Xác thực danh tính → Quét khuôn mặt & CCCD</a>
+      {onboarding && <div className="rounded-2xl bg-[#eaf7f9] p-5 text-[#006b82]" style={{ gridColumn: "1 / -1" }}><p className="text-sm font-extrabold">HOÀN THIỆN TÀI KHOẢN · BƯỚC 1</p><h1 className="mt-1 text-xl font-extrabold">Thông tin cơ bản</h1><p className="mt-2">Bổ sung thông tin bên dưới. Ở bước tiếp theo, bạn có thể bắt đầu xác thực khuôn mặt hoặc chọn để sau.</p></div>}
       <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="h-24 bg-gradient-to-r from-[#007f95] to-[#66bdc6] sm:h-36" />
         <div className="px-4 pb-5 sm:px-8 sm:pb-6">
@@ -209,6 +245,7 @@ export default function ProfilePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Email</p><p className="mt-1 break-all font-bold">{user?.email || "Không có"}</p></div>
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Số điện thoại</p><p className="mt-1 font-bold">{user?.phone || "Chưa cập nhật"}</p></div>
+                <IdentityProfileCard state={identity} error={identityError} />
               </div>
             </div>
           )}
@@ -219,12 +256,12 @@ export default function ProfilePage() {
                 <label className="block text-sm font-extrabold">Họ và tên *
                   <input value={form.fullName} onChange={(e) => setField("fullName", e.target.value)} maxLength={100} required className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
                 </label>
-                <label className="block text-sm font-extrabold">Số điện thoại
-                  <input value={form.phone} onChange={(e) => setField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="0901234567" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
+                <label className="block text-sm font-extrabold">Số điện thoại (cần khi đăng/nhận việc)
+                  <input required={onboarding} pattern="0[0-9]{9}" value={form.phone} onChange={(e) => setField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="0901234567" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
                 </label>
               </div>
-              <label className="block text-sm font-extrabold">Khu vực hoạt động *
-                <input value={form.location} onChange={(e) => setField("location", e.target.value)} maxLength={120} placeholder="Ví dụ: Quận 9, TP. Hồ Chí Minh" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
+              <label className="block text-sm font-extrabold">Nơi ở / khu vực hoạt động *
+                <input required={onboarding} value={form.location} onChange={(e) => setField("location", e.target.value)} maxLength={120} placeholder="Ví dụ: Quận 9, TP. Hồ Chí Minh" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
               </label>
               <div className="rounded-2xl border border-slate-200 p-4">
                 <p className="text-sm font-extrabold">Ảnh đại diện</p>
@@ -242,7 +279,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <label className="block text-sm font-extrabold">Giới thiệu bản thân *
-                <textarea value={form.bio} onChange={(e) => setField("bio", e.target.value)} maxLength={500} rows={5} placeholder="Chia sẻ ngắn về kinh nghiệm, cách làm việc và thời gian bạn thường rảnh..." className="mt-2 min-h-32 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium leading-6 outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
+                <textarea required={onboarding} value={form.bio} onChange={(e) => setField("bio", e.target.value)} maxLength={500} rows={5} placeholder="Chia sẻ ngắn về kinh nghiệm, cách làm việc và thời gian bạn thường rảnh..." className="mt-2 min-h-32 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium leading-6 outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
                 <span className="mt-1 block text-right text-xs font-bold text-slate-400">{form.bio.length}/500</span>
               </label>
               <fieldset>
@@ -259,10 +296,12 @@ export default function ProfilePage() {
                 </div>
               </fieldset>
 
+              <div className="grid gap-3 sm:grid-cols-2"><IdentityProfileCard state={identity} error={identityError} /></div>
+
               {message && <UserNotice message={message.text} tone={message.type} />}
 
               <button disabled={saving} className="min-h-12 w-full rounded-xl bg-[#007f95] px-5 py-3.5 font-extrabold text-white shadow-[0_10px_25px_rgba(0,127,149,0.2)] disabled:opacity-60">
-                {saving ? "Đang lưu..." : "Lưu hồ sơ"}
+                {saving ? "Đang lưu..." : onboarding ? "Lưu và tiếp tục" : "Lưu hồ sơ"}
               </button>
             </form>
           )}
@@ -281,14 +320,18 @@ export default function ProfilePage() {
               ["Khu vực", completedItems[1]],
               ["Giới thiệu", completedItems[2]],
               ["Ít nhất 1 kỹ năng", completedItems[3]],
+              ["Số điện thoại", completedItems[4]],
+              ["Email", completedItems[5]],
+              ["Ảnh đại diện", completedItems[6]],
+              ["Xác minh danh tính", completedItems[7]],
             ].map(([label, done]) => (
               <div key={String(label)} className="flex items-center gap-2">
-                <span className={`grid h-5 w-5 place-items-center rounded-full text-xs font-extrabold ${done ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>{done ? "✓" : "·"}</span>
+                <span className={`grid h-5 w-5 place-items-center rounded-full text-xs font-extrabold ${done ? "bg-emerald-100 text-emerald-700" : "bg-red-50 text-red-600"}`}>{done ? "✓" : "!"}</span>
                 <span className={done ? "font-bold text-slate-700" : "text-slate-400"}>{String(label)}</span>
               </div>
             ))}
           </div>
-          <p className="mt-4 rounded-xl bg-[#f0f8fa] p-3 text-xs leading-5 text-[#526b72]">Thêm ảnh và số điện thoại để hồ sơ dễ nhận diện hơn. Đây là thông tin tùy chọn.</p>
+          <p className="mt-4 rounded-xl bg-[#f0f8fa] p-3 text-xs leading-5 text-[#526b72]">Hoàn thiện tất cả các mục và xác minh danh tính để đạt 100%. Tiến trình chỉ tính thông tin đã lưu. Ảnh đại diện không bắt buộc để đăng hoặc nhận việc.</p>
         </section>
 
         <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">

@@ -1,3 +1,4 @@
+import IdentityOnboardingPage from "../features/identity/pages/IdentityOnboardingPage";
 import WalletPage from "../features/payment/pages/WalletPage";
 import ReportsPage from "../features/management/pages/ReportsPage";
 import AppShell from "../components/layout/AppShell";
@@ -24,6 +25,7 @@ export const privateRoutes = [
   {
     element: <AppShell />,
     children: [
+      { path: "onboarding", element: <IdentityOnboardingPage /> },
       { path: "wallet", element: <WalletPage /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "home", element: <HomePage /> },

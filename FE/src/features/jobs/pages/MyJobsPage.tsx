@@ -1,3 +1,4 @@
+import { isIdentityActionHandled } from "../../../config/axios";
 import { useFeedback } from "../../../components/feedback/FeedbackContext";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useState } from "react";
@@ -57,7 +58,7 @@ export default function MyJobsPage() {
       setPage(posts);
       setSummary(counts);
     } catch (error) {
-      setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể tải danh sách bài đăng.") });
+      if (!isIdentityActionHandled(error)) setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể tải danh sách bài đăng.") });
     } finally {
       setLoading(false);
     }
@@ -106,7 +107,7 @@ export default function MyJobsPage() {
       });
       await load();
     } catch (error) {
-      setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể thực hiện thao tác.") });
+      if (!isIdentityActionHandled(error)) setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể thực hiện thao tác.") });
     } finally {
       setBusyId(null);
     }

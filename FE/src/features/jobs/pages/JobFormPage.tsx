@@ -1,3 +1,5 @@
+import { identityService } from "../../../services/identityService";
+import { IDENTITY_ACTION_REQUIRED_EVENT, isIdentityActionHandled } from "../../../config/axios";
 import { useFeedback } from "../../../components/feedback/FeedbackContext";
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -176,6 +178,15 @@ export default function JobFormPage() {
         setMessage({ type: "error", text: `Bài đã có Matching. Số người cần chỉ được tăng từ ${job.requiredWorkers} trở lên.` });
         return;
       }
+      if (action === "PUBLISH") {
+        const eligibility = await identityService.eligibility();
+        if (!eligibility.eligible) {
+          window.dispatchEvent(new CustomEvent(IDENTITY_ACTION_REQUIRED_EVENT, { detail: {
+            message: `Bạn cần hoàn tất: ${eligibility.missingRequirements.join(", ")} trước khi đăng việc. Vui lòng vào Hồ sơ để bổ sung. Bạn vẫn có thể lưu bản nháp.`,
+          } }));
+          return;
+        }
+      }
       const payload = buildPayload();
       let saved = persistedJobId
         ? await jobService.update(persistedJobId, payload)
@@ -202,7 +213,7 @@ export default function JobFormPage() {
         state: { notice: action === "PUBLISH" ? "Đăng bài thành công." : "Đã lưu bản nháp." },
       });
     } catch (error) {
-      setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể lưu bài đăng. Vui lòng thử lại.") });
+      if (!isIdentityActionHandled(error)) setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể lưu bài đăng. Vui lòng thử lại.") });
     } finally {
       savingRef.current = false;
       setSavingAction(null);

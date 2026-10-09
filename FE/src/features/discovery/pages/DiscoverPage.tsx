@@ -1,3 +1,4 @@
+import { isIdentityActionHandled } from "../../../config/axios";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { type FormEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -64,7 +65,7 @@ export default function DiscoverPage() {
         return [...current, ...result.content.filter((item) => !currentIds.has(item.id))];
       });
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể tải feed công việc lúc này."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể tải feed công việc lúc này."));
     } finally {
       if (replace) setLoading(false);
     }
@@ -126,7 +127,7 @@ export default function DiscoverPage() {
       await delay(180);
       removeCurrent(jobId);
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể cập nhật lựa chọn lúc này."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể cập nhật lựa chọn lúc này."));
       setExiting(null);
       setDragX(0);
       setBusy(false);
@@ -145,7 +146,7 @@ export default function DiscoverPage() {
       await delay(180);
       removeCurrent(jobId);
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể đánh dấu rất quan tâm lúc này."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể đánh dấu rất quan tâm lúc này."));
       setExiting(null);
       setBusy(false);
     }
@@ -164,7 +165,7 @@ export default function DiscoverPage() {
         : item));
       setNotice(state.saved ? "Đã lưu công việc." : "Đã bỏ lưu công việc.");
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể cập nhật danh sách đã lưu."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể cập nhật danh sách đã lưu."));
     } finally {
       setBusy(false);
     }

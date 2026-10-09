@@ -1,3 +1,4 @@
+import { isIdentityActionHandled } from "../../../config/axios";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -52,7 +53,7 @@ export default function JobDetailPage() {
       updateInteraction(state);
       setNotice(state.saved ? "Đã lưu công việc." : "Đã bỏ lưu công việc.");
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể cập nhật danh sách đã lưu."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể cập nhật danh sách đã lưu."));
     } finally {
       setBusy(false);
     }
@@ -66,7 +67,7 @@ export default function JobDetailPage() {
       updateInteraction(await jobService.expressInterest(job.id, level));
       setNotice(level === "VERY_INTERESTED" ? "Đã đánh dấu rất quan tâm." : "Đã gửi sự quan tâm đến chủ bài.");
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể gửi sự quan tâm."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể gửi sự quan tâm."));
     } finally {
       setBusy(false);
     }
@@ -80,7 +81,7 @@ export default function JobDetailPage() {
       updateInteraction(await jobService.withdrawInterest(job.id));
       setNotice("Đã rút sự quan tâm.");
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể rút sự quan tâm."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể rút sự quan tâm."));
     } finally {
       setBusy(false);
     }
@@ -94,7 +95,7 @@ export default function JobDetailPage() {
       updateInteraction(await jobService.restoreSkippedJob(job.id));
       setNotice("Đã khôi phục công việc vào feed.");
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể khôi phục công việc."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể khôi phục công việc."));
     } finally {
       setBusy(false);
     }

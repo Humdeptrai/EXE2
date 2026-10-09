@@ -1,3 +1,4 @@
+import { onboardingUrl } from "../../../services/identityService";
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthLayout } from "../components/AuthLayout";
@@ -70,7 +71,7 @@ export default function RegisterPage() {
         password: form.password,
         termsAccepted: form.termsAccepted,
       });
-      navigate("/home", { replace: true });
+      navigate(onboardingUrl("/home"), { replace: true });
     } catch (error) {
       const payload = getAuthError(error, "Không thể đăng ký. Vui lòng thử lại.");
       if (payload.errors) setErrors((current) => ({ ...current, ...payload.errors }));
@@ -85,7 +86,7 @@ export default function RegisterPage() {
     setMessage(null);
     try {
       await loginWithGoogle({ credential });
-      navigate("/home", { replace: true });
+      navigate(onboardingUrl("/home"), { replace: true });
     } catch (error) {
       setMessage({ kind: "error", text: getAuthError(error, "Không thể đăng nhập Google.").message || "Không thể đăng nhập Google." });
     } finally {

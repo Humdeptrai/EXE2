@@ -1,3 +1,4 @@
+import InstallPage from "../features/pwa/InstallPage";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import GuestRoute from "../components/guards/GuestRoute";
 import ProtectedRoute from "../components/guards/ProtectedRoute";
@@ -10,6 +11,7 @@ import LegacyManagementRoute from "../features/management/components/LegacyManag
 import LandingPageRoute from "../features/landing/pages/LandingPageRoute";
 
 export const router = createBrowserRouter([
+  { path: "/install", element: <InstallPage /> },
   ...operatorRoutes,
   { path: "/management", element: <LegacyManagementRoute /> },
   {

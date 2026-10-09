@@ -1,5 +1,6 @@
+import { safeNext } from "../../../services/identityService";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import api from "../../../config/axios";
 import type { ApiResponse } from "../../../types/api";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
@@ -28,6 +29,7 @@ function Preview({ file, label }: { file: File | null; label: string }) {
   return file ? <img ref={ref} alt={label} /> : <p>Chưa có ảnh</p>;
 }
 export default function FaceComparisonPage() {
+  const [params] = useSearchParams(); const next = safeNext(params.get("next"));
   const [files, setFiles] = useState<Record<Slot, File | null>>({ front: null, back: null });
   const [camera, setCamera] = useState<Slot | "face" | null>(null);
   const [consent, setConsent] = useState(false);
@@ -150,6 +152,6 @@ export default function FaceComparisonPage() {
       {busy && !camera && <p role="status">Đang đọc CCCD và so khớp khuôn mặt…</p>}
     </section>
     <label className="hf-face-consent"><input type="checkbox" checked={consent} disabled={busy} onChange={e => setConsent(e.target.checked)} /><span>Tôi đồng ý xử lý ảnh CCCD và khuôn mặt để kiểm tra danh tính. Hồ sơ đạt kiểm tra được mã hóa, chỉ ADMIN được xem ảnh CCCD; STAFF chỉ xem trạng thái.</span></label>
-    {result && <section className={`hf-face-result ${result.status === "REJECTED" ? "hf-no-match" : "hf-match"}`} aria-live="polite"><h2>{result.status === "REJECTED" ? "Chưa đạt đối chiếu" : "Đã hoàn thành quét & đối chiếu"}</h2><p>{result.message}</p><ul><li>Động tác: {result.motionPassed ? "Đạt" : "Chưa đạt"}</li><li>Chống giả mạo RGB: {result.antiSpoofPassed ? "Đạt" : "Chưa đạt"}</li><li>Đọc CCCD: {result.documentReadable ? "Đạt" : "Chưa rõ"}</li><li>So khớp: {result.decision === "MATCH" ? "Đạt" : "Chưa khớp"}</li></ul><small>Kết quả chống giả mạo chưa được chứng nhận. Điểm so khớp không phải phần trăm xác thực.</small><Link to="/profile">Về hồ sơ</Link></section>}
+    {result && <section className={`hf-face-result ${result.status === "REJECTED" ? "hf-no-match" : "hf-match"}`} aria-live="polite"><h2>{result.status === "REJECTED" ? "Chưa đạt đối chiếu" : "Đã hoàn thành quét & đối chiếu"}</h2><p>{result.message}</p><ul><li>Động tác: {result.motionPassed ? "Đạt" : "Chưa đạt"}</li><li>Chống giả mạo RGB: {result.antiSpoofPassed ? "Đạt" : "Chưa đạt"}</li><li>Đọc CCCD: {result.documentReadable ? "Đạt" : "Chưa rõ"}</li><li>So khớp: {result.decision === "MATCH" ? "Đạt" : "Chưa khớp"}</li></ul><small>Kết quả chống giả mạo chưa được chứng nhận. Điểm so khớp không phải phần trăm xác thực.</small><div className="hf-onboarding-actions"><Link to="/profile">Về hồ sơ</Link><Link to={next}>Tiếp tục khám phá</Link></div></section>}
   </main>;
 }

@@ -2,7 +2,9 @@ export interface ConfirmOptions {
   title: string;
   message: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   danger?: boolean;
+  acknowledgeOnly?: boolean;
 }
 
 // One decision at a time. A second click cannot enqueue a duplicate mutation.

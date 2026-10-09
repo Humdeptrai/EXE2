@@ -12,6 +12,10 @@ import java.util.UUID;
 public class IdentityController {
     private final IdentityService identity;
     private UUID id(Authentication a) { return UUID.fromString(a.getName()); }
+    @GetMapping("/identity/eligibility")
+    public ApiResponse<?> eligibility(Authentication a) {
+        return ApiResponse.success(200, "Điều kiện đăng và nhận việc", identity.eligibility(id(a)));
+    }
     @GetMapping("/identity")
     public ApiResponse<?> status(Authentication a) { return ApiResponse.success(200, "Xác thực danh tính", identity.status(id(a))); }
     @PostMapping(value = "/identity", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

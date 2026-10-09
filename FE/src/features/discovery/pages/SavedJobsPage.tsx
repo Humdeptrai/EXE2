@@ -1,3 +1,4 @@
+import { isIdentityActionHandled } from "../../../config/axios";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
@@ -57,7 +58,7 @@ export default function SavedJobsPage() {
         setMatchResult(emptyMatchPage);
       }
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể tải danh sách lúc này."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể tải danh sách lúc này."));
       setResult(emptyPage);
       setMatchResult(emptyMatchPage);
     } finally {
@@ -92,7 +93,7 @@ export default function SavedJobsPage() {
       setNotice("Đã bỏ lưu công việc.");
       await Promise.all([loadList(tab, page), loadSummary()]);
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể bỏ lưu công việc."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể bỏ lưu công việc."));
     } finally {
       setBusyId(null);
     }
@@ -106,7 +107,7 @@ export default function SavedJobsPage() {
       setNotice("Đã rút sự quan tâm.");
       await Promise.all([loadList(tab, page), loadSummary()]);
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể rút sự quan tâm."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể rút sự quan tâm."));
     } finally {
       setBusyId(null);
     }
@@ -120,7 +121,7 @@ export default function SavedJobsPage() {
       setNotice("Đã chuyển sang Rất quan tâm.");
       await Promise.all([loadList(tab, page), loadSummary()]);
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể cập nhật mức độ quan tâm."));
+      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể cập nhật mức độ quan tâm."));
     } finally {
       setBusyId(null);
     }

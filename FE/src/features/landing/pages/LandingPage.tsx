@@ -84,7 +84,7 @@ export default function LandingPage() {
         <section className="hf-container hf-final-wrap"><div className="hf-final-cta"><div><p className="hf-eyebrow">MỘT NGÀY NHẸ NHÀNG HƠN BẮT ĐẦU TỪ ĐÂY</p><h2>Để việc nhỏ<br />không còn là việc lớn.</h2><Link className="hf-button hf-button-light" to={startTo}>{isAuthenticated ? "Vào HandsFree" : "Tạo tài khoản HandsFree"}<Arrow /></Link></div><div className="hf-final-art" aria-hidden="true"><span>✳</span><p>Less busy.<br /><em>More living.</em></p></div></div></section>
       </main>
 
-      <footer className="hf-footer hf-container"><div><Link to="/" className="hf-logo-link" aria-label="HandsFree - Trang chủ"><HandsFreeLogo compact /></Link><p>Kết nối những đôi tay. Mở thêm thời gian.</p></div><nav aria-label="Điều hướng cuối trang"><a href="#how-it-works">Cách hoạt động</a><a href="#faq">Câu hỏi thường gặp</a><Link to={isAuthenticated ? "/home" : "/login"}>{isAuthenticated ? "Tài khoản" : "Đăng nhập"}</Link></nav><div className="hf-footer-bottom"><span>© {new Date().getFullYear()} HandsFree.</span><span>Kết nối việc ngắn hạn · Phiên bản MVP</span></div></footer>
+      <footer className="hf-footer hf-container"><div><Link to="/" className="hf-logo-link" aria-label="HandsFree - Trang chủ"><HandsFreeLogo compact /></Link><p>Kết nối những đôi tay. Mở thêm thời gian.</p></div><nav aria-label="Điều hướng cuối trang"><Link to="/install">Cài HandsFree</Link><a href="#how-it-works">Cách hoạt động</a><a href="#faq">Câu hỏi thường gặp</a><Link to={isAuthenticated ? "/home" : "/login"}>{isAuthenticated ? "Tài khoản" : "Đăng nhập"}</Link></nav><div className="hf-footer-bottom"><span>© {new Date().getFullYear()} HandsFree.</span><span>Kết nối việc ngắn hạn · Phiên bản MVP</span></div></footer>
     </div>
   );
 }

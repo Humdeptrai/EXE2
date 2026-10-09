@@ -27,6 +27,23 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     private final ManagementService management;
 
 
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public Eligibility eligibility(UUID user) {
+        var account = access.active(user);
+        List<String> missing = new ArrayList<>();
+        if (!org.springframework.util.StringUtils.hasText(account.getFullName())) missing.add("Họ tên");
+        if (account.getPhone() == null || !account.getPhone().trim().matches("0[0-9]{9}")) missing.add("Số điện thoại hợp lệ");
+        if (!org.springframework.util.StringUtils.hasText(account.getLocation())) missing.add("Nơi ở / khu vực");
+        if (!org.springframework.util.StringUtils.hasText(account.getBio())) missing.add("Giới thiệu");
+        if (account.getProfileTags() == null || account.getProfileTags().isEmpty()) missing.add("Ít nhất một kỹ năng");
+        boolean profileComplete = missing.isEmpty();
+        String state = identities.findStateByUserId(user).map(IdentityRepository.State::getStatus).orElse("NOT_SUBMITTED");
+        boolean verified = "VERIFIED".equals(state);
+        if (!verified) missing.add("Xác minh khuôn mặt và CCCD");
+        return new Eligibility(profileComplete && verified, profileComplete, verified, state, List.copyOf(missing));
+    }
+
     public Status status(UUID user) {
         access.active(user);
         return identities.findStateByUserId(user).map(this::summary)

@@ -10,3 +10,12 @@
 .hf-face-camera progress { display:block; width:100%; height:16px; accent-color:#00849a; }
 .hf-face-result a { display:inline-block; margin-top:12px; font-weight:600; }
 @media(max-width:640px) { .hf-face-scan { padding:16px; } .hf-live-direction { font-size:1.15rem; } .hf-live-oval { inset:7% 20%; } }
+
+.hf-onboarding { max-width:780px; }
+.hf-onboarding ul { padding-left:22px; list-style:disc; line-height:1.9; }
+.hf-onboarding-actions { display:flex; flex-wrap:wrap; gap:12px; margin:24px 0; }
+.hf-onboarding-actions a { display:inline-flex; align-items:center; justify-content:center; min-height:48px; border-radius:12px; padding:12px 24px; font-weight:800; }
+.hf-onboarding-actions .hf-onboarding-primary { background:#007f95; color:white; }
+.hf-onboarding-actions .hf-onboarding-secondary { border:1px solid #c5e8ef; color:#006b82; background:white; }
+.hf-onboarding-actions a:focus-visible { outline:3px solid #83dce9; outline-offset:3px; }
+@media(max-width:640px) { .hf-onboarding-actions a { flex:1; } }
