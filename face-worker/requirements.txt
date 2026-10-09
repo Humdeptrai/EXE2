@@ -1,5 +1,6 @@
 fastapi==0.142.4
 uvicorn==0.54.0
 python-multipart==0.0.32
-opencv-python-headless==5.0.0.93
+opencv-contrib-python==5.0.0.93
 pillow==12.3.0
+mediapipe==0.10.35

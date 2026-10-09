@@ -1,5 +1,7 @@
 package com.handsfree.be.serviceImpl;
 
+import com.handsfree.be.service.IdentityService;
+
 import com.handsfree.be.constant.InterestLevel;
 import com.handsfree.be.constant.InterestStatus;
 import com.handsfree.be.constant.JobStatus;

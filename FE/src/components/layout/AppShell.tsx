@@ -1,3 +1,5 @@
+import { usePwa } from "../../features/pwa/usePwa";
+import IdentityActionGuard from "../../features/identity/components/IdentityActionGuard";
 import FeedbackProvider from "../feedback/FeedbackProvider";
 import { useViewportHeight } from "./useViewportHeight";
 import "./app-ui.css";
@@ -39,6 +41,7 @@ function Avatar() {
 }
 
 function AppShellLayout() {
+  const { installed } = usePwa();
   useViewportHeight();
   const { user, logout } = useAuth();
   const { unreadCount } = useNotifications();
@@ -105,7 +108,8 @@ function AppShellLayout() {
               </p>
               <p className="mt-1 text-sm font-bold text-slate-500">Việc nhỏ, kết nối lớn</p>
             </div>
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              {!installed && <NavLink to="/install" className="rounded-full bg-[#e8f6f8] px-3 py-2 text-xs font-bold text-[#007f95]" aria-label="Cài ứng dụng HandsFree">Cài app</NavLink>}
               <NavLink to="/wallet" className="rounded-full bg-[#e8f6f8] px-3 py-2 text-xs font-bold text-[#007f95]">Ví</NavLink>
               {(user?.role === "ADMIN" || user?.role === "STAFF") && <NavLink to="/management" className="rounded-full bg-[#e8f6f8] px-3 py-2 text-xs font-bold text-[#007f95]">Quản lý</NavLink>}
               <div className="hidden w-72 md:block lg:hidden"><ModeSwitcher /></div>
@@ -118,6 +122,7 @@ function AppShellLayout() {
         </header>
 
         <main className="hf-main mx-auto w-full max-w-6xl px-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-5 lg:px-8 lg:pb-10">
+          <IdentityActionGuard />
           <Outlet />
         </main>
       </div>

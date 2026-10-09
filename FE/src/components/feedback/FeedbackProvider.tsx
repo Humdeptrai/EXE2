@@ -22,13 +22,13 @@ function ConfirmDialog({ options, finish }: { options: ConfirmOptions; finish: (
       if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
     };
   }, []);
-  return createPortal(<dialog ref={ref} className="hf-confirm-dialog" aria-labelledby={titleId} aria-describedby={messageId}
+  return createPortal(<dialog ref={ref} className={`hf-confirm-dialog${options.acknowledgeOnly ? " hf-confirm-alert" : ""}`} role={options.acknowledgeOnly ? "alertdialog" : "dialog"} aria-labelledby={titleId} aria-describedby={messageId}
     onCancel={(event) => { event.preventDefault(); finish(false); }}>
     <div className={`hf-confirm-icon${options.danger ? " hf-confirm-danger" : ""}`}><AppIcon name="info" className="hf-notice-icon" /></div>
     <h2 id={titleId}>{options.title}</h2><p id={messageId}>{options.message}</p>
     <div className="hf-confirm-actions">
-      <button type="button" autoFocus onClick={() => finish(false)}>Hủy</button>
-      <button type="button" className={`hf-confirm-primary${options.danger ? " hf-confirm-danger-button" : ""}`} onClick={() => finish(true)}>{options.confirmLabel || "Xác nhận"}</button>
+      {!options.acknowledgeOnly && <button type="button" autoFocus onClick={() => finish(false)}>{options.cancelLabel || "Hủy"}</button>}
+      <button type="button" autoFocus={options.acknowledgeOnly} className={`hf-confirm-primary${options.danger ? " hf-confirm-danger-button" : ""}`} onClick={() => finish(true)}>{options.confirmLabel || "Xác nhận"}</button>
     </div>
   </dialog>, document.body);
 }

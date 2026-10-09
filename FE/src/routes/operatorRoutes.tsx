@@ -1,3 +1,4 @@
+import IdentityReviewPage from "../features/management/pages/IdentityReviewPage";
 import OperatorGuard from "../features/management/components/OperatorGuard";
 import OperatorShell from "../features/management/components/OperatorShell";
 import OperatorLoginPage from "../features/management/pages/OperatorLoginPage";
@@ -16,6 +17,7 @@ export const operatorRoutes = [
   return [
     { element: <OperatorGuard role={role} />, children: [{ path: `/${base}`, element: <OperatorShell />, children: [
       { index: true, element: <OperatorDashboard /> },
+      { path: "identities", element: <IdentityReviewPage /> },
       ...(role === "ADMIN" ? [{ path: "revenue", element: <OperatorDashboard revenueOnly /> }] : []),
       ...panels.map((panel) => ({ path: panel, element: <ManagementPage key={panel} panel={panel} /> })),
     ] }] },

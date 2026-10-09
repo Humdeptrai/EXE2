@@ -1,3 +1,4 @@
+import { onboardingUrl } from "../../../services/identityService";
 import { type FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthLayout } from "../components/AuthLayout";
@@ -36,7 +37,7 @@ export default function LoginPage() {
     setMessage(null);
     try {
       await login({ identifier: form.identifier.trim(), password: form.password });
-      navigate(destination, { replace: true });
+      navigate(onboardingUrl(destination), { replace: true });
     } catch (error) {
       setMessage({ kind: "error", text: getAuthError(error, "Không thể đăng nhập. Vui lòng thử lại.").message || "Không thể đăng nhập." });
     } finally {
@@ -49,7 +50,7 @@ export default function LoginPage() {
     setMessage(null);
     try {
       await loginWithGoogle({ credential });
-      navigate(destination, { replace: true });
+      navigate(onboardingUrl(destination), { replace: true });
     } catch (error) {
       setMessage({ kind: "error", text: getAuthError(error, "Không thể đăng nhập Google.").message || "Không thể đăng nhập Google." });
     } finally {
@@ -115,7 +116,6 @@ export default function LoginPage() {
         <AuthDivider />
         <GoogleAuthButton onCredential={handleGoogle} onError={(text) => setMessage({ kind: "error", text })} disabled={isSubmitting} />
 
-        <p className="hf-auth-switch"><Link className="font-bold text-[#006b82] hover:underline" to="/management/login">Đăng nhập dành cho ADMIN / STAFF</Link></p>
         <p className="hf-auth-switch">Bạn chưa có tài khoản? <Link className="font-bold text-[#006b82] hover:underline" to="/register">Đăng ký ngay</Link></p>
     </AuthLayout>
   );

@@ -17,3 +17,18 @@
 .hf-user-notice.hf-notice-space-top{margin-top:12px}.hf-user-notice.hf-notice-space-bottom{margin-bottom:12px}.hf-user-notice.hf-notice-inset{margin:16px}
 .hf-user-notice.hf-user-notice > p{color:inherit;font-size:inherit;line-height:inherit;letter-spacing:normal;font-weight:inherit;text-align:left}
 .hf-user-notice :where(button){padding:0;box-shadow:none}
+
+.hf-confirm-alert{border-color:#fecdd3;text-align:center}
+.hf-confirm-alert .hf-confirm-icon{margin-inline:auto}
+.hf-confirm-alert h2,.hf-confirm-alert>p{color:#be123c}
+.hf-confirm-alert .hf-confirm-actions{grid-template-columns:1fr}
+
+.hf-confirm-alert{border-color:#fecdd3;text-align:center}
+.hf-confirm-alert .hf-confirm-icon{margin-inline:auto}
+.hf-confirm-alert h2,.hf-confirm-alert>p{color:#be123c}
+.hf-confirm-alert .hf-confirm-actions{grid-template-columns:1fr}
+
+.hf-confirm-alert{border-color:#fecdd3;text-align:center}
+.hf-confirm-alert .hf-confirm-icon{margin-inline:auto}
+.hf-confirm-alert h2,.hf-confirm-alert>p{color:#be123c}
+.hf-confirm-alert .hf-confirm-actions{grid-template-columns:1fr}

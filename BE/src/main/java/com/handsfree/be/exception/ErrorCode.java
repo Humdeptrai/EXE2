@@ -73,6 +73,11 @@ public enum ErrorCode {
     RATING_ALREADY_SUBMITTED(40932, HttpStatus.CONFLICT, "Bạn đã đánh giá người này cho matching này rồi"),
     DATA_CONFLICT(40990, HttpStatus.CONFLICT, "Dữ liệu bị xung đột với trạng thái hiện tại"),
     FILE_STORAGE_FAILED(50010, HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu hình ảnh lúc này"),
+    IDENTITY_SCAN_BUSY(42944, HttpStatus.TOO_MANY_REQUESTS, "Bộ xử lý khuôn mặt đang bận. Vui lòng thử lại trong giây lát."),
+    IDENTITY_SCAN_MEDIA(40044, HttpStatus.BAD_REQUEST, "Cần ảnh JPEG rõ nét, từ 320 × 240 và tối đa 5 MB."),
+    IDENTITY_SESSION_EXPIRED(40944, HttpStatus.CONFLICT, "Phiên quét đã hết hạn hoặc không còn hợp lệ. Hãy bắt đầu lại."),
+    IDENTITY_SCAN_FAILED(42244, HttpStatus.UNPROCESSABLE_ENTITY, "Chưa vượt qua kiểm tra khuôn mặt. Dùng khuôn mặt thật, đủ sáng và thực hiện lại."),
+    IDENTITY_ALREADY_VERIFIED(40945, HttpStatus.CONFLICT, "Tài khoản đã được xác thực."),
     INTERNAL_ERROR(50000, HttpStatus.INTERNAL_SERVER_ERROR, "Đã xảy ra lỗi hệ thống");
 
     private final int code;

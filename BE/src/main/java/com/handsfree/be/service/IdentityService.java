@@ -8,6 +8,9 @@ import java.time.Instant;
 public interface IdentityService {
     record Status(UUID userId, String status, String reason, Instant submittedAt, Instant verifiedAt, boolean enabled) {}
     record Dossier(Status verification, String fullName, String documentData, Double similarity, Boolean live) {}
+    record Eligibility(boolean eligible, boolean profileComplete, boolean identityVerified,
+                       String identityStatus, java.util.List<String> missingRequirements) {}
+    Eligibility eligibility(UUID user);
     Status status(UUID user);
     Status summary(IdentityVerification identity);
     Status summary(IdentityRepository.State identity);
