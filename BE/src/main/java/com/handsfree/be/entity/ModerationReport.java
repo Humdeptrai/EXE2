@@ -43,4 +43,17 @@ public class ModerationReport {
     private Instant createdAt;
 
     private Instant resolvedAt;
+
+    private UUID assignedTo;
+    private Instant assignedAt;
+
+    @Version
+    private long version;
+
+    @ElementCollection
+    @CollectionTable(name = "report_links", joinColumns = @JoinColumn(name = "report_id"))
+    @OrderColumn(name = "link_index")
+    @Column(name = "url", nullable = false, length = 2000)
+    @Builder.Default
+    private java.util.List<String> links = new java.util.ArrayList<>();
 }

@@ -1,5 +1,6 @@
 import IdentityOnboardingPage from "../features/identity/pages/IdentityOnboardingPage";
 import WalletPage from "../features/payment/pages/WalletPage";
+import ReportDetailPage from "../features/management/pages/ReportDetailPage";
 import ReportsPage from "../features/management/pages/ReportsPage";
 import AppShell from "../components/layout/AppShell";
 import ChatRoomPage from "../features/chat/pages/ChatRoomPage";
@@ -28,6 +29,7 @@ export const privateRoutes = [
       { path: "onboarding", element: <IdentityOnboardingPage /> },
       { path: "wallet", element: <WalletPage /> },
       { path: "reports", element: <ReportsPage /> },
+    { path: "reports/:reportId", element: <ReportDetailPage /> },
       { path: "home", element: <HomePage /> },
       { path: "discover", element: <DiscoverPage /> },
       { path: "profile", element: <ProfilePage /> },

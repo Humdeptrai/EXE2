@@ -35,7 +35,7 @@ public enum ErrorCode {
     INVALID_FILE_PATH(40014, HttpStatus.BAD_REQUEST, "Đường dẫn tệp không hợp lệ"),
     INVALID_BUDGET_FILTER(40016, HttpStatus.BAD_REQUEST, "Khoảng ngân sách lọc không hợp lệ"),
     CHAT_MESSAGE_INVALID(40017, HttpStatus.BAD_REQUEST, "Tin nhắn phải có nội dung và không được vượt quá 2000 ký tự"),
-    MAX_UPLOAD_SIZE_EXCEEDED(40015, HttpStatus.BAD_REQUEST, "Tổng dung lượng hình ảnh tải lên vượt quá giới hạn"),
+    MAX_UPLOAD_SIZE_EXCEEDED(40015, HttpStatus.BAD_REQUEST, "Tổng dung lượng tệp tải lên vượt quá giới hạn cho phép"),
     INVALID_REFRESH_TOKEN(40101, HttpStatus.UNAUTHORIZED, "Refresh token không hợp lệ hoặc đã hết hạn"),
     INVALID_CREDENTIALS(40102, HttpStatus.UNAUTHORIZED, "Email/số điện thoại hoặc mật khẩu không đúng"),
     UNAUTHORIZED(40103, HttpStatus.UNAUTHORIZED, "Bạn cần đăng nhập để tiếp tục"),
@@ -84,6 +84,13 @@ public enum ErrorCode {
     JOB_END_TIME_INVALID(40070, HttpStatus.BAD_REQUEST, "Thời gian kết thúc dự kiến phải được nhập và sau thời gian bắt đầu"),
     RATING_WINDOW_EXPIRED(40933, HttpStatus.CONFLICT, "Đã hết hạn đánh giá cho matching này"),
     REPORT_CONNECTION_REQUIRED(40934, HttpStatus.CONFLICT, "Chỉ có thể báo cáo đối tác khi cả hai bên đã hoàn tất phí kết nối; bạn vẫn có thể gửi yêu cầu hỗ trợ thanh toán"),
+    REPORT_NOT_FOUND(40470, HttpStatus.NOT_FOUND, "Không tìm thấy báo cáo hoặc bạn không có quyền xem"),
+    REPORT_ALREADY_ASSIGNED(40970, HttpStatus.CONFLICT, "Báo cáo đang được người khác xử lý. Vui lòng làm mới danh sách"),
+    REPORT_CLAIM_REQUIRED(40971, HttpStatus.CONFLICT, "Bạn cần nhận xử lý báo cáo trước khi thực hiện thao tác này"),
+    REPORT_CLOSED(40972, HttpStatus.CONFLICT, "Báo cáo đã kết thúc xử lý và không thể thay đổi"),
+    REPORT_EVIDENCE_INVALID(40071, HttpStatus.BAD_REQUEST, "Chỉ gửi tối đa 5 ảnh JPEG/PNG/WebP, mỗi ảnh 5 MB và 1 video MP4 tối đa 100 MB"),
+    REPORT_LINK_INVALID(40072, HttpStatus.BAD_REQUEST, "Chỉ gửi tối đa 5 link HTTP/HTTPS hợp lệ, mỗi link tối đa 2.000 ký tự"),
+    REPORT_EVIDENCE_STORAGE_FAILED(50070, HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu hoặc tải bằng chứng lúc này. Vui lòng thử lại"),
     INTERNAL_ERROR(50000, HttpStatus.INTERNAL_SERVER_ERROR, "Đã xảy ra lỗi hệ thống");
 
     private final int code;

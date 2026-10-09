@@ -44,14 +44,6 @@ public class ManagementController {
         return PageRequest.of(Math.max(0, p), 20);
     }
 
-    public record ReportRequest(
-            @NotBlank String targetType,
-            @NotNull UUID targetId,
-            @NotBlank @Size(max = 2000) String reason) {}
-
-    public record ResolveRequest(
-            @NotBlank String status, @NotBlank @Size(max = 1000) String resolution) {}
-
     public record JobAction(boolean hidden, @NotBlank @Size(max = 1000) String reason) {}
 
     public record UserAction(
@@ -67,44 +59,6 @@ public class ManagementController {
             @Min(0) @Max(43200) Integer ratingDelayMinutes) {}
 
     public record RefundRequest(@NotBlank @Size(max = 1000) String reason) {}
-
-    @PostMapping("/reports")
-    public ApiResponse<?> report(Authentication a, @Valid @RequestBody ReportRequest r) {
-        return ApiResponse.success(
-                200,
-                "Đã gửi báo cáo",
-                management.report(id(a), r.targetType(), r.targetId(), r.reason()));
-    }
-
-    @GetMapping("/reports/mine")
-    public ApiResponse<?> mine(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        access.active(id(a));
-        return ApiResponse.success(
-                200,
-                "Báo cáo của bạn",
-                PageResponse.from(reports.findByReporterIdOrderByCreatedAtDesc(id(a), page(page))));
-    }
-
-    @GetMapping("/staff/reports")
-    public ApiResponse<?> reports(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        access.operator(id(a), false);
-        return ApiResponse.success(
-                200,
-                "Báo cáo",
-                PageResponse.from(
-                        reports.findAll(
-                                PageRequest.of(
-                                        Math.max(0, page),
-                                        20,
-                                        Sort.by(Sort.Direction.DESC, "createdAt")))));
-    }
-
-    @PatchMapping("/staff/reports/{id}")
-    public ApiResponse<?> resolve(
-            Authentication a, @PathVariable UUID id, @Valid @RequestBody ResolveRequest r) {
-        return ApiResponse.success(
-                200, "Đã xử lý", management.resolve(id(a), id, r.status(), r.resolution()));
-    }
 
     @PatchMapping("/staff/jobs/{id}/visibility")
     public ApiResponse<?> hide(

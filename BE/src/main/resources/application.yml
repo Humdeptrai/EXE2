@@ -28,8 +28,12 @@ spring:
 
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 30MB
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:100MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:130MB}
+
+  mvc:
+    async:
+      request-timeout: 300000
 
   web:
     error:
@@ -100,7 +104,11 @@ springdoc:
 
 management:
   endpoints:
-    web:
+    mvc:
+    async:
+      request-timeout: 300000
+
+  web:
       exposure:
         include: health
 

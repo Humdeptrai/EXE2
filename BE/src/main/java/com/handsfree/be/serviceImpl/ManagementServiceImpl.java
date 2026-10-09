@@ -19,9 +19,7 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class ManagementServiceImpl implements ManagementService {
-    private final ContactAccess contactAccess;
     private final AccountAccess access;
-    private final ModerationReportRepository reports;
     private final AdminAuditRepository audit;
     private final UserRepository users;
     private final JobPostRepository jobs;
@@ -39,45 +37,6 @@ public class ManagementServiceImpl implements ManagementService {
                         .detail(detail)
                         .occurredAt(Instant.now())
                         .build());
-    }
-
-    @Transactional
-    public ModerationReport report(UUID actor, String type, UUID target, String reason) {
-        access.active(actor);
-        if (!Set.of("JOB", "USER", "MATCH", "SUPPORT").contains(type))
-            throw new AppException(ErrorCode.VALIDATION_FAILED);
-        if (type.equals("JOB") && !jobs.existsById(target)
-                || type.equals("USER") && !users.existsById(target))
-            throw new AppException(ErrorCode.JOB_NOT_FOUND);
-        if (type.equals("MATCH") || (type.equals("SUPPORT") && !actor.equals(target))) {
-            var match = matches.findParticipantMatchForUpdate(target, actor)
-                    .orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
-            if (type.equals("MATCH") && !contactAccess.unlocked(match))
-                throw new AppException(ErrorCode.REPORT_CONNECTION_REQUIRED);
-        }
-        return reports.save(
-                ModerationReport.builder()
-                        .reporterId(actor)
-                        .targetType(type)
-                        .targetId(target)
-                        .reason(reason.trim())
-                        .status("OPEN")
-                        .createdAt(Instant.now())
-                        .build());
-    }
-
-    @Transactional
-    public ModerationReport resolve(UUID actor, UUID id, String state, String note) {
-        access.operator(actor, false);
-        if (!Set.of("IN_REVIEW", "RESOLVED", "REJECTED").contains(state))
-            throw new AppException(ErrorCode.VALIDATION_FAILED);
-        var r = reports.lockById(id).orElseThrow(() -> new AppException(ErrorCode.DATA_CONFLICT));
-        r.setStatus(state);
-        r.setResolution(note);
-        r.setResolvedBy(actor);
-        r.setResolvedAt(Instant.now());
-        log(actor, "REPORT_RESOLVE", id + " " + state + " " + note);
-        return r;
     }
 
     @Transactional

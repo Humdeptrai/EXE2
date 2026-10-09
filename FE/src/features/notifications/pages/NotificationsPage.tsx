@@ -27,6 +27,8 @@ function typeLabel(type: NotificationType) {
     case "CONNECTION_SUCCEEDED": return "Kết nối";
     case "CHAT_MESSAGE_RECEIVED": return "Tin nhắn";
     case "RATING_RECEIVED": return "Đánh giá";
+    case "REPORT_RESOLVED":
+    case "REPORT_REJECTED": return "Báo cáo & hỗ trợ";
   }
 }
 

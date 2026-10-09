@@ -3,6 +3,7 @@ import OperatorGuard from "../features/management/components/OperatorGuard";
 import OperatorShell from "../features/management/components/OperatorShell";
 import OperatorLoginPage from "../features/management/pages/OperatorLoginPage";
 import OperatorDashboard from "../features/management/pages/OperatorDashboard";
+import ReportManagementPage from "../features/management/pages/ReportManagementPage";
 import ManagementPage from "../features/management/pages/ManagementPage";
 
 import LegacyOperatorLogin from "../features/management/components/LegacyOperatorLogin";
@@ -19,7 +20,7 @@ export const operatorRoutes = [
       { index: true, element: <OperatorDashboard /> },
       { path: "identities", element: <IdentityReviewPage /> },
       ...(role === "ADMIN" ? [{ path: "revenue", element: <OperatorDashboard revenueOnly /> }] : []),
-      ...panels.map((panel) => ({ path: panel, element: <ManagementPage key={panel} panel={panel} /> })),
+      ...panels.map((panel) => ({ path: panel, element: panel === "reports" ? <ReportManagementPage /> : <ManagementPage key={panel} panel={panel} /> })),
     ] }] },
   ];
 }),
