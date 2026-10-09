@@ -1,4 +1,5 @@
 import UserNotice from "../../../components/feedback/UserNotice";
+import { useFeedback } from "../../../components/feedback/FeedbackContext";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
@@ -15,6 +16,7 @@ interface Report {
   resolution?: string;
 }
 export default function ReportsPage() {
+  const { confirm } = useFeedback();
   const { user } = useAuth();
   const [q] = useSearchParams();
   const [type, setType] = useState(q.get("targetType") || "USER");
@@ -47,13 +49,31 @@ export default function ReportsPage() {
     return () => window.clearTimeout(timer);
   }, [page]);
   async function submit() {
+    if (busy) return;
+    const validationMessage = !target.trim()
+      ? "Vui lòng nhập mã đối tượng cần báo cáo."
+      : !reason.trim()
+        ? "Vui lòng nhập nội dung báo cáo."
+        : reason.trim().length > 2000
+          ? "Nội dung báo cáo không được vượt quá 2.000 ký tự."
+          : "";
+    if (validationMessage) {
+      await confirm({
+        title: "Chưa thể gửi báo cáo",
+        message: validationMessage,
+        danger: true,
+        acknowledgeOnly: true,
+        confirmLabel: "Tôi đã hiểu",
+      });
+      return;
+    }
     setBusy(true);
     setMessage("");
     try {
       await api.post("/reports", {
         targetType: type,
-        targetId: target,
-        reason,
+        targetId: target.trim(),
+        reason: reason.trim(),
       });
       setReason("");
       setMessageError(false);
@@ -73,6 +93,7 @@ export default function ReportsPage() {
         <UserNotice message={message} tone={messageError ? "error" : "success"} />
       )}
       <form
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
