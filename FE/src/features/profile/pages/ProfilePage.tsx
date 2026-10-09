@@ -1,4 +1,6 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
+import IdentityPrivateFields from "../../identity/components/IdentityPrivateFields";
+import type { MyIdentity } from "../../../services/identityService";
 import IdentityProfileCard from "../../identity/components/IdentityProfileCard";
 import { identityService, onboardingUrl, safeNext, type Eligibility } from "../../../services/identityService";
 import UserNotice from "../../../components/feedback/UserNotice";
@@ -72,10 +74,12 @@ export default function ProfilePage() {
   }, [user?.id]);
 
   const [identity, setIdentity] = useState<Eligibility | null>(null);
+  const [privateIdentity, setPrivateIdentity] = useState<MyIdentity | null>(null);
   const [identityError, setIdentityError] = useState("");
   useEffect(() => {
     const controller = new AbortController();
-    void identityService.eligibility(controller.signal).then((result) => {
+    void Promise.all([identityService.eligibility(controller.signal), identityService.mine(controller.signal)]).then(([result, personal]) => {
+      if (!controller.signal.aborted) setPrivateIdentity(personal);
       if (!controller.signal.aborted) { setIdentity(result); setIdentityError(""); }
     }).catch((error) => {
       if (!controller.signal.aborted) { setIdentity(null); setIdentityError(getApiErrorMessage(error, "Không tải được trạng thái xác minh. Vui lòng tải lại trang.")); }
@@ -93,6 +97,8 @@ export default function ProfilePage() {
     Boolean(user?.email?.trim()),
     Boolean(user?.avatarUrl?.trim()),
     identity?.identityVerified === true,
+    identity?.selfieVerified === true,
+    identity?.documentConfirmed === true,
   ];
   const progress = Math.floor(completedItems.filter(Boolean).length * 100 / completedItems.length);
 
@@ -245,7 +251,7 @@ export default function ProfilePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Email</p><p className="mt-1 break-all font-bold">{user?.email || "Không có"}</p></div>
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Số điện thoại</p><p className="mt-1 font-bold">{user?.phone || "Chưa cập nhật"}</p></div>
-                <IdentityProfileCard state={identity} error={identityError} />
+                <IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} />
               </div>
             </div>
           )}
@@ -296,7 +302,7 @@ export default function ProfilePage() {
                 </div>
               </fieldset>
 
-              <div className="grid gap-3 sm:grid-cols-2"><IdentityProfileCard state={identity} error={identityError} /></div>
+              <div className="grid gap-3 sm:grid-cols-2"><IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} /></div>
 
               {message && <UserNotice message={message.text} tone={message.type} />}
 
@@ -324,6 +330,8 @@ export default function ProfilePage() {
               ["Email", completedItems[5]],
               ["Ảnh đại diện", completedItems[6]],
               ["Xác minh danh tính", completedItems[7]],
+              ["Selfie đã xác minh", completedItems[8]],
+              ["Số CCCD đã xác nhận", completedItems[9]],
             ].map(([label, done]) => (
               <div key={String(label)} className="flex items-center gap-2">
                 <span className={`grid h-5 w-5 place-items-center rounded-full text-xs font-extrabold ${done ? "bg-emerald-100 text-emerald-700" : "bg-red-50 text-red-600"}`}>{done ? "✓" : "!"}</span>

@@ -1,3 +1,4 @@
+import CounterpartIdentity from "../../identity/components/CounterpartIdentity";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -110,6 +111,7 @@ export default function ConnectionPaymentPage() {
             <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
               <h2 className="text-lg font-black">Kết nối đã mở</h2>
               <p className="mt-3 font-bold">{payment.counterpart.fullName}</p>
+              <CounterpartIdentity person={payment.counterpart} />
               {payment.counterpart.phone && (
                 <a
                   className="mt-2 block text-[#007f95]"

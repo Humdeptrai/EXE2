@@ -1,3 +1,4 @@
+import CounterpartIdentity from "../../identity/components/CounterpartIdentity";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -176,6 +177,7 @@ export default function ChatRoomPage() {
               </div>
             </div>
             <p className="mt-2 text-center text-[10px] font-bold text-slate-400 min-[430px]:hidden">{statusLabel}</p>
+            {conversation.chatUnlocked && <details className="mt-2"><summary className="cursor-pointer text-xs font-bold text-[#007f95]">Xem avatar và selfie đã xác minh</summary><CounterpartIdentity person={conversation.counterpart} /></details>}
           </header>
 
           <div className="hf-chat-thread h-[min(58dvh,620px)] overflow-y-auto bg-[#f7f9fc] px-3 py-4 sm:px-5">

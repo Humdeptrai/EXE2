@@ -1,3 +1,4 @@
+import CounterpartIdentity from "../../identity/components/CounterpartIdentity";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import type { JobMatch } from "../../../types/matching";
@@ -45,6 +46,7 @@ export default function MatchCard({ match, perspective }: MatchCardProps) {
           </div>
         </div>
       </div>
+      {match.chatUnlocked && <CounterpartIdentity person={match.counterpart} />}
     </article>
   );
 }
