@@ -9,6 +9,7 @@ import { AuthDivider } from "../components/AuthDivider";
 import { FormMessage } from "../components/FormMessage";
 import { GoogleAuthButton } from "../components/GoogleAuthButton";
 import { getAuthError } from "../utils/authError";
+import TermsDialog from "../components/TermsDialog";
 
 type FormState = {
   fullName: string;
@@ -47,6 +48,7 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ kind: "error" | "info"; text: string } | null>(null);
 
@@ -110,7 +112,7 @@ export default function RegisterPage() {
           <div>
             <label className="flex items-start gap-3 px-1 pt-1 text-sm sm:gap-4 sm:text-[16px] font-semibold leading-6 text-[#48515c]">
               <input type="checkbox" checked={form.termsAccepted} onChange={(event) => updateField("termsAccepted", event.target.checked)} className="mt-0.5 h-6 w-6 shrink-0 appearance-none rounded-[5px] border border-[#aebbc5] bg-white checked:border-[#007087] checked:bg-[#007087] checked:bg-[linear-gradient(135deg,transparent_44%,white_44%,white_53%,transparent_53%),linear-gradient(45deg,transparent_42%,white_42%,white_52%,transparent_52%)]" />
-              <span>Tôi đồng ý với <a className="text-[#006b82] hover:underline" href="#terms">Điều khoản &amp; Chính sách</a></span>
+              <span>Tôi đồng ý với <button type="button" className="text-[#006b82] hover:underline" onClick={(event) => { event.preventDefault(); setShowTerms(true); }}>Điều khoản &amp; Chính sách</button></span>
             </label>
             {errors.termsAccepted && <p className="mt-2 pl-1 text-sm font-medium text-red-600">{errors.termsAccepted}</p>}
           </div>
@@ -127,6 +129,7 @@ export default function RegisterPage() {
         <GoogleAuthButton onCredential={handleGoogle} onError={(text) => setMessage({ kind: "error", text })} disabled={isSubmitting} />
 
         <p className="hf-auth-switch">Bạn đã có tài khoản? <Link className="font-bold text-[#006b82] hover:underline" to="/login">Đăng nhập</Link></p>
+        {showTerms && <TermsDialog onClose={() => setShowTerms(false)} />}
     </AuthLayout>
   );
 }
