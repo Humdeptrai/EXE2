@@ -16,6 +16,15 @@ public class IdentityController {
     public ApiResponse<?> eligibility(Authentication a) {
         return ApiResponse.success(200, "Điều kiện đăng và nhận việc", identity.eligibility(id(a)));
     }
+    @GetMapping("/identity/me")
+    public ApiResponse<?> mine(Authentication a) { return ApiResponse.success(200, "Hồ sơ danh tính riêng tư", identity.mine(id(a))); }
+    @GetMapping("/identity/me/selfie")
+    public ResponseEntity<byte[]> ownSelfie(Authentication a) { return image(identity.ownSelfie(id(a))); }
+    @PatchMapping("/admin/identities/{user}/document-number")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<?> correctDocument(Authentication a, @PathVariable UUID user, @RequestBody IdentityService.DocumentCorrection request) {
+        return ApiResponse.success(200, "Đã cập nhật số CCCD", identity.correctDocument(id(a), user, request));
+    }
     @GetMapping("/identity")
     public ApiResponse<?> status(Authentication a) { return ApiResponse.success(200, "Xác thực danh tính", identity.status(id(a))); }
     @PostMapping(value = "/identity", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -26,6 +35,11 @@ public class IdentityController {
     @GetMapping("/staff/identities")
     public ApiResponse<?> list(Authentication a, @RequestParam(defaultValue = "0") int page) {
         return ApiResponse.success(200, "Trạng thái xác thực", identity.list(id(a),page));
+    }
+    @PostMapping("/admin/identities/{user}/review")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<?> review(Authentication a, @PathVariable UUID user, @RequestBody IdentityService.Review request) {
+        return ApiResponse.success(200, "Đã xử lý hồ sơ xác thực", identity.review(id(a), user, request));
     }
     @GetMapping("/admin/identities/{user}")
     public ApiResponse<?> dossier(Authentication a, @PathVariable UUID user) {

@@ -19,7 +19,7 @@ import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 
-/** Local scan and encrypted review evidence. Never grants VERIFIED or unlocks business actions. */
+/** App verification from server-owned motion/PAD sessions and document quality; not certified eKYC. */
 @Service
 public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceComparisonService {
     private final ObjectMapper json;
@@ -29,17 +29,12 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
     @Value("${FACE_COMPARE_URL:http://localhost:8091/compare}") private String url;
     @Value("${FACE_COMPARE_SHARED_KEY:}") private String key;
     public FaceComparisonServiceImpl(ObjectMapper json, AccountAccess access,
-            com.handsfree.be.repository.IdentityRepository identities,
-            com.handsfree.be.repository.UserRepository users, IdentityCrypto crypto,
-            org.springframework.transaction.support.TransactionTemplate transactions) {
-        this.json = json; this.access = access; this.identities = identities;
-        this.users = users; this.crypto = crypto; this.transactions = transactions;
+            IdentityCrypto crypto, com.handsfree.be.service.IdentityService identity) {
+        this.json = json; this.access = access; this.crypto = crypto; this.identity = identity;
     }
     private final AccountAccess access;
-    private final com.handsfree.be.repository.IdentityRepository identities;
-    private final com.handsfree.be.repository.UserRepository users;
     private final IdentityCrypto crypto;
-    private final org.springframework.transaction.support.TransactionTemplate transactions;
+    private final com.handsfree.be.service.IdentityService identity;
     private final java.util.concurrent.ConcurrentHashMap<UUID, Session> sessions = new java.util.concurrent.ConcurrentHashMap<>();
     private record Session(UUID owner, String remote, java.time.Instant expires) {}
 
@@ -105,7 +100,7 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
             if(response.statusCode()==410) throw new AppException(ErrorCode.IDENTITY_SESSION_EXPIRED);
             if(response.statusCode()==422 || response.statusCode()==413) throw new AppException(ErrorCode.IDENTITY_SCAN_FAILED);
             if(response.statusCode()==429 || response.statusCode()==503) throw new AppException(ErrorCode.IDENTITY_SCAN_BUSY);
-            if(response.statusCode()!=200 || response.body().length()>2000000) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+            if(response.statusCode()!=200 || response.body().length()>4000000) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
             return json.readTree(response.body());
         } catch(AppException e) { throw e; }
         catch(InterruptedException e) { Thread.currentThread().interrupt(); throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR); }
@@ -131,7 +126,6 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
         user(user);
         if(!consent) throw new AppException(ErrorCode.VALIDATION_FAILED);
         crypto.validateKey();
-        if(identities.existsByUserIdAndStatus(user,"VERIFIED")) throw new AppException(ErrorCode.IDENTITY_ALREADY_VERIFIED);
         sessions.entrySet().removeIf(e->java.time.Instant.now().isAfter(e.getValue().expires()));
         if(sessions.values().stream().anyMatch(s->s.owner().equals(user)) || sessions.size()>=32)
             throw new AppException(ErrorCode.IDENTITY_BUSY);
@@ -139,12 +133,19 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
         String remote=r.path("sessionId").asString("");
         if(!remote.matches("[A-Za-z0-9_-]{40,60}")) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
         UUID id=UUID.randomUUID(); Scan result=scan(id,r);
-        sessions.put(id,new Session(user,remote,java.time.Instant.now().plusSeconds(120)));
+        sessions.put(id,new Session(user,remote,java.time.Instant.now().plusSeconds(300)));
         return result;
     }
     @Override public Scan frame(UUID user,UUID id,MultipartFile face) {
         var s=owned(user,id);
         return scan(id,call("POST","/sessions/"+s.remote()+"/frame",new String[]{"face"},new byte[][]{jpeg(face)}));
+    }
+    @Override public SelfieCapture selfie(UUID user,UUID id,MultipartFile image) {
+        var s=owned(user,id);
+        var r=call("POST","/sessions/"+s.remote()+"/selfie",new String[]{"selfie"},new byte[][]{jpeg(image)});
+        if(r.path("policyVersion").asInt(0)!=3 || !r.path("accepted").asBoolean(false))
+            throw new AppException(ErrorCode.IDENTITY_SCAN_FAILED);
+        return new SelfieCapture(true,"Selfie đã khớp với phiên quét. Tiếp tục cung cấp CCCD hai mặt.",r.path("expiresIn").asInt(0));
     }
     @Override public void cancel(UUID user,UUID id) {
         var s=owned(user,id);
@@ -152,45 +153,66 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
         try { call("DELETE","/sessions/"+s.remote(),null,null); }
         catch(AppException ignored) { /* The worker also removes expired sessions. */ }
     }
+    private String documentRetry(String reason) {
+        return switch(reason) {
+            case "FRONT_QUALITY" -> "Mặt trước CCCD chưa đủ rõ hoặc chưa thấy đủ bốn góc. Đặt giấy tờ trên nền tương phản, chụp gần và tránh chói rồi quét lại.";
+            case "BACK_QUALITY" -> "Mặt sau CCCD chưa đủ rõ hoặc chưa thấy đủ bốn góc. Chụp lại mặt sau, tránh mờ và chói rồi thực hiện phiên mới.";
+            case "FRONT_OCR" -> "Chưa đọc rõ thông tin mặt trước CCCD. Chụp gần hơn, giữ giấy tờ ngay ngắn và thực hiện phiên mới.";
+            case "BACK_OCR" -> "Chưa đọc rõ thông tin mặt sau CCCD. Chụp gần hơn, giữ giấy tờ ngay ngắn và thực hiện phiên mới.";
+            case "FRONT_FACE" -> "Chưa nhận rõ đúng một khuôn mặt trên CCCD. Chụp rõ ảnh chân dung ở mặt trước rồi thực hiện phiên mới.";
+            default -> "CCCD chưa đủ điều kiện đối chiếu. Chụp rõ, đúng hai mặt giấy tờ rồi thực hiện phiên mới.";
+        };
+    }
     @Override public Completion finish(UUID user,UUID id,MultipartFile front,MultipartFile back) {
         var s=owned(user,id);
         byte[] f=jpeg(front), b=jpeg(back);
         if(!sessions.remove(id,s)) throw new AppException(ErrorCode.IDENTITY_SESSION_EXPIRED);
         var r=call("POST","/sessions/"+s.remote()+"/finish",new String[]{"front","back"},new byte[][]{f,b});
+        // Legacy workers did not check document quality: never auto-approve their responses.
+        if(r.path("policyVersion").asInt(0)!=3) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
         double score=r.path("cosineScore").asDouble(Double.NaN), threshold=r.path("threshold").asDouble(Double.NaN);
         double pad=r.path("padScore").asDouble(Double.NaN);
         boolean motion=r.path("motionPassed").asBoolean(false), anti=r.path("antiSpoofPassed").asBoolean(false);
-        boolean readable=r.path("documentReadable").asBoolean(false);
+        boolean quality=r.path("documentQualityPassed").asBoolean(false)
+            && r.path("frontQuality").path("passed").asBoolean(false)
+            && r.path("backQuality").path("passed").asBoolean(false);
+        boolean readable=r.path("documentReadable").asBoolean(false)
+            && r.path("frontReadable").asBoolean(false) && r.path("backReadable").asBoolean(false)
+            && r.path("documentNumber").asString("").matches("[0-9]{12}");
         if(!Double.isFinite(score) || score< -1 || score>1 || !Double.isFinite(threshold)
-                || threshold<=0 || threshold>=1 || !Double.isFinite(pad) || pad<.8 || pad>1 || !motion || !anti)
+                || threshold<.363 || threshold>=1 || !Double.isFinite(pad) || pad<.8 || pad>1 || !motion || !anti)
             throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        double selfieScore=r.path("selfieScanScore").asDouble(Double.NaN);
+        double selfiePad=r.path("selfiePadScore").asDouble(Double.NaN);
+        if(!r.path("selfiePassed").asBoolean(false) || !Double.isFinite(selfieScore) || selfieScore<threshold || selfieScore>1
+            || !Double.isFinite(selfiePad) || selfiePad<.8 || selfiePad>1) throw new AppException(ErrorCode.IDENTITY_SCAN_FAILED);
         boolean match=score>=threshold;
-        if(!match || !readable) return new Completion("REJECTED",match?"MATCH":"NO_MATCH",score,threshold,motion,anti,readable,false,
-            match?"Chưa đọc rõ CCCD. Chụp rõ cả hai mặt rồi thực hiện phiên mới.":"Khuôn mặt chưa khớp CCCD. Hãy kiểm tra ảnh và thực hiện phiên mới.");
-        byte[] portrait;
-        try { portrait=java.util.Base64.getDecoder().decode(r.path("faceJpeg").asString("")); }
+        if(!quality || !readable) return new Completion("REJECTED",match?"MATCH":"NO_MATCH",score,threshold,motion,anti,readable,false,
+            documentRetry(r.path("reasonCode").asString("")));
+        if(score<.30) return new Completion("REJECTED","NO_MATCH",score,threshold,motion,anti,readable,false,
+            "Khuôn mặt chưa đủ tương đồng với ảnh trên CCCD. Chụp rõ mặt trước, dùng đúng CCCD của bạn rồi quét lại.");
+        String name=r.path("fullName").asString("").trim();
+        boolean nameReadable=name.length()>=2 && name.length()<=100
+            && name.codePoints().allMatch(c->Character.isLetter(c) || c==' ' || c=='.' || c=='\'' || c=='-');
+        boolean approved=match && nameReadable;
+        byte[] portrait, selfie;
+        try { portrait=java.util.Base64.getDecoder().decode(r.path("faceJpeg").asString(""));
+            selfie=java.util.Base64.getDecoder().decode(r.path("selfieJpeg").asString("")); }
         catch(Exception e) { throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR); }
-        if(portrait.length<1000 || portrait.length>5*1024*1024) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        if(portrait.length<1000 || portrait.length>5*1024*1024 || selfie.length<1000 || selfie.length>5*1024*1024) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
         String evidence;
         try {
-            var document=(tools.jackson.databind.node.ObjectNode)r.deepCopy(); document.remove("faceJpeg");
+            var document=(tools.jackson.databind.node.ObjectNode)r.deepCopy(); document.remove("faceJpeg"); document.remove("selfieJpeg");
+            document.put("identityVerified",approved); document.put("verificationSource",approved?"AUTO_RGB_OCR":"MANUAL_REVIEW");
             evidence=json.writeValueAsString(document);
         } catch(Exception e) { throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR); }
-        transactions.executeWithoutResult(tx->{
-            users.lockById(user).orElseThrow(()->new AppException(ErrorCode.USER_NOT_FOUND));
-            var i=identities.findById(user).orElseGet(()->{
-                var n=new com.handsfree.be.entity.IdentityVerification(); n.setUserId(user); return n;
-            });
-            if("VERIFIED".equals(i.getStatus())) throw new AppException(ErrorCode.IDENTITY_ALREADY_VERIFIED);
-            if("PROCESSING".equals(i.getStatus()) && i.getSubmittedAt()!=null && i.getSubmittedAt().isAfter(java.time.Instant.now().minusSeconds(300)))
-                throw new AppException(ErrorCode.IDENTITY_BUSY);
-            i.setStatus("REVIEW_REQUIRED"); i.setSubmittedAt(java.time.Instant.now()); i.setConsentAt(i.getSubmittedAt());
-            i.setVerifiedAt(null); i.setReason("Đã đạt kiểm tra động tác, chống giả mạo RGB và so khớp. CCCD cần xác thực tính hợp lệ.");
-            i.setFullName(null); i.setDocumentData(crypto.encrypt(evidence));
-            i.setFrontImage(crypto.encrypt(f)); i.setBackImage(crypto.encrypt(b)); i.setFaceImage(crypto.encrypt(portrait));
-            i.setSimilarity(score); i.setLive(true); identities.saveAndFlush(i);
-        });
-        return new Completion("REVIEW_REQUIRED","MATCH",score,threshold,true,true,true,false,
-            "Đã hoàn thành quét và đối chiếu. Hồ sơ được lưu riêng tư; CCCD vẫn cần xác thực tính hợp lệ trước khi mở quyền đăng/nhận việc.");
+        String reason=approved?"Đã xác minh tự động: động tác, selfie trực tiếp, PAD RGB, CCCD và so khớp"
+            : !match?"Điểm so khớp CCCD chưa đủ để tự xác minh; có thể thử lại hoặc nhờ ADMIN kiểm tra"
+            : "Họ tên OCR chưa đủ rõ; có thể thử lại hoặc nhờ ADMIN kiểm tra";
+        identity.storeScan(user,new com.handsfree.be.service.IdentityService.ScanSubmission(
+            f,b,portrait,selfie,name,r.path("documentNumber").asString(""),evidence,score,approved,reason));
+        return new Completion(approved?"VERIFIED":"REVIEW_REQUIRED",match?"MATCH":"NO_MATCH",score,threshold,true,true,true,approved,
+            approved?"Xác minh tự động thành công. Bạn có thể đăng hoặc nhận việc khi thông tin hồ sơ đã đầy đủ."
+            : "Chưa đủ điều kiện xác minh tự động. Bạn có thể chụp lại CCCD và quét lại, hoặc nhờ ADMIN kiểm tra hồ sơ đã gửi.");
     }
 }

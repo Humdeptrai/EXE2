@@ -7,8 +7,8 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.util.UUID;
 
-@Entity @Table(name = "identity_verifications") @Getter @Setter @NoArgsConstructor
-public class IdentityVerification {
+@Entity @Table(name = "identity_submissions") @Getter @Setter @NoArgsConstructor
+public class IdentitySubmission {
     @Id private UUID userId;
     @Column(nullable = false, length = 20) private String status;
     @Column(length = 500) private String reason;

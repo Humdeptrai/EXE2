@@ -10,6 +10,8 @@ public interface FaceComparisonService {
     record Completion(String status, String decision, double cosineScore, double threshold,
                       boolean motionPassed, boolean antiSpoofPassed, boolean documentReadable,
                       boolean identityVerified, String message) {}
+    record SelfieCapture(boolean accepted, String message, int expiresIn) {}
+    SelfieCapture selfie(UUID user, UUID session, MultipartFile image);
     Scan start(UUID user, boolean consent);
     Scan frame(UUID user, UUID session, MultipartFile face);
     Completion finish(UUID user, UUID session, MultipartFile front, MultipartFile back);

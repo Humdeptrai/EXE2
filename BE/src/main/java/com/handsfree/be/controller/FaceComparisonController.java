@@ -23,6 +23,10 @@ public class FaceComparisonController {
     public ApiResponse<?> frame(Authentication a,@PathVariable UUID session,@RequestPart MultipartFile face) {
         return ApiResponse.success(200,"Tiến trình quét",comparison.frame(user(a),session,face));
     }
+    @PostMapping(value="/sessions/{session}/selfie",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<?> selfie(Authentication a,@PathVariable UUID session,@RequestPart MultipartFile selfie) {
+        return ApiResponse.success(200,"Kiểm tra selfie",comparison.selfie(user(a),session,selfie));
+    }
     @PostMapping(value="/sessions/{session}/finish",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> finish(Authentication a,@PathVariable UUID session,
             @RequestPart MultipartFile front,@RequestPart MultipartFile back) {

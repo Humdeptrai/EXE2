@@ -49,7 +49,7 @@ public class ContactAccess {
                 u.isProfileCompleted(),
                 open ? u.getPhone() : null,
                 open ? u.getEmail() : null,
-                verified != null ? "/matches/" + match.getId() + "/counterpart-face" : null,
+                verified != null && verified.getSelfieVerifiedAt() != null ? "/matches/" + match.getId() + "/counterpart-face" : null,
                 verified != null);
     }
 }

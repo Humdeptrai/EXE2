@@ -244,8 +244,9 @@ public class JobPostServiceImpl implements JobPostService {
     @Override
     @Transactional
     public void delete(UUID userId, UUID jobId) {
-        JobPost jobPost = getOwnedJob(userId, jobId);
+        JobPost jobPost = getOwnedJobForUpdate(userId, jobId);
         requireStatus(jobPost, Set.of(JobStatus.DRAFT, JobStatus.CANCELLED), ErrorCode.JOB_DELETE_NOT_ALLOWED);
+        if (jobMatchRepository.existsByJobPost_Id(jobId)) throw new AppException(ErrorCode.JOB_HAS_MATCH_HISTORY);
         List<String> storedNames = jobPost.getMedia().stream().map(JobMedia::getStoredName).toList();
         jobInterestRepository.deleteAllByJobPost_Id(jobId);
         skippedJobRepository.deleteAllByJobPost_Id(jobId);
