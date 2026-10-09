@@ -26,6 +26,20 @@ public interface JobMatchRepository extends JpaRepository<JobMatch, UUID> {
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("select m from JobMatch m where m.id = :id")
     java.util.Optional<JobMatch> lockForAdmin(@org.springframework.data.repository.query.Param("id") UUID id);
+    @Query("select m.id from JobMatch m where (m.consumer.id = :userId or m.provider.id = :userId) and m.jobPost.id = :jobId order by m.matchedAt desc")
+    List<UUID> findRatingContextIds(@Param("userId") UUID userId, @Param("jobId") UUID jobId);
+
+    @Query("""
+        select m.id from JobMatch m where m.connectionSucceededAt is not null
+        and m.ratingOpensAt <= :now and m.ratingClosesAt > :now
+        and m.status in (com.handsfree.be.constant.MatchStatus.ACTIVE, com.handsfree.be.constant.MatchStatus.COMPLETED)
+        and ((m.consumer.id = :userId and m.consumerRatingDismissedAt is null)
+          or (m.provider.id = :userId and m.providerRatingDismissedAt is null))
+        and not exists (select r.id from MatchRating r where r.jobMatch = m and r.rater.id = :userId)
+        order by m.ratingClosesAt
+        """)
+    List<UUID> findPendingRatingIds(@Param("userId") UUID userId, @Param("now") java.time.Instant now, Pageable page);
+
     boolean existsByJobPost_Id(UUID jobId);
 
     long countByJobPost_IdAndStatus(UUID jobId, MatchStatus status);
@@ -104,16 +118,16 @@ public interface JobMatchRepository extends JpaRepository<JobMatch, UUID> {
     );
 
     @EntityGraph(attributePaths = {"jobPost", "jobPost.category", "consumer", "provider"})
-    Page<JobMatch> findAllByProvider_IdAndStatusOrderByMatchedAtDesc(
+    Page<JobMatch> findAllByProvider_IdAndStatusInOrderByMatchedAtDesc(
             UUID providerId,
-            MatchStatus status,
+            Collection<MatchStatus> statuses,
             Pageable pageable
     );
 
     @EntityGraph(attributePaths = {"jobPost", "jobPost.category", "consumer", "provider"})
-    Page<JobMatch> findAllByConsumer_IdAndStatusOrderByMatchedAtDesc(
+    Page<JobMatch> findAllByConsumer_IdAndStatusInOrderByMatchedAtDesc(
             UUID consumerId,
-            MatchStatus status,
+            Collection<MatchStatus> statuses,
             Pageable pageable
     );
 }

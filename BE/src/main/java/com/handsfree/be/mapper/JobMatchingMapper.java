@@ -17,6 +17,7 @@ import java.util.List;
 public class JobMatchingMapper {
     private final com.handsfree.be.serviceImpl.ContactAccess contactAccess;
     private final com.handsfree.be.repository.JobMatchRepository matches;
+    private final com.handsfree.be.repository.ConnectionPaymentRepository payments;
     public CandidateResponse toCandidateResponse(JobInterest interest, CandidateHiringInsightsResponse hiringInsights) {
         User applicant = interest.getApplicant();
         var matched = matches.findByJobInterest_Id(interest.getId());
@@ -37,7 +38,8 @@ public class JobMatchingMapper {
                 interest.getStatus(),
                 interest.getCreatedAt(),
                 interest.getRespondedAt(),
-                hiringInsights
+                hiringInsights,
+                matched.map(JobMatch::getId).orElse(null)
         );
     }
 
@@ -57,6 +59,7 @@ public class JobMatchingMapper {
                 match.getJobPost().getCategory().getDescription(),
                 match.getJobPost().getCategory().getIcon()
         );
+        var payment = payments.findByJobMatch_Id(match.getId()).orElse(null);
         MatchUserResponse user = contactAccess.user(counterpart, match);
         return new MatchResponse(
                 match.getId(),
@@ -74,7 +77,10 @@ public class JobMatchingMapper {
                 match.getMatchedAt(),
                 match.getConnectionSucceededAt(),
                 contactAccess.unlocked(match),
-                contactAccess.unlocked(match) && match.getChatUnlockedAt() != null
+                contactAccess.unlocked(match) && match.getChatUnlockedAt() != null,
+                payment != null && payment.getConsumerPaymentStatus() == com.handsfree.be.constant.PaymentStatus.PAID,
+                payment != null && payment.getProviderPaymentStatus() == com.handsfree.be.constant.PaymentStatus.PAID,
+                match.getExpectedEndAt(), match.getRatingOpensAt(), match.getRatingClosesAt()
         );
     }
 }

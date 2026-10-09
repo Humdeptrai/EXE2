@@ -18,6 +18,7 @@ public record JobPostResponse(
         String description,
         LocalDate scheduledDate,
         LocalTime startTime,
+        java.time.LocalDateTime expectedEndAt,
         String location,
         BigDecimal budgetAmount,
         BudgetType budgetType,

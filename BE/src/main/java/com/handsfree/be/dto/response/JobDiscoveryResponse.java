@@ -17,6 +17,7 @@ public record JobDiscoveryResponse(
         String description,
         LocalDate scheduledDate,
         LocalTime startTime,
+        java.time.LocalDateTime expectedEndAt,
         String location,
         BigDecimal budgetAmount,
         BudgetType budgetType,

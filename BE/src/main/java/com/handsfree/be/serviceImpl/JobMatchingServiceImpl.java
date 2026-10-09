@@ -1,5 +1,6 @@
 package com.handsfree.be.serviceImpl;
 
+import com.handsfree.be.service.PlatformSettingsService;
 import com.handsfree.be.service.IdentityService;
 
 import com.handsfree.be.constant.InterestLevel;
@@ -118,6 +119,12 @@ public class JobMatchingServiceImpl implements JobMatchingService {
             throw new AppException(ErrorCode.JOB_MATCH_CAPACITY_FULL);
         }
 
+        if (jobPost.getExpectedEndAt() == null || !jobPost.getExpectedEndAt().isAfter(
+                java.time.LocalDateTime.of(jobPost.getScheduledDate(), jobPost.getStartTime())))
+            throw new AppException(ErrorCode.JOB_END_TIME_INVALID);
+        var policy = settings.get();
+        Instant expectedEnd = jobPost.getExpectedEndAt().atZone(businessProperties.zoneId()).toInstant();
+        Instant ratingOpens = expectedEnd.plusSeconds(policy.getRatingDelayMinutes() * 60L);
         Instant now = Instant.now();
         interest.setStatus(InterestStatus.ACCEPTED);
         interest.setRespondedAt(now);
@@ -130,7 +137,10 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                 .jobInterest(interest)
                 .status(MatchStatus.ACTIVE)
                 .matchedAt(now)
-                .paymentDeadlineAt(now.plusSeconds(settings.get().getPaymentWindowMinutes() * 60L))
+                .paymentDeadlineAt(now.plusSeconds(policy.getPaymentWindowMinutes() * 60L))
+                .expectedEndAt(expectedEnd)
+                .ratingOpensAt(ratingOpens)
+                .ratingClosesAt(ratingOpens.plusSeconds(7 * 86400L))
                 .build();
         JobMatch saved = jobMatchRepository.saveAndFlush(match);
         connectionPaymentService.getPayment(consumerId, saved.getId());
@@ -179,9 +189,9 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     @Transactional(readOnly = true)
     public PageResponse<MatchResponse> getProviderMatches(UUID providerId, int page, int size) {
         Page<MatchResponse> result = jobMatchRepository
-                .findAllByProvider_IdAndStatusOrderByMatchedAtDesc(
+                .findAllByProvider_IdAndStatusInOrderByMatchedAtDesc(
                         providerId,
-                        MatchStatus.ACTIVE,
+                        List.of(MatchStatus.ACTIVE, MatchStatus.COMPLETED, MatchStatus.EXPIRED, MatchStatus.DISCONNECTED),
                         pageRequest(page, size)
                 )
                 .map(jobMatchingMapper::toProviderMatchResponse);
@@ -192,9 +202,9 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     @Transactional(readOnly = true)
     public PageResponse<MatchResponse> getConsumerMatches(UUID consumerId, int page, int size) {
         Page<MatchResponse> result = jobMatchRepository
-                .findAllByConsumer_IdAndStatusOrderByMatchedAtDesc(
+                .findAllByConsumer_IdAndStatusInOrderByMatchedAtDesc(
                         consumerId,
-                        MatchStatus.ACTIVE,
+                        List.of(MatchStatus.ACTIVE, MatchStatus.COMPLETED, MatchStatus.EXPIRED, MatchStatus.DISCONNECTED),
                         pageRequest(page, size)
                 )
                 .map(jobMatchingMapper::toConsumerMatchResponse);

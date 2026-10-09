@@ -25,6 +25,11 @@ public record MatchResponse(
         Instant matchedAt,
         Instant connectionSucceededAt,
         boolean connectionSucceeded,
-        boolean chatUnlocked
+        boolean chatUnlocked,
+        boolean consumerPaid,
+        boolean providerPaid,
+        Instant expectedEndAt,
+        Instant ratingOpensAt,
+        Instant ratingClosesAt
 ) {
 }

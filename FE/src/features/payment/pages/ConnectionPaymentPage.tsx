@@ -177,10 +177,10 @@ export default function ConnectionPaymentPage() {
             </section>
           )}
           <Link
-            to={`/reports?targetType=MATCH&targetId=${payment.matchId}`}
+            to={`/reports?targetType=${payment.connectionSucceeded ? "MATCH" : "SUPPORT"}&targetId=${payment.matchId}`}
             className="inline-block text-sm text-[#007f95]"
           >
-            Báo cáo matching / yêu cầu hỗ trợ
+            {payment.connectionSucceeded ? "Báo cáo đối tác" : "Yêu cầu hỗ trợ thanh toán"}
           </Link>
         </>
       ) : (

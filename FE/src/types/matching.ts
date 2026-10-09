@@ -1,6 +1,6 @@
 import type { BudgetType, InterestLevel, InterestStatus, JobCategory, PageResponse } from "./job";
 
-export type MatchStatus = "ACTIVE" | "DISCONNECTED" | "COMPLETED";
+export type MatchStatus = "ACTIVE" | "DISCONNECTED" | "COMPLETED" | "EXPIRED";
 
 
 export interface CandidateExpertise {
@@ -34,6 +34,7 @@ export interface Candidate {
   requestedAt: string;
   respondedAt: string | null;
   hiringInsights: CandidateHiringInsights;
+  matchId: string | null;
 }
 
 export interface MatchUser {
@@ -67,6 +68,11 @@ export interface JobMatch {
   connectionSucceededAt: string | null;
   connectionSucceeded: boolean;
   chatUnlocked: boolean;
+  consumerPaid: boolean;
+  providerPaid: boolean;
+  expectedEndAt: string | null;
+  ratingOpensAt: string | null;
+  ratingClosesAt: string | null;
 }
 
 export type CandidatePage = PageResponse<Candidate>;

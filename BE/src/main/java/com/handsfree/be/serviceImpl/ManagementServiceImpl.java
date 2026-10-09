@@ -1,5 +1,7 @@
 package com.handsfree.be.serviceImpl;
 
+import com.handsfree.be.service.ManagementService;
+import com.handsfree.be.service.PlatformSettingsService;
 import com.handsfree.be.constant.*;
 import com.handsfree.be.entity.*;
 import com.handsfree.be.exception.*;
@@ -16,7 +18,8 @@ import java.util.*;
 
 @Service
 @RequiredArgsConstructor
-public class ManagementService {
+public class ManagementServiceImpl implements ManagementService {
+    private final ContactAccess contactAccess;
     private final AccountAccess access;
     private final ModerationReportRepository reports;
     private final AdminAuditRepository audit;
@@ -41,13 +44,17 @@ public class ManagementService {
     @Transactional
     public ModerationReport report(UUID actor, String type, UUID target, String reason) {
         access.active(actor);
-        if (!Set.of("JOB", "USER", "MATCH").contains(type))
+        if (!Set.of("JOB", "USER", "MATCH", "SUPPORT").contains(type))
             throw new AppException(ErrorCode.VALIDATION_FAILED);
         if (type.equals("JOB") && !jobs.existsById(target)
                 || type.equals("USER") && !users.existsById(target))
             throw new AppException(ErrorCode.JOB_NOT_FOUND);
-        if (type.equals("MATCH") && matches.findParticipantMatchForUpdate(target, actor).isEmpty())
-            throw new AppException(ErrorCode.MATCH_NOT_FOUND);
+        if (type.equals("MATCH") || (type.equals("SUPPORT") && !actor.equals(target))) {
+            var match = matches.findParticipantMatchForUpdate(target, actor)
+                    .orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
+            if (type.equals("MATCH") && !contactAccess.unlocked(match))
+                throw new AppException(ErrorCode.REPORT_CONNECTION_REQUIRED);
+        }
         return reports.save(
                 ModerationReport.builder()
                         .reporterId(actor)
@@ -103,8 +110,10 @@ public class ManagementService {
             long min,
             long max,
             boolean enabled,
-            int paymentWindowMinutes) {
+            int paymentWindowMinutes, int ratingDelayMinutes) {
         access.operator(actor, true);
+        if (ratingDelayMinutes < 0 || ratingDelayMinutes > 43200)
+            throw new AppException(ErrorCode.VALIDATION_FAILED);
         if (paymentWindowMinutes < 1 || paymentWindowMinutes > 43200)
             throw new AppException(ErrorCode.VALIDATION_FAILED);
         if (min < 1000 || max < min || max > 100000000)
@@ -116,6 +125,8 @@ public class ManagementService {
         s.setMaxTopUp(max);
         s.setTopUpEnabled(enabled);
         s.setPaymentWindowMinutes(paymentWindowMinutes);
+        s.setRatingDelayMinutes(ratingDelayMinutes);
+        log(actor, "RATING_SETTINGS", "delayMinutes=" + ratingDelayMinutes + " windowDays=7");
         log(
                 actor,
                 "FEE_SETTINGS",

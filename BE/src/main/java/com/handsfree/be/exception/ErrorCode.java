@@ -72,7 +72,7 @@ public enum ErrorCode {
     CHAT_NOT_UNLOCKED(40928, HttpStatus.CONFLICT, "Cuộc trò chuyện chỉ được mở sau khi cả người thuê và người nhận việc đã thanh toán phí kết nối"),
     CHAT_MATCH_NOT_ACTIVE(40929, HttpStatus.CONFLICT, "Matching không còn hoạt động để gửi tin nhắn"),
     RATING_CONNECTION_REQUIRED(40930, HttpStatus.CONFLICT, "Chỉ có thể đánh giá sau khi hai phía hoàn tất phí kết nối"),
-    RATING_NOT_AVAILABLE_YET(40931, HttpStatus.CONFLICT, "Chưa đến thời điểm đánh giá; vui lòng thử lại sau thời gian công việc ít nhất 1 giờ"),
+    RATING_NOT_AVAILABLE_YET(40931, HttpStatus.CONFLICT, "Chưa đến thời điểm đánh giá; vui lòng xem thời gian mở đánh giá của matching"),
     RATING_ALREADY_SUBMITTED(40932, HttpStatus.CONFLICT, "Bạn đã đánh giá người này cho matching này rồi"),
     DATA_CONFLICT(40990, HttpStatus.CONFLICT, "Dữ liệu bị xung đột với trạng thái hiện tại"),
     FILE_STORAGE_FAILED(50010, HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu hình ảnh lúc này"),
@@ -81,6 +81,9 @@ public enum ErrorCode {
     IDENTITY_SESSION_EXPIRED(40944, HttpStatus.CONFLICT, "Phiên quét đã hết hạn hoặc không còn hợp lệ. Hãy bắt đầu lại."),
     IDENTITY_SCAN_FAILED(42244, HttpStatus.UNPROCESSABLE_ENTITY, "Chưa vượt qua kiểm tra khuôn mặt. Dùng khuôn mặt thật, đủ sáng và thực hiện lại."),
     IDENTITY_ALREADY_VERIFIED(40945, HttpStatus.CONFLICT, "Tài khoản đã được xác thực."),
+    JOB_END_TIME_INVALID(40070, HttpStatus.BAD_REQUEST, "Thời gian kết thúc dự kiến phải được nhập và sau thời gian bắt đầu"),
+    RATING_WINDOW_EXPIRED(40933, HttpStatus.CONFLICT, "Đã hết hạn đánh giá cho matching này"),
+    REPORT_CONNECTION_REQUIRED(40934, HttpStatus.CONFLICT, "Chỉ có thể báo cáo đối tác khi cả hai bên đã hoàn tất phí kết nối; bạn vẫn có thể gửi yêu cầu hỗ trợ thanh toán"),
     INTERNAL_ERROR(50000, HttpStatus.INTERNAL_SERVER_ERROR, "Đã xảy ra lỗi hệ thống");
 
     private final int code;

@@ -8,6 +8,7 @@ import { getApiErrorMessage } from "../../auth/utils/apiError";
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -63,6 +64,7 @@ export default function MatchRatingPage() {
     try {
       await ratingService.rateMatch(state.matchId, { stars, comment: comment.trim() });
       setNotice("Đã gửi đánh giá. Cảm ơn bạn đã đóng góp vào độ tin cậy của cộng đồng.");
+      window.dispatchEvent(new Event("handsfree:rating-updated"));
       await load();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, "Không thể gửi đánh giá lúc này."));
@@ -86,12 +88,14 @@ export default function MatchRatingPage() {
     );
   }
 
+  const roleRating = state.counterpartMode === "PROVIDER" ? state.counterpartReputation.asProvider : state.counterpartReputation.asConsumer;
+
   return (
       <div className="hf-page hf-page-match-rating mx-auto max-w-2xl space-y-5 pb-6">
         <section className="flex items-center justify-between gap-3">
           <button type="button" onClick={() => navigate(-1)} className="inline-flex min-h-10 items-center gap-2 text-sm font-extrabold text-[#007f95]"><AppIcon name="arrow-left" className="h-4 w-4" /> Quay lại</button>
           <span className={`rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide ${state.alreadyRated ? "bg-emerald-100 text-emerald-700" : state.canRate ? "bg-[#e5f3f6] text-[#007f95]" : "bg-amber-100 text-amber-700"}`}>
-          {state.alreadyRated ? "Đã đánh giá" : state.canRate ? "Có thể đánh giá" : "Chưa đến thời điểm"}
+          {state.alreadyRated ? "Đã đánh giá" : state.canRate ? "Có thể đánh giá" : state.ratingExpired ? "Đã hết hạn" : "Chưa đến thời điểm"}
         </span>
         </section>
 
@@ -109,12 +113,13 @@ export default function MatchRatingPage() {
             </div>
           </div>
           <div className="mt-5 grid grid-cols-3 divide-x divide-slate-200 rounded-2xl bg-slate-50 py-4 text-center">
-            <div className="px-2"><p className="text-lg font-black text-[#007f95]">{state.counterpartReputation.overall.averageRating == null ? "—" : state.counterpartReputation.overall.averageRating.toFixed(1)}</p><p className="mt-1 text-[10px] font-bold text-slate-500">Điểm uy tín</p></div>
-            <div className="px-2"><p className="text-lg font-black text-[#007f95]">{state.counterpartReputation.overall.ratingCount}</p><p className="mt-1 text-[10px] font-bold text-slate-500">Đánh giá</p></div>
-            <div className="px-2"><p className="text-lg font-black text-[#007f95]">{state.counterpartReputation.overall.successfulMatchCount}</p><p className="mt-1 text-[10px] font-bold text-slate-500">Kết nối thành công</p></div>
+            <div className="px-2"><p className="text-lg font-black text-[#007f95]">{roleRating.averageRating == null ? "—" : roleRating.averageRating.toFixed(2)}</p><p className="mt-1 text-[10px] font-bold text-slate-500">{state.counterpartMode === "PROVIDER" ? "Uy tín nhận việc" : "Uy tín thuê việc"}</p></div>
+            <div className="px-2"><p className="text-lg font-black text-[#007f95]">{roleRating.ratingCount}</p><p className="mt-1 text-[10px] font-bold text-slate-500">Đánh giá</p></div>
+            <div className="px-2"><p className="text-lg font-black text-[#007f95]">{roleRating.successfulMatchCount}</p><p className="mt-1 text-[10px] font-bold text-slate-500">Kết nối thành công</p></div>
           </div>
         </section>
 
+        {state.ratingClosesAt && <UserNotice message={`Thời hạn đánh giá: ${formatDateTime(state.ratingEligibleAt)} đến ${formatDateTime(state.ratingClosesAt)}.`} />}
         {error && <UserNotice message={error} error />}
         {notice && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{notice}</div>}
 
@@ -124,9 +129,11 @@ export default function MatchRatingPage() {
               <p className="mt-2 text-sm leading-6 text-amber-800">Hai phía phải hoàn tất phí kết nối trước khi Matching được tính là kết nối thành công.</p>
               <Link to={`/matches/${state.matchId}/payment`} className="mt-4 inline-flex min-h-10 items-center rounded-xl bg-[#007f95] px-4 text-sm font-extrabold text-white">Xem trạng thái phí kết nối</Link>
             </section>
-        ) : !state.ratingWindowOpen ? (
+        ) : state.ratingExpired && !state.alreadyRated ? (
+            <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5"><h2 className="font-black">Đã hết hạn đánh giá</h2><p className="mt-2 text-sm text-slate-600">Thời hạn kết thúc lúc {state.ratingClosesAt ? formatDateTime(state.ratingClosesAt) : "—"}. Bạn không thể gửi đánh giá mới cho matching này.</p></section>
+        ) : !state.ratingWindowOpen && !state.alreadyRated ? (
             <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
-              <h2 className="font-black text-amber-900">Đánh giá sẽ mở sau thời gian công việc 1 giờ</h2>
+              <h2 className="font-black text-amber-900">{state.expectedEndAt ? "Đánh giá mở sau kết thúc dự kiến và thời gian chờ" : "Đánh giá mở sau giờ bắt đầu 1 giờ (matching cũ)"}</h2>
               <p className="mt-2 text-sm leading-6 text-amber-800">Thời điểm có thể đánh giá: <strong>{formatDateTime(state.ratingEligibleAt)}</strong>. Hệ thống không cho đánh giá trước mốc này.</p>
               <button type="button" onClick={() => void load()} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-amber-300 bg-white px-4 text-sm font-extrabold text-amber-800"><AppIcon name="refresh" className="h-4 w-4" /> Cập nhật trạng thái</button>
             </section>
@@ -144,12 +151,12 @@ export default function MatchRatingPage() {
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
               <h2 className="text-lg font-black">Trải nghiệm của bạn thế nào?</h2>
               <p className="mt-1 text-sm leading-6 text-slate-500">Chọn từ 1 đến 5 sao. Đánh giá này sẽ đóng góp vào uy tín của {state.counterpart.fullName}.</p>
-              <div className="mt-5 flex justify-center gap-2 sm:gap-3">
+              <div className="mt-5 flex justify-center gap-1 sm:gap-3">
                 {Array.from({ length: 5 }, (_, index) => {
                   const value = index + 1;
                   const active = value <= stars;
                   return (
-                      <button key={value} type="button" onClick={() => setStars(value)} aria-label={`${value} sao`} className={`grid h-12 w-12 place-items-center rounded-2xl border transition sm:h-14 sm:w-14 ${active ? "border-amber-300 bg-amber-50 text-amber-500" : "border-slate-200 text-slate-300 hover:border-amber-200"}`}>
+                      <button key={value} type="button" onClick={() => setStars(value)} aria-label={`${value} sao`} className={`grid h-11 w-11 place-items-center rounded-2xl border transition sm:h-14 sm:w-14 ${active ? "border-amber-300 bg-amber-50 text-amber-500" : "border-slate-200 text-slate-300 hover:border-amber-200"}`}>
                         <AppIcon name="star" className={`h-7 w-7 sm:h-8 sm:w-8 ${active ? "fill-current" : ""}`} />
                       </button>
                   );

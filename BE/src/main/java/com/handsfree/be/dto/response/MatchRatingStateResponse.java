@@ -16,6 +16,11 @@ public record MatchRatingStateResponse(
         boolean alreadyRated,
         boolean canRate,
         MatchRatingResponse myRating,
-        UserReputationResponse counterpartReputation
+        UserReputationResponse counterpartReputation,
+        com.handsfree.be.constant.UserMode counterpartMode,
+        Instant expectedEndAt,
+        Instant ratingClosesAt,
+        boolean ratingExpired,
+        boolean canReport
 ) {
 }

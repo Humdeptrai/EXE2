@@ -22,6 +22,7 @@ public record CandidateResponse(
         InterestStatus interestStatus,
         Instant requestedAt,
         Instant respondedAt,
-        CandidateHiringInsightsResponse hiringInsights
+        CandidateHiringInsightsResponse hiringInsights,
+        UUID matchId
 ) {
 }

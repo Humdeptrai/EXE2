@@ -86,6 +86,7 @@ export default function DiscoveryCard({
               )}
               <div className="min-w-0">
                 <p className="truncate text-sm font-extrabold">{job.owner.fullName}</p>
+                <p className="mt-1 text-[11px] font-bold text-[#007f95]">Uy tín thuê: {job.owner.hiringReputation?.averageRating == null ? "Chưa có đánh giá" : `${job.owner.hiringReputation.averageRating.toFixed(2)}/5 ★`} · {job.owner.hiringReputation?.ratingCount ?? 0} đánh giá</p>
                 <p className="truncate text-[11px] text-slate-500">Cần {job.requiredWorkers} người hỗ trợ</p>
               </div>
             </div>

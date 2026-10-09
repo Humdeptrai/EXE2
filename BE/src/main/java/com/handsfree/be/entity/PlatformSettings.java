@@ -32,5 +32,8 @@ public class PlatformSettings {
     @Column(nullable = false)
     private int paymentWindowMinutes = 1440;
 
+    @Column(nullable = false)
+    private int ratingDelayMinutes = 360;
+
     @Version private long version;
 }

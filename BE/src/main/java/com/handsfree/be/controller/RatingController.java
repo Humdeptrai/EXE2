@@ -42,7 +42,7 @@ public class RatingController {
     }
 
     @PostMapping("/matches/{matchId}/rating")
-    @Operation(summary = "Rate the counterpart after connection success and scheduled time plus one hour")
+    @Operation(summary = "Rate the counterpart within the snapshotted rating window after bilateral payment")
     public ResponseEntity<ApiResponse<MatchRatingResponse>> rateMatch(
             Authentication authentication,
             @PathVariable UUID matchId,
@@ -53,6 +53,22 @@ public class RatingController {
                 "Đánh giá thành công",
                 ratingService.rateMatch(currentUserId(authentication), matchId, request)
         ));
+    }
+
+    @GetMapping("/ratings/pending")
+    public ResponseEntity<ApiResponse<java.util.List<MatchRatingStateResponse>>> pending(Authentication a) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Đánh giá đang chờ", ratingService.pendingRatings(currentUserId(a))));
+    }
+
+    @PostMapping("/matches/{matchId}/rating/reminder-dismissal")
+    public ResponseEntity<ApiResponse<Boolean>> dismiss(Authentication a, @PathVariable UUID matchId) {
+        ratingService.dismissReminder(currentUserId(a), matchId);
+        return ResponseEntity.ok(ApiResponse.success(200, "Đã để sau; bạn vẫn có thể đánh giá trong thời hạn", true));
+    }
+
+    @GetMapping("/jobs/{jobId}/my-rating-contexts")
+    public ResponseEntity<ApiResponse<java.util.List<MatchRatingStateResponse>>> contexts(Authentication a, @PathVariable UUID jobId) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Matching của bạn", ratingService.ratingsForJob(currentUserId(a), jobId)));
     }
 
     @GetMapping("/users/{userId}/reputation")

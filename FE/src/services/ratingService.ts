@@ -3,6 +3,15 @@ import type { ApiResponse } from "../types/api";
 import type { MatchRating, MatchRatingRequest, MatchRatingState, UserReputation } from "../types/rating";
 
 export const ratingService = {
+  async pendingRatings(): Promise<MatchRatingState[]> {
+    return (await api.get<ApiResponse<MatchRatingState[]>>("/ratings/pending")).data.result;
+  },
+  async dismissReminder(matchId: string): Promise<void> {
+    await api.post(`/matches/${matchId}/rating/reminder-dismissal`);
+  },
+  async forJob(jobId: string): Promise<MatchRatingState[]> {
+    return (await api.get<ApiResponse<MatchRatingState[]>>(`/jobs/${jobId}/my-rating-contexts`)).data.result;
+  },
   async getMatchRatingState(matchId: string): Promise<MatchRatingState> {
     const response = await api.get<ApiResponse<MatchRatingState>>(`/matches/${matchId}/rating`);
     return response.data.result;

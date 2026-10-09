@@ -39,6 +39,11 @@ export interface MatchRatingState {
   canRate: boolean;
   myRating: MatchRating | null;
   counterpartReputation: UserReputation;
+  counterpartMode: UserMode;
+  expectedEndAt: string | null;
+  ratingClosesAt: string | null;
+  ratingExpired: boolean;
+  canReport: boolean;
 }
 
 export interface MatchRatingRequest {

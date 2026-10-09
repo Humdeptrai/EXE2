@@ -1,3 +1,4 @@
+import RelatedMatchActions from "../../rating/components/RelatedMatchActions";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { useFeedback } from "../../../components/feedback/FeedbackContext";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
@@ -72,7 +73,7 @@ export default function CandidateProfilePage() {
             <h1 className="text-2xl font-black">{candidate.displayName}</h1>
             {candidate.interestLevel === "VERY_INTERESTED" && <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-extrabold text-amber-700"><AppIcon name="star" className="h-4 w-4 fill-current" /> Rất quan tâm</span>}
           </div>
-          <p className="mt-2 text-sm text-slate-500">Danh tính và ảnh đại diện được bảo vệ cho đến khi bạn chấp nhận Matching. Uy tín và kinh nghiệm được hiển thị để hỗ trợ lựa chọn.</p>
+          <p className="mt-2 text-sm text-slate-500">Danh tính và ảnh đại diện được bảo vệ cho đến khi cả hai hoàn tất phí kết nối. Uy tín và kinh nghiệm được hiển thị để hỗ trợ lựa chọn.</p>
         </div>
 
         <div className="space-y-5 p-5 sm:p-7">
@@ -139,6 +140,8 @@ export default function CandidateProfilePage() {
           </div>
         </div>
       </section>
+
+      {candidate.matchId && <RelatedMatchActions jobId={jobId} counterpartId={candidate.applicantId} />}
 
       {candidate.interestStatus === "PENDING" && (
         <div className="hf-candidate-actions sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] grid grid-cols-2 gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur lg:bottom-4">

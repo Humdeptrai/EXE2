@@ -68,6 +68,9 @@ public class JobPost extends BaseEntity {
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
 
+    @Column(name = "expected_end_at")
+    private java.time.LocalDateTime expectedEndAt;
+
     @Column(name = "location", nullable = false, length = 255)
     private String location;
 

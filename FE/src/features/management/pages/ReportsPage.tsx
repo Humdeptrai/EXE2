@@ -19,7 +19,7 @@ export default function ReportsPage() {
   const { confirm } = useFeedback();
   const { user } = useAuth();
   const [q] = useSearchParams();
-  const [type, setType] = useState(q.get("targetType") || "USER");
+  const [type, setType] = useState(q.get("targetType") || "SUPPORT");
   const [target, setTarget] = useState(q.get("targetId") || user?.id || "");
   const [reason, setReason] = useState("");
   const [items, setItems] = useState<Report[]>([]);
@@ -109,7 +109,8 @@ export default function ReportsPage() {
           >
             <option value="JOB">Bài đăng</option>
             <option value="USER">Người dùng</option>
-            <option value="MATCH">Matching / phí kết nối</option>
+            <option value="MATCH">Báo cáo đối tác trong matching (đã trả đủ hai chiều)</option>
+            <option value="SUPPORT">Hỗ trợ tài khoản / thanh toán</option>
           </select>
         </label>
         <label className="block font-bold">

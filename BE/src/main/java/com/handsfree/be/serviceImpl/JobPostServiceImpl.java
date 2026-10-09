@@ -40,6 +40,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import com.handsfree.be.properties.BusinessProperties;
 import java.util.ArrayList;
 import java.util.List;
@@ -145,6 +146,10 @@ public class JobPostServiceImpl implements JobPostService {
         if (jobPost.getScheduledDate().isBefore(LocalDate.now(businessProperties.zoneId()))) {
             throw new AppException(ErrorCode.JOB_SCHEDULE_IN_PAST);
         }
+        if (jobPost.getExpectedEndAt() == null || !jobPost.getExpectedEndAt().isAfter(
+                LocalDateTime.of(jobPost.getScheduledDate(), jobPost.getStartTime()))) {
+            throw new AppException(ErrorCode.JOB_END_TIME_INVALID);
+        }
         jobPost.setStatus(JobStatus.PUBLISHED);
         jobPost.setPublishedAt(Instant.now());
         jobPost.setCancelledAt(null);
@@ -177,6 +182,7 @@ public class JobPostServiceImpl implements JobPostService {
                 .description(source.getDescription())
                 .scheduledDate(source.getScheduledDate())
                 .startTime(source.getStartTime())
+                .expectedEndAt(source.getExpectedEndAt())
                 .location(source.getLocation())
                 .budgetAmount(source.getBudgetAmount())
                 .budgetType(source.getBudgetType())
@@ -273,12 +279,17 @@ public class JobPostServiceImpl implements JobPostService {
                 || !jobPost.getDescription().equals(request.description().trim())
                 || !jobPost.getScheduledDate().equals(request.scheduledDate())
                 || !jobPost.getStartTime().equals(request.startTime())
+                || (jobPost.getExpectedEndAt() != null && !jobPost.getExpectedEndAt().equals(request.expectedEndAt()))
                 || !jobPost.getLocation().equals(request.location().trim())
                 || jobPost.getBudgetAmount().compareTo(request.budgetAmount()) != 0
                 || jobPost.getBudgetType() != request.budgetType();
     }
 
     private void apply(JobPost jobPost, JobUpsertRequest request) {
+        if (request.expectedEndAt() == null || !request.expectedEndAt().isAfter(
+                java.time.LocalDateTime.of(request.scheduledDate(), request.startTime()))) {
+            throw new AppException(ErrorCode.JOB_END_TIME_INVALID);
+        }
         ContactPrivacy.validate(request.title());
         ContactPrivacy.validate(request.description());
         ContactPrivacy.validate(request.location());
@@ -289,6 +300,7 @@ public class JobPostServiceImpl implements JobPostService {
         jobPost.setDescription(request.description().trim());
         jobPost.setScheduledDate(request.scheduledDate());
         jobPost.setStartTime(request.startTime());
+        jobPost.setExpectedEndAt(request.expectedEndAt());
         jobPost.setLocation(request.location().trim());
         jobPost.setBudgetAmount(request.budgetAmount());
         jobPost.setBudgetType(request.budgetType());

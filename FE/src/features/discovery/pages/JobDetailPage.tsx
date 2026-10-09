@@ -1,3 +1,5 @@
+import ReputationSummary from "../../rating/components/ReputationSummary";
+import RelatedMatchActions from "../../rating/components/RelatedMatchActions";
 import { isIdentityActionHandled } from "../../../config/axios";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -108,6 +110,7 @@ export default function JobDetailPage() {
       <section className="hf-page hf-page-job-detail rounded-3xl border border-red-200 bg-white p-8 text-center">
         <h1 className="text-xl font-black">Không thể mở công việc</h1>
         <p className="mt-2 text-sm text-red-600">{error || "Công việc không còn khả dụng."}</p>
+        {jobId && <RelatedMatchActions jobId={jobId} />}
         <button type="button" onClick={() => navigate(-1)} className="mt-5 min-h-11 rounded-xl bg-[#007f95] px-5 text-sm font-extrabold text-white">Quay lại</button>
       </section>
     );
@@ -125,6 +128,7 @@ export default function JobDetailPage() {
       {notice && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{notice}</div>}
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
 
+      <RelatedMatchActions jobId={job.id} />
       <Link to={`/reports?targetType=JOB&targetId=${job.id}`} className="inline-block text-sm font-bold text-[#007f95]">Báo cáo bài đăng</Link>
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="relative flex min-h-56 items-center justify-center overflow-hidden bg-slate-100">
@@ -158,7 +162,7 @@ export default function JobDetailPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex items-start gap-3 rounded-2xl bg-[#f7f9fd] p-4"><AppIcon name="calendar" className="mt-0.5 h-5 w-5 shrink-0 text-[#007f95]" /><div><p className="text-xs font-extrabold text-slate-400">Thời gian</p><p className="mt-1 text-sm font-bold">{formatJobDate(job.scheduledDate, job.startTime)}</p></div></div>
+            <div className="flex items-start gap-3 rounded-2xl bg-[#f7f9fd] p-4"><AppIcon name="calendar" className="mt-0.5 h-5 w-5 shrink-0 text-[#007f95]" /><div><p className="text-xs font-extrabold text-slate-400">Thời gian</p><p className="mt-1 text-sm font-bold">{formatJobDate(job.scheduledDate, job.startTime)}</p>{job.expectedEndAt && <p className="mt-1 text-xs text-slate-500">Kết thúc dự kiến: {new Date(`${job.expectedEndAt}+07:00`).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}</p>}</div></div>
             <div className="flex items-start gap-3 rounded-2xl bg-[#f7f9fd] p-4"><AppIcon name="location" className="mt-0.5 h-5 w-5 shrink-0 text-[#007f95]" /><div className="min-w-0"><p className="text-xs font-extrabold text-slate-400">Địa điểm</p><p className="mt-1 break-words text-sm font-bold">{job.location}</p></div></div>
           </div>
 
@@ -176,6 +180,7 @@ export default function JobDetailPage() {
                 <p className="mt-1 truncate text-xs font-bold text-slate-500">{job.owner.location || "Chưa cập nhật khu vực"}</p>
               </div>
             </div>
+            <div className="mt-4"><ReputationSummary value={job.owner.hiringReputation} label="Uy tín thuê việc" /></div>
             {job.owner.tags.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{job.owner.tags.slice(0, 6).map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-1 text-[11px] font-bold text-slate-600 shadow-sm">{tag}</span>)}</div>}
             <div className="mt-4 flex items-start gap-2 rounded-2xl bg-[#eef7f9] p-3 text-xs leading-5 text-[#46646b]"><AppIcon name="info" className="mt-0.5 h-4 w-4 shrink-0" /> Thông tin liên hệ chỉ được mở sau khi hai bên matching và hoàn tất phí kết nối.</div>
           </div>

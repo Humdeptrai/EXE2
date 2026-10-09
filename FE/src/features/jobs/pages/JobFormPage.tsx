@@ -20,6 +20,7 @@ interface FormState {
   description: string;
   scheduledDate: string;
   startTime: string;
+  expectedEndAt: string;
   location: string;
   budgetAmount: string;
   budgetType: BudgetType;
@@ -32,6 +33,7 @@ const initialForm: FormState = {
   description: "",
   scheduledDate: "",
   startTime: "",
+  expectedEndAt: "",
   location: "",
   budgetAmount: "",
   budgetType: "HOURLY",
@@ -58,6 +60,7 @@ function jobToForm(job: JobPost): FormState {
     description: job.description,
     scheduledDate: job.scheduledDate,
     startTime: job.startTime.slice(0, 5),
+    expectedEndAt: job.expectedEndAt?.slice(0, 16) || "",
     location: job.location,
     budgetAmount: String(job.budgetAmount),
     budgetType: job.budgetType,
@@ -160,6 +163,7 @@ export default function JobFormPage() {
       description: form.description.trim(),
       scheduledDate: form.scheduledDate,
       startTime: form.startTime,
+      expectedEndAt: form.expectedEndAt || null,
       location: form.location.trim(),
       budgetAmount: Number(form.budgetAmount),
       budgetType: form.budgetType,
@@ -186,6 +190,11 @@ export default function JobFormPage() {
           } }));
           return;
         }
+      }
+      const starts = `${form.scheduledDate}T${form.startTime}`;
+      if (!form.expectedEndAt || !form.scheduledDate || !form.startTime || form.expectedEndAt <= starts) {
+        await confirm({ title: "Thời gian công việc chưa hợp lệ", message: "Vui lòng nhập thời gian kết thúc dự kiến sau thời gian bắt đầu. Bạn có thể chọn ngày kế tiếp nếu công việc qua đêm.", danger: true, acknowledgeOnly: true, confirmLabel: "Tôi đã hiểu" });
+        return;
       }
       const payload = buildPayload();
       let saved = persistedJobId
@@ -320,6 +329,11 @@ export default function JobFormPage() {
               <input type="time" value={form.startTime} onChange={(event) => setField("startTime", event.target.value)} required disabled={!canEditCore} className="mt-2 min-h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed] disabled:bg-slate-50" />
             </label>
           </div>
+
+          <label className="block text-sm font-extrabold">Kết thúc dự kiến (giờ Việt Nam) *
+            <input type="datetime-local" value={form.expectedEndAt} onChange={(event) => setField("expectedEndAt", event.target.value)} disabled={!canEditCore && Boolean(job?.expectedEndAt)} className="mt-2 min-h-14 w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed] disabled:bg-slate-50" />
+            <span className="mt-2 block text-xs font-medium leading-5 text-slate-500">Chọn ngày và giờ sau lúc bắt đầu, kể cả việc qua đêm. Hệ thống dùng mốc này để mở đánh giá sau thời gian chờ do ADMIN cấu hình.</span>
+          </label>
 
           <label className="block text-sm font-extrabold">Địa điểm *
             <div className="relative mt-2">

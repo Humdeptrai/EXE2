@@ -33,6 +33,9 @@ public record JobUpsertRequest(
         @NotNull(message = "Giờ bắt đầu không được để trống")
         LocalTime startTime,
 
+        @NotNull(message = "Thời gian kết thúc dự kiến không được để trống")
+        java.time.LocalDateTime expectedEndAt,
+
         @NotBlank(message = "Địa điểm không được để trống")
         @Size(max = 255, message = "Địa điểm tối đa 255 ký tự")
         String location,

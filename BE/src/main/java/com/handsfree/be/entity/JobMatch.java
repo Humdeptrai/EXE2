@@ -73,6 +73,21 @@ public class JobMatch extends BaseEntity {
     @Column(name = "payment_deadline_at")
     private Instant paymentDeadlineAt;
 
+    @Column(name = "expected_end_at")
+    private Instant expectedEndAt;
+
+    @Column(name = "rating_opens_at")
+    private Instant ratingOpensAt;
+
+    @Column(name = "rating_closes_at")
+    private Instant ratingClosesAt;
+
+    @Column(name = "consumer_rating_dismissed_at")
+    private Instant consumerRatingDismissedAt;
+
+    @Column(name = "provider_rating_dismissed_at")
+    private Instant providerRatingDismissedAt;
+
     @Column(name = "disconnected_at")
     private Instant disconnectedAt;
 

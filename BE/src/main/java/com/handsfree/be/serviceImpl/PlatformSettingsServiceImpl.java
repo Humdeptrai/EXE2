@@ -1,5 +1,6 @@
 package com.handsfree.be.serviceImpl;
 
+import com.handsfree.be.service.PlatformSettingsService;
 import com.handsfree.be.entity.PlatformSettings;
 import com.handsfree.be.repository.PlatformSettingsRepository;
 
@@ -11,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class PlatformSettingsService {
+public class PlatformSettingsServiceImpl implements PlatformSettingsService {
     private final PlatformSettingsRepository settings;
     private final JdbcTemplate jdbc;
 
@@ -20,8 +21,8 @@ public class PlatformSettingsService {
         jdbc.update(
                 "insert into platform_settings"
                         + "(id,consumer_fee,provider_fee,min_top_up,max_top_up,"
-                        + "top_up_enabled,payment_window_minutes,version)"
-                        + " values(1,10000,5000,10000,5000000,true,1440,0)"
+                        + "top_up_enabled,payment_window_minutes,rating_delay_minutes,version)"
+                        + " values(1,10000,5000,10000,5000000,true,1440,360,0)"
                         + " on conflict do nothing"
         );
         return settings.findById(1).orElseThrow();

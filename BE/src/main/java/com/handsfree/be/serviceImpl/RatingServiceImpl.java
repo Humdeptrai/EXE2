@@ -52,9 +52,10 @@ public class RatingServiceImpl implements RatingService {
                 .orElse(null);
         User counterpart = counterpart(match, currentUserId);
         Instant scheduledAt = scheduledAt(match);
-        Instant eligibleAt = scheduledAt.plusSeconds(RATING_DELAY_HOURS * 3600L);
+        Instant eligibleAt = eligibleAt(match);
+        boolean expired = expired(match, Instant.now());
         boolean connectionSucceeded = match.getConnectionSucceededAt() != null && contactAccess.unlocked(match);
-        boolean ratingWindowOpen = !Instant.now().isBefore(eligibleAt);
+        boolean ratingWindowOpen = !Instant.now().isBefore(eligibleAt) && !expired;
         boolean alreadyRated = myRating != null;
 
         return new MatchRatingStateResponse(
@@ -70,7 +71,9 @@ public class RatingServiceImpl implements RatingService {
                 alreadyRated,
                 connectionSucceeded && ratingWindowOpen && !alreadyRated,
                 myRating == null ? null : ratingMapper.toResponse(myRating),
-                buildReputation(counterpart.getId())
+                buildReputation(counterpart.getId()),
+                match.getConsumer().getId().equals(currentUserId) ? UserMode.PROVIDER : UserMode.CONSUMER,
+                match.getExpectedEndAt(), match.getRatingClosesAt(), expired, contactAccess.unlocked(match)
         );
     }
 
@@ -82,7 +85,8 @@ public class RatingServiceImpl implements RatingService {
             throw new AppException(ErrorCode.RATING_CONNECTION_REQUIRED);
         }
 
-        Instant eligibleAt = scheduledAt(match).plusSeconds(RATING_DELAY_HOURS * 3600L);
+        Instant eligibleAt = eligibleAt(match);
+        if (expired(match, Instant.now())) throw new AppException(ErrorCode.RATING_WINDOW_EXPIRED);
         if (Instant.now().isBefore(eligibleAt)) {
             throw new AppException(ErrorCode.RATING_NOT_AVAILABLE_YET);
         }
@@ -124,6 +128,39 @@ public class RatingServiceImpl implements RatingService {
         return buildReputation(userId);
     }
 
+    @Override
+    @Transactional
+    public java.util.List<MatchRatingStateResponse> pendingRatings(UUID userId) {
+        userRepository.findByIdAndActiveTrue(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return jobMatchRepository.findPendingRatingIds(userId, Instant.now(), org.springframework.data.domain.PageRequest.of(0, 20))
+                .stream().map(id -> getMatchRatingState(userId, id)).filter(MatchRatingStateResponse::canRate).toList();
+    }
+
+    @Override
+    @Transactional
+    public void dismissReminder(UUID userId, UUID matchId) {
+        JobMatch match = requireParticipantMatch(userId, matchId);
+        if (match.getConsumer().getId().equals(userId)) match.setConsumerRatingDismissedAt(Instant.now());
+        else match.setProviderRatingDismissedAt(Instant.now());
+    }
+
+    @Override
+    @Transactional
+    public java.util.List<MatchRatingStateResponse> ratingsForJob(UUID userId, UUID jobId) {
+        return jobMatchRepository.findRatingContextIds(userId, jobId).stream()
+                .map(id -> getMatchRatingState(userId, id)).toList();
+    }
+
+    private Instant eligibleAt(JobMatch match) {
+        // Legacy matching keeps its original rule; no invented finish time or expiry.
+        return match.getRatingOpensAt() != null ? match.getRatingOpensAt()
+                : scheduledAt(match).plusSeconds(RATING_DELAY_HOURS * 3600L);
+    }
+
+    private boolean expired(JobMatch match, Instant now) {
+        return match.getRatingClosesAt() != null && !now.isBefore(match.getRatingClosesAt());
+    }
+
     private UserReputationResponse buildReputation(UUID userId) {
         return new UserReputationResponse(
                 userId,
@@ -134,6 +171,7 @@ public class RatingServiceImpl implements RatingService {
     }
 
     private RatingAggregateResponse aggregate(Object[] row, long successfulMatchCount) {
+        if (row != null && row.length == 1 && row[0] instanceof Object[] nested) row = nested;
         Number average = row != null && row.length > 0 && row[0] instanceof Number number ? number : null;
         Number count = row != null && row.length > 1 && row[1] instanceof Number number ? number : null;
         long ratingCount = count == null ? 0L : count.longValue();

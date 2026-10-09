@@ -29,6 +29,7 @@ export interface JobPost {
   description: string;
   scheduledDate: string;
   startTime: string;
+  expectedEndAt: string | null;
   location: string;
   budgetAmount: number;
   budgetType: BudgetType;
@@ -51,6 +52,7 @@ export interface JobOwnerSummary {
   location: string | null;
   profileCompleted: boolean;
   tags: string[];
+  hiringReputation?: import("./rating").RatingAggregate;
 }
 
 export interface JobInteractionState {
@@ -68,6 +70,7 @@ export interface JobDiscovery {
   description: string;
   scheduledDate: string;
   startTime: string;
+  expectedEndAt: string | null;
   location: string;
   budgetAmount: number;
   budgetType: BudgetType;
@@ -99,6 +102,7 @@ export interface JobUpsertRequest {
   description: string;
   scheduledDate: string;
   startTime: string;
+  expectedEndAt: string | null;
   location: string;
   budgetAmount: number;
   budgetType: BudgetType;

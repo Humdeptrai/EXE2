@@ -1,3 +1,4 @@
+import ReputationSummary from "../../rating/components/ReputationSummary";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import IdentityPrivateFields from "../../identity/components/IdentityPrivateFields";
 import type { MyIdentity } from "../../../services/identityService";
@@ -67,10 +68,14 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user?.id) return;
     let active = true;
-    void ratingService.getUserReputation(user.id)
-      .then((result) => { if (active) setReputation(result); })
-      .catch(() => { if (active) setReputation(null); });
-    return () => { active = false; };
+    const loadReputation = () => {
+      void ratingService.getUserReputation(user.id)
+        .then((result) => { if (active) setReputation(result); })
+        .catch(() => { if (active) setReputation(null); });
+    };
+    loadReputation();
+    window.addEventListener("handsfree:rating-updated", loadReputation);
+    return () => { active = false; window.removeEventListener("handsfree:rating-updated", loadReputation); };
   }, [user?.id]);
 
   const [identity, setIdentity] = useState<Eligibility | null>(null);
@@ -228,10 +233,9 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          <div className="mt-5 grid grid-cols-3 divide-x divide-slate-200 rounded-2xl bg-[#f5f8fb] px-1 py-3 text-center sm:mt-6 sm:px-2 sm:py-4">
-            <div><p className="text-lg font-extrabold text-[#007f95] sm:text-xl">{reputation?.overall.successfulMatchCount ?? 0}</p><p className="px-1 text-[9px] font-bold leading-3 text-slate-500 min-[380px]:text-[10px] sm:text-[11px]">Kết nối thành công</p></div>
-            <div><p className="text-lg font-extrabold text-[#007f95] sm:text-xl">{reputation?.overall.averageRating == null ? "—" : `${reputation.overall.averageRating.toFixed(1)}★`}</p><p className="px-1 text-[9px] font-bold leading-3 text-slate-500 min-[380px]:text-[10px] sm:text-[11px]">Độ tin cậy</p></div>
-            <div><p className="text-lg font-extrabold text-[#007f95] sm:text-xl">{reputation?.overall.ratingCount ?? 0}</p><p className="px-1 text-[9px] font-bold leading-3 text-slate-500 min-[380px]:text-[10px] sm:text-[11px]">Đánh giá</p></div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <ReputationSummary value={reputation?.asConsumer} label="Uy tín thuê việc" />
+            <ReputationSummary value={reputation?.asProvider} label="Uy tín nhận việc" />
           </div>
 
           {!editing && (

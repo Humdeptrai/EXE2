@@ -1,4 +1,5 @@
 import { usePwa } from "../../features/pwa/usePwa";
+import RatingReminder from "../../features/rating/components/RatingReminder";
 import IdentityActionGuard from "../../features/identity/components/IdentityActionGuard";
 import FeedbackProvider from "../feedback/FeedbackProvider";
 import { useViewportHeight } from "./useViewportHeight";
@@ -123,6 +124,7 @@ function AppShellLayout() {
 
         <main className="hf-main mx-auto w-full max-w-6xl px-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-5 lg:px-8 lg:pb-10">
           <IdentityActionGuard />
+          <RatingReminder />
           <Outlet />
         </main>
       </div>

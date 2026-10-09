@@ -35,6 +35,7 @@ public class JobPostMapper {
                 jobPost.getDescription(),
                 jobPost.getScheduledDate(),
                 jobPost.getStartTime(),
+                jobPost.getExpectedEndAt(),
                 jobPost.getLocation(),
                 jobPost.getBudgetAmount(),
                 jobPost.getBudgetType(),

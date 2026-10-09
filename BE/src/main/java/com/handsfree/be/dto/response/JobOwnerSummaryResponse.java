@@ -9,6 +9,7 @@ public record JobOwnerSummaryResponse(
         String avatarUrl,
         String location,
         boolean profileCompleted,
-        List<String> tags
+        List<String> tags,
+        RatingAggregateResponse hiringReputation
 ) {
 }

@@ -13,4 +13,7 @@ public interface RatingService {
     MatchRatingResponse rateMatch(UUID currentUserId, UUID matchId, MatchRatingRequest request);
 
     UserReputationResponse getUserReputation(UUID userId);
+    java.util.List<MatchRatingStateResponse> pendingRatings(UUID userId);
+    void dismissReminder(UUID userId, UUID matchId);
+    java.util.List<MatchRatingStateResponse> ratingsForJob(UUID userId, UUID jobId);
 }

@@ -1,5 +1,7 @@
 package com.handsfree.be.controller;
 
+import com.handsfree.be.service.ManagementService;
+import com.handsfree.be.service.PlatformSettingsService;
 import com.handsfree.be.base.ApiResponse;
 import com.handsfree.be.constant.UserRole;
 import com.handsfree.be.dto.response.PageResponse;
@@ -61,7 +63,8 @@ public class ManagementController {
             @Min(1000) long minTopUp,
             @Max(100000000) long maxTopUp,
             boolean topUpEnabled,
-            @Min(1) @Max(43200) int paymentWindowMinutes) {}
+            @Min(1) @Max(43200) int paymentWindowMinutes,
+            @Min(0) @Max(43200) Integer ratingDelayMinutes) {}
 
     public record RefundRequest(@NotBlank @Size(max = 1000) String reason) {}
 
@@ -185,7 +188,8 @@ public class ManagementController {
                         r.providerFee(),
                         r.minTopUp(),
                         r.maxTopUp(),
-                        r.topUpEnabled(), r.paymentWindowMinutes()));
+                        r.topUpEnabled(), r.paymentWindowMinutes(),
+                        r.ratingDelayMinutes() == null ? settings.get().getRatingDelayMinutes() : r.ratingDelayMinutes()));
     }
 
     @GetMapping("/admin/users")
