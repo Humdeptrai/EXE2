@@ -11,7 +11,7 @@ import torch
 from fastapi import HTTPException
 from vendor.MiniFASNet import MiniFASNetV2, MiniFASNetV1SE
 
-TTL = 120
+TTL = 300
 STEP_SECONDS = 25
 HOLD_SECONDS = .8
 PAD_THRESHOLD = .80
@@ -53,7 +53,7 @@ def start():
     now = time.monotonic()
     SESSIONS[sid] = dict(steps=['CENTER'] + sum(([x, 'CENTER'] for x in directions), []),
         index=0, expires=now+TTL, step_started=now, last=0, hold=None,
-        reference=None, portrait=None, pad=[], bad=0, frame_hash=None, hold_count=0, baseline=None)
+        reference=None, portrait=None, selfie=None, selfie_score=None, selfie_pad=None, pad=[], bad=0, frame_hash=None, hold_count=0, baseline=None)
     return progress(sid, SESSIONS[sid], 'Nhìn thẳng vào camera, giữ đầu ổn định.')
 
 
@@ -171,29 +171,80 @@ def frame(app, sid, raw, decode, feature):
         raise
 
 
-def ocr(raw):
-    # stdin/stdout only; no image or document file is persisted.
-    result=subprocess.run(['tesseract','stdin','stdout','-l','vie+eng','--psm','6'],input=raw,
-                          stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,timeout=15,check=True)
-    return result.stdout.decode('utf-8',errors='replace').strip()[:8000]
+def capture_selfie(app, sid, raw, decode, feature, threshold):
+    cleanup()
+    session = SESSIONS.get(sid)
+    if session is None:
+        raise HTTPException(410, 'Phiên đã hết hạn. Vui lòng quét lại.')
+    if session['index'] != len(session['steps']) or len(session['pad']) < 6:
+        raise HTTPException(422, 'Hoàn thành quét khuôn mặt trước khi chụp selfie.')
+    image = decode(raw)
+    try:
+        pitch, yaw, roll = pose(app, image)
+        if session['baseline'] is not None:
+            pitch -= session['baseline'][0]; yaw -= session['baseline'][1]; roll -= session['baseline'][2]
+        if abs(pitch) > 15 or abs(yaw) > 12 or abs(roll) > 15:
+            raise ValueError('Nhìn thẳng và giữ đầu ổn định khi chụp selfie.')
+        vector = feature(app, image)
+        detector = app.state.detector
+        detector.setInputSize((image.shape[1], image.shape[0])); _, boxes = detector.detect(image)
+        if boxes is None or len(boxes) != 1:
+            raise ValueError('Selfie phải có đúng một khuôn mặt.')
+        x, y, w, h = boxes[0][:4]
+        if w < image.shape[1] * .18 or x < 0 or y < 0 or x+w > image.shape[1] or y+h > image.shape[0]:
+            raise ValueError('Đưa trọn khuôn mặt vào giữa khung selfie.')
+        gray = cv2.cvtColor(image[int(y):int(y+h), int(x):int(x+w)], cv2.COLOR_BGR2GRAY)
+        if gray.mean() < 45 or gray.mean() > 235 or cv2.Laplacian(gray, cv2.CV_64F).var() < 35:
+            raise ValueError('Selfie chưa rõ hoặc ánh sáng chưa phù hợp.')
+        score = float(app.state.recognizer.match(session['reference'], vector, cv2.FaceRecognizerSF_FR_COSINE))
+        pad_score = pad(app, image, boxes[0])
+        if score < threshold or pad_score < PAD_THRESHOLD:
+            raise ValueError('Selfie chưa khớp phiên quét hoặc chưa đạt kiểm tra người thật.')
+        _, jpeg = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 90])
+        session['selfie'] = jpeg.tobytes(); session['selfie_score'] = score; session['selfie_pad'] = pad_score
+        return dict(policyVersion=3, accepted=True, expiresIn=max(0, int(session['expires']-time.monotonic())))
+    except ValueError as error:
+        raise HTTPException(422, str(error))
 
 
 def finish(app,sid,front,back,decode,feature,threshold):
-    import re
-    import unicodedata
+    from document_checks import card_image, read_card, document_fields
     cleanup()
-    s=SESSIONS.pop(sid,None)  # consume even when final document comparison fails
-    if s is None or s['index']!=len(s['steps']) or not s['portrait'] or len(s['pad'])<6:
+    s=SESSIONS.pop(sid,None)
+    if s is None or s['index']!=len(s['steps']) or not s['portrait'] or len(s['pad'])<6 or not s.get('selfie'):
         raise HTTPException(422,'Chưa hoàn tất phiên quét khuôn mặt.')
-    card=decode(front); reverse=decode(back); portrait=decode(s['portrait'])
-    score=float(app.state.recognizer.match(feature(app,card),feature(app,portrait),cv2.FaceRecognizerSF_FR_COSINE))
-    text=ocr(front); back_text=ocr(back)
-    ids=[re.sub(r'\s','',x) for x in re.findall(r'(?<!\d)(?:\d[ \t]*){12}(?![ \t]*\d)',text)]
-    plain=' '.join(''.join(c for c in unicodedata.normalize('NFD',text.upper()) if unicodedata.category(c)!='Mn').split())
-    recognizable=('CAN CUOC' in plain or 'CONG DAN' in plain or 'IDENTITY' in plain)
-    # OCR is evidence for review, not document authenticity validation.
-    return dict(decision='MATCH' if score>=threshold else 'NO_MATCH',cosineScore=score,
-        threshold=threshold,motionPassed=True,antiSpoofPassed=True,padScore=float(np.mean(s['pad'])),
-        documentReadable=bool(ids and recognizable and len(back_text)>30),
-        documentNumber=ids[0] if ids else '',frontText=text,backText=back_text,
-        faceJpeg=base64.b64encode(s['portrait']).decode(),documentValidated=False,identityVerified=False)
+    response=dict(policyVersion=3,selfiePassed=True,selfieScanScore=s['selfie_score'],selfiePadScore=s['selfie_pad'],decision='NO_MATCH',cosineScore=0.0,threshold=threshold,
+        motionPassed=True,antiSpoofPassed=True,padScore=float(np.mean(s['pad'])),
+        documentReadable=False,documentQualityPassed=False,frontReadable=False,backReadable=False,
+        documentNumber='',fullName='',frontText='',backText='',documentValidated=False,
+        identityVerified=False,reasonCode='FRONT_QUALITY')
+    card,quality=card_image(decode(front)); response['frontQuality']=quality
+    if card is None: return response
+    reverse,quality=card_image(decode(back)); response['backQuality']=quality
+    if reverse is None:
+        response['reasonCode']='BACK_QUALITY'; return response
+    response['documentQualityPassed']=True
+    try:
+        text,front_confidence=read_card(card); back_text,back_confidence=read_card(reverse)
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        raise HTTPException(503,'Bộ đọc CCCD chưa sẵn sàng. Vui lòng thử lại sau.')
+    fields=document_fields(text,back_text,front_confidence,back_confidence)
+    response.update(fields,frontText=text,backText=back_text,
+                    frontOcrConfidence=front_confidence,backOcrConfidence=back_confidence)
+    if not fields['frontReadable']:
+        response['reasonCode']='FRONT_OCR'; return response
+    if not fields['backReadable']:
+        response['reasonCode']='BACK_OCR'; return response
+    response['documentReadable']=True
+    try:
+        card_vector=feature(app,card)
+        scan_score=float(app.state.recognizer.match(card_vector,feature(app,decode(s['portrait'])),cv2.FaceRecognizerSF_FR_COSINE))
+        selfie_score=float(app.state.recognizer.match(card_vector,feature(app,decode(s['selfie'])),cv2.FaceRecognizerSF_FR_COSINE))
+        score=min(scan_score,selfie_score)
+    except HTTPException as error:
+        if error.status_code != 422: raise
+        response['documentReadable']=False; response['reasonCode']='FRONT_FACE'; return response
+    response.update(cosineScore=score,decision='MATCH' if score>=threshold else 'NO_MATCH',
+        faceJpeg=base64.b64encode(s['portrait']).decode(),selfieJpeg=base64.b64encode(s['selfie']).decode(),
+        documentScanScore=scan_score,documentSelfieScore=selfie_score,reasonCode='OK' if score>=threshold else 'FACE_MISMATCH')
+    return response

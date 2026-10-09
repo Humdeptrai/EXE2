@@ -23,7 +23,7 @@ cv2.setNumThreads(1)
 
 @asynccontextmanager
 async def lifespan(app):
-    if len(KEY) < 32 or not math.isfinite(THRESHOLD) or not 0 < THRESHOLD < 1:
+    if len(KEY) < 32 or not math.isfinite(THRESHOLD) or not .363 <= THRESHOLD < 1:
         raise RuntimeError("Configure a shared key of at least 32 characters and a valid threshold")
     app.state.detector = cv2.FaceDetectorYN.create(str(MODELS / "yunet.onnx"), "", (320, 320), 0.9, 0.3, 5000)
     app.state.recognizer = cv2.FaceRecognizerSF.create(str(MODELS / "sface.onnx"), "")
@@ -113,6 +113,17 @@ async def scan(request: Request, sid: str):
         if getattr(upload, "content_type", None) != "image/jpeg": raise HTTPException(422, "JPEG required")
         raw = await upload.read(MAX_IMAGE + 1)
     return await run_in_threadpool(locked, frame, request.app, sid, raw, decode, feature)
+
+@app.post("/sessions/{sid}/selfie")
+async def take_selfie(request: Request, sid: str):
+    from liveness import capture_selfie
+    from starlette.concurrency import run_in_threadpool
+    async with request.form(max_files=1, max_fields=0, max_part_size=MAX_IMAGE) as form:
+        if set(form.keys()) != {"selfie"}: raise HTTPException(422, "Expected selfie")
+        upload = form["selfie"]
+        if getattr(upload, "content_type", None) != "image/jpeg": raise HTTPException(422, "JPEG required")
+        raw = await upload.read(MAX_IMAGE + 1)
+    return await run_in_threadpool(locked, capture_selfie, request.app, sid, raw, decode, feature, THRESHOLD)
 
 @app.post("/sessions/{sid}/finish")
 async def finalize(request: Request, sid: str):

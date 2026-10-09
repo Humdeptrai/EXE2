@@ -6,7 +6,7 @@ RUN pip install --no-cache-dir torch==2.14.1 --index-url https://download.pytorc
 COPY vendor ./vendor
 COPY download_models.py .
 RUN python download_models.py
-COPY app.py liveness.py ./
+COPY app.py liveness.py document_checks.py ./
 RUN useradd --uid 10001 --create-home worker
 USER worker
 EXPOSE 8091
