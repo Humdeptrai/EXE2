@@ -37,6 +37,8 @@ export interface Candidate {
 }
 
 export interface MatchUser {
+  verifiedFaceUrl?: string | null;
+  identityVerified?: boolean;
   phone?: string | null;
   email?: string | null;
   id: string;
