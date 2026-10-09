@@ -2,6 +2,7 @@ package com.handsfree.be.serviceImpl;
 
 import com.handsfree.be.exception.AppException;
 import com.handsfree.be.exception.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,6 +22,7 @@ import java.util.concurrent.Semaphore;
 
 /** App verification from server-owned motion/PAD sessions and document quality; not certified eKYC. */
 @Service
+@Slf4j
 public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceComparisonService {
     private final ObjectMapper json;
     private final Semaphore slots = new Semaphore(2);
@@ -81,10 +83,20 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
                     || !("https".equals(base.getScheme()) || local && "http".equals(base.getScheme())))
                 throw new IllegalArgumentException();
             return new URI(base.getScheme(), null, base.getHost(), base.getPort(), suffix, null, null);
-        } catch (Exception e) { throw new AppException(ErrorCode.IDENTITY_NOT_CONFIGURED); }
+        } catch (Exception e) {
+            log.warn("Face worker configuration invalid: enabled={}, sharedKeyValid={}, reason={}",
+                    enabled, key.length() >= 32, e.getClass().getSimpleName());
+            throw new AppException(ErrorCode.IDENTITY_NOT_CONFIGURED);
+        }
+    }
+    private AppException invalidResponse(String operation, String reason) {
+        log.warn("Face worker invalid response: operation={}, reason={}", operation, reason);
+        return new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
     }
     private tools.jackson.databind.JsonNode call(String method, String suffix, String[] names, byte[][] images) {
         if (!slots.tryAcquire()) throw new AppException(ErrorCode.IDENTITY_SCAN_BUSY);
+        long started = System.nanoTime();
+        String operation = suffix.replaceAll("/sessions/[^/]+", "/sessions/{session}");
         try {
             var request = HttpRequest.newBuilder(endpoint(suffix)).timeout(Duration.ofSeconds(60)).header("X-Face-Key", key);
             if (images == null) request.method(method, HttpRequest.BodyPublishers.noBody());
@@ -96,15 +108,32 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
                 request.header("Content-Type","multipart/form-data; boundary="+boundary)
                     .method(method,HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()));
             }
-            var response=http.send(request.build(),HttpResponse.BodyHandlers.ofString());
+            var outgoing = request.build();
+            var response=http.send(outgoing,HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                log.warn("Face worker HTTP failure: operation={} {}, host={}, status={}, elapsedMs={}",
+                        method, operation, outgoing.uri().getHost(), response.statusCode(),
+                        (System.nanoTime() - started) / 1_000_000);
+            }
             if(response.statusCode()==410) throw new AppException(ErrorCode.IDENTITY_SESSION_EXPIRED);
             if(response.statusCode()==422 || response.statusCode()==413) throw new AppException(ErrorCode.IDENTITY_SCAN_FAILED);
             if(response.statusCode()==429 || response.statusCode()==503) throw new AppException(ErrorCode.IDENTITY_SCAN_BUSY);
-            if(response.statusCode()!=200 || response.body().length()>4000000) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+            if(response.statusCode()!=200) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+            if(response.body().length()>4000000) throw invalidResponse(operation, "response_too_large");
             return json.readTree(response.body());
         } catch(AppException e) { throw e; }
-        catch(InterruptedException e) { Thread.currentThread().interrupt(); throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR); }
-        catch(Exception e) { throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR); }
+        catch(InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Face worker request interrupted: operation={} {}, elapsedMs={}",
+                    method, operation, (System.nanoTime() - started) / 1_000_000);
+            throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        }
+        catch(Exception e) {
+            // Do not log response bodies, session tokens, keys, images or OCR data.
+            log.warn("Face worker request failed: operation={} {}, exception={}, elapsedMs={}",
+                    method, operation, e.getClass().getSimpleName(), (System.nanoTime() - started) / 1_000_000);
+            throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        }
         finally { slots.release(); }
     }
     private Session owned(UUID user,UUID id) {
@@ -118,7 +147,7 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
         int count=r.path("completed").asInt(-1), total=r.path("total").asInt(-1);
         String step=r.path("step").asString("");
         if(total!=9 || count<0 || count>total || !java.util.Set.of("CENTER","LEFT","RIGHT","UP","DOWN","DONE").contains(step))
-            throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+            throw invalidResponse("scan", "scan_contract_mismatch");
         return new Scan(id,step,count,total,count*100/total,count==total,
             r.path("message").asString("Đang kiểm tra khuôn mặt"),r.path("expiresIn").asInt(0));
     }
@@ -131,7 +160,7 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
             throw new AppException(ErrorCode.IDENTITY_BUSY);
         var r=call("POST","/sessions",null,null);
         String remote=r.path("sessionId").asString("");
-        if(!remote.matches("[A-Za-z0-9_-]{40,60}")) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        if(!remote.matches("[A-Za-z0-9_-]{40,60}")) throw invalidResponse("start", "session_id_invalid");
         UUID id=UUID.randomUUID(); Scan result=scan(id,r);
         sessions.put(id,new Session(user,remote,java.time.Instant.now().plusSeconds(300)));
         return result;
@@ -169,7 +198,7 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
         if(!sessions.remove(id,s)) throw new AppException(ErrorCode.IDENTITY_SESSION_EXPIRED);
         var r=call("POST","/sessions/"+s.remote()+"/finish",new String[]{"front","back"},new byte[][]{f,b});
         // Legacy workers did not check document quality: never auto-approve their responses.
-        if(r.path("policyVersion").asInt(0)!=3) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        if(r.path("policyVersion").asInt(0)!=3) throw invalidResponse("finish", "policy_version_mismatch");
         double score=r.path("cosineScore").asDouble(Double.NaN), threshold=r.path("threshold").asDouble(Double.NaN);
         double pad=r.path("padScore").asDouble(Double.NaN);
         boolean motion=r.path("motionPassed").asBoolean(false), anti=r.path("antiSpoofPassed").asBoolean(false);
@@ -181,7 +210,7 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
             && r.path("documentNumber").asString("").matches("[0-9]{12}");
         if(!Double.isFinite(score) || score< -1 || score>1 || !Double.isFinite(threshold)
                 || threshold<.363 || threshold>=1 || !Double.isFinite(pad) || pad<.8 || pad>1 || !motion || !anti)
-            throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+            throw invalidResponse("finish", "face_or_pad_metrics_invalid");
         double selfieScore=r.path("selfieScanScore").asDouble(Double.NaN);
         double selfiePad=r.path("selfiePadScore").asDouble(Double.NaN);
         if(!r.path("selfiePassed").asBoolean(false) || !Double.isFinite(selfieScore) || selfieScore<threshold || selfieScore>1
@@ -198,14 +227,14 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
         byte[] portrait, selfie;
         try { portrait=java.util.Base64.getDecoder().decode(r.path("faceJpeg").asString(""));
             selfie=java.util.Base64.getDecoder().decode(r.path("selfieJpeg").asString("")); }
-        catch(Exception e) { throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR); }
-        if(portrait.length<1000 || portrait.length>5*1024*1024 || selfie.length<1000 || selfie.length>5*1024*1024) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        catch(Exception e) { throw invalidResponse("finish", "portrait_encoding_invalid"); }
+        if(portrait.length<1000 || portrait.length>5*1024*1024 || selfie.length<1000 || selfie.length>5*1024*1024) throw invalidResponse("finish", "portrait_size_invalid");
         String evidence;
         try {
             var document=(tools.jackson.databind.node.ObjectNode)r.deepCopy(); document.remove("faceJpeg"); document.remove("selfieJpeg");
             document.put("identityVerified",approved); document.put("verificationSource",approved?"AUTO_RGB_OCR":"MANUAL_REVIEW");
             evidence=json.writeValueAsString(document);
-        } catch(Exception e) { throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR); }
+        } catch(Exception e) { throw invalidResponse("finish", "evidence_serialization_failed"); }
         String reason=approved?"Đã xác minh tự động: động tác, selfie trực tiếp, PAD RGB, CCCD và so khớp"
             : !match?"Điểm so khớp CCCD chưa đủ để tự xác minh; có thể thử lại hoặc nhờ ADMIN kiểm tra"
             : "Họ tên OCR chưa đủ rõ; có thể thử lại hoặc nhờ ADMIN kiểm tra";
