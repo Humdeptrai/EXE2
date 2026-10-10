@@ -14,7 +14,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from PIL import Image, UnidentifiedImageError
 
 KEY = os.environ.get("FACE_COMPARE_SHARED_KEY", "")
-THRESHOLD = float(os.environ.get("FACE_COMPARE_THRESHOLD", "0.363"))
+THRESHOLD = float(os.environ.get("FACE_COMPARE_THRESHOLD", "0.32"))
 MODELS = Path(os.environ.get("FACE_MODELS_DIR", "models"))
 LOCK = threading.Lock()
 MAX_IMAGE = 5 * 1024 * 1024
@@ -26,7 +26,7 @@ _UNSET_FACES = object()
 
 @asynccontextmanager
 async def lifespan(app):
-    if len(KEY) < 32 or not math.isfinite(THRESHOLD) or not .363 <= THRESHOLD < 1:
+    if len(KEY) < 32 or not math.isfinite(THRESHOLD) or not .32 <= THRESHOLD < 1:
         raise RuntimeError("Configure a shared key of at least 32 characters and a valid threshold")
     # Detection confidence is separate from biometric matching and PAD thresholds.
     # 0.9 misses legitimate phone-camera faces before those checks can run.

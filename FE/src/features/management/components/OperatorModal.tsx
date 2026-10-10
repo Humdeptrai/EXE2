@@ -12,6 +12,7 @@ export default function OperatorModal({ title, onClose, children }: PropsWithChi
     const focusable = () => Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href],[tabindex="0"]') || []);
     (focusable()[0] || ref.current)?.focus();
     function key(e: KeyboardEvent) {
+      if (document.querySelector("dialog.hf-identity-viewer[open]")) return;
       if (e.key === "Escape") { e.preventDefault(); closeRef.current(); }
       if (e.key === "Tab") {
         const nodes = focusable(); const first = nodes[0], last = nodes[nodes.length - 1];

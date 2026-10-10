@@ -19,6 +19,9 @@ import java.util.*;
 public class IdentityServiceImpl implements com.handsfree.be.service.IdentityService {
     private final IdentityRepository identities;
     private final IdentitySubmissionRepository submissions;
+    private final IdentityAppealRepository appeals;
+    private final com.handsfree.be.service.NotificationService notifications;
+    private static final List<String> OPEN_APPEALS = List.of("REQUESTED", "PROCESSING");
     private final UserRepository users;
     private final AccountAccess access;
     private final IdentityProperties properties;
@@ -56,6 +59,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     public void storeScan(UUID user, ScanSubmission data) {
         var account = users.lockById(user).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         if (!account.isActive()) throw new AppException(ErrorCode.USER_DISABLED);
+        requireNoOpenAppeal(user);
         if (data.selfie() == null || data.selfie().length == 0 || !validNumber(data.documentNumber()))
             throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
         var active = identities.findById(user).orElseGet(() -> { var n = new IdentityVerification(); n.setUserId(user); return n; });
@@ -63,7 +67,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
                 && active.getSubmittedAt().isAfter(Instant.now().minusSeconds(300))) throw new AppException(ErrorCode.IDENTITY_BUSY);
         var draft = submissions.findById(user).orElseGet(() -> { var n = new IdentitySubmission(); n.setUserId(user); return n; });
         Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
-        draft.setStatus("REVIEW_REQUIRED"); draft.setReason(data.reason()); draft.setSubmittedAt(now); draft.setConsentAt(now);
+        draft.setStatus(data.similarity()<.30 ? "REJECTED" : "REVIEW_REQUIRED"); draft.setReason(data.reason()); draft.setSubmittedAt(now); draft.setConsentAt(now);
         draft.setFullName(crypto.encrypt(data.fullName())); draft.setDocumentNumber(crypto.encrypt(data.documentNumber()));
         draft.setDocumentData(crypto.encrypt(data.evidence())); draft.setFrontImage(crypto.encrypt(data.front()));
         draft.setBackImage(crypto.encrypt(data.back())); draft.setFaceImage(crypto.encrypt(data.face()));
@@ -76,7 +80,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         } else {
             submissions.saveAndFlush(draft);
             if (!"VERIFIED".equals(active.getStatus())) {
-                active.setStatus("REVIEW_REQUIRED"); active.setSubmittedAt(now); active.setReason(data.reason());
+                active.setStatus(draft.getStatus()); active.setSubmittedAt(now); active.setReason(data.reason());
                 active.setVerifiedAt(null); active.setSelfieVerifiedAt(null); active.setDocumentNumberConfirmedAt(null);
                 identities.saveAndFlush(active);
             }
@@ -101,20 +105,23 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         access.operator(actor, true);
         users.lockById(user).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         var active = get(user);
+        var openAppeal = appeals.findFirstByUserIdAndStatusIn(user, OPEN_APPEALS).orElse(null);
+        if (openAppeal != null && (!"PROCESSING".equals(openAppeal.getStatus()) || !actor.equals(openAppeal.getClaimedBy())))
+            throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
         var draft = submissions.lockById(user).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT));
         if (request == null || request.submittedAt() == null || request.version() == null)
             throw new AppException(ErrorCode.VALIDATION_FAILED);
-        if (!"REVIEW_REQUIRED".equals(draft.getStatus()) || !request.submittedAt().equals(draft.getSubmittedAt()) || request.version() != draft.getVersion())
+        if ((!"REVIEW_REQUIRED".equals(draft.getStatus()) && !"REJECTED".equals(draft.getStatus())) || !request.submittedAt().equals(draft.getSubmittedAt()) || request.version() != draft.getVersion())
             throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
         String name = request.fullName() == null ? "" : request.fullName().trim();
         String reason = request.reason() == null ? "" : request.reason().trim();
-        if (reason.length() > 500 || (request.approved() && (name.length() < 2 || name.length() > 100))
+        if (reason.isEmpty() || reason.length() > 500 || (request.approved() && (name.length() < 2 || name.length() > 100))
                 || (!request.approved() && reason.isEmpty())) throw new AppException(ErrorCode.VALIDATION_FAILED);
         if (request.approved()) {
             if (draft.getSelfieImage() == null || draft.getSelfieVerifiedAt() == null || draft.getFaceImage() == null
                     || draft.getFrontImage() == null || draft.getBackImage() == null || !Boolean.TRUE.equals(draft.getLive())
                     || !validNumber(crypto.text(draft.getDocumentNumber()))) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
-            publish(active, draft, name, "Hồ sơ và selfie đã được ADMIN kiểm tra và duyệt thủ công");
+            publish(active, draft, name, "ADMIN đã duyệt: " + reason.substring(0, Math.min(reason.length(),480)));
             identities.saveAndFlush(active); submissions.delete(draft);
         } else {
             draft.setStatus("REJECTED"); draft.setReason(reason);
@@ -122,6 +129,13 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
                 active.setStatus("REJECTED"); active.setReason(reason); identities.saveAndFlush(active);
             }
             submissions.saveAndFlush(draft);
+        }
+        if (openAppeal != null) {
+            openAppeal.setStatus(request.approved() ? "RESOLVED" : "REJECTED");
+            openAppeal.setReason(reason); openAppeal.setResolvedAt(Instant.now()); appeals.saveAndFlush(openAppeal);
+            notifications.create(users.findById(user).orElseThrow(), com.handsfree.be.constant.NotificationType.IDENTITY_REVIEWED,
+                request.approved() ? "Hồ sơ xác minh đã được duyệt" : "Yêu cầu xác minh chưa được duyệt",
+                reason, openAppeal.getId(), "/identity/requests/" + openAppeal.getId());
         }
         management.log(actor, request.approved() ? "IDENTITY_APPROVE" : "IDENTITY_REJECT", user.toString());
         return summary(active);
@@ -164,6 +178,9 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
                 || request.reason() == null || request.reason().isBlank() || request.reason().length() > 300)
             throw new AppException(ErrorCode.VALIDATION_FAILED);
         users.lockById(user).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        var openAppeal = appeals.findFirstByUserIdAndStatusIn(user, OPEN_APPEALS).orElse(null);
+        if (openAppeal != null && (!"PROCESSING".equals(openAppeal.getStatus()) || !actor.equals(openAppeal.getClaimedBy())))
+            throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
         var draft = submissions.lockById(user).orElse(null);
         String previous;
         if (request.pending()) {
@@ -205,6 +222,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     }
     public Status submit(UUID user, MultipartFile front, MultipartFile back, MultipartFile face, MultipartFile video, boolean consent) {
         access.active(user);
+        requireNoOpenAppeal(user);
         if (!consent) throw new AppException(ErrorCode.VALIDATION_FAILED);
         if (!properties.isEnabled() || properties.getApiKey().isBlank()) throw new AppException(ErrorCode.IDENTITY_NOT_CONFIGURED);
         crypto.validateKey();
@@ -212,6 +230,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         Instant attempt = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         Status existing = transactions.execute(tx -> {
             users.lockById(user).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+            requireNoOpenAppeal(user);
             var i = identities.findById(user).orElseGet(() -> { var n = new IdentityVerification(); n.setUserId(user); return n; });
             if ("VERIFIED".equals(i.getStatus())) return summary(i);
             if (i.getSubmittedAt() != null && i.getSubmittedAt().isAfter(attempt.minusSeconds("PROCESSING".equals(i.getStatus()) ? 300 : 60)))
@@ -285,6 +304,90 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         if (!contacts.unlocked(m)) throw new AppException(ErrorCode.CHAT_NOT_UNLOCKED);
         UUID other = m.getConsumer().getId().equals(actor) ? m.getProvider().getId() : m.getConsumer().getId();
         return verifiedFace(other);
+    }
+    @Override public void requireNoOpenAppeal(UUID user) {
+        if (appeals.existsByUserIdAndStatusIn(user, OPEN_APPEALS)) throw new AppException(ErrorCode.IDENTITY_APPEAL_BUSY);
+    }
+    private Appeal appealSummary(com.handsfree.be.entity.IdentityAppeal a) {
+        return new Appeal(a.getId(), a.getUserId(), a.getStatus(), a.getNote(), a.getReason(), a.getCreatedAt(),
+            a.getResolvedAt(), a.getClaimedBy(), a.getClaimedAt(), crypto.text(a.getFullName()),
+            crypto.text(a.getDocumentNumber()), a.getSimilarity(), crypto.text(a.getDocumentData()));
+    }
+    @Override @org.springframework.transaction.annotation.Transactional
+    public Appeal requestReview(UUID user, AppealRequest request) {
+        if (access.active(user).getRole()!=com.handsfree.be.constant.UserRole.USER) throw new AppException(ErrorCode.FORBIDDEN);
+        users.lockById(user).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        var existing=appeals.findFirstByUserIdAndStatusIn(user,OPEN_APPEALS);
+        if(existing.isPresent()) return appealSummary(existing.get());
+        var d=submissions.lockById(user).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_REQUIRED));
+        var latest=appeals.findFirstByUserIdOrderByCreatedAtDesc(user).orElse(null);
+        if(latest!=null && Objects.equals(latest.getSubmissionAt(),d.getSubmittedAt()))
+            throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+        if(!List.of("REVIEW_REQUIRED","REJECTED").contains(d.getStatus()) || d.getSelfieImage()==null
+                || d.getFaceImage()==null || d.getFrontImage()==null || d.getBackImage()==null || !Boolean.TRUE.equals(d.getLive()))
+            throw new AppException(ErrorCode.IDENTITY_REQUIRED);
+        String note=request==null || request.note()==null ? "" : request.note().trim();
+        if(note.length()>500) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        var a=new com.handsfree.be.entity.IdentityAppeal();a.setUserId(user);a.setStatus("REQUESTED");a.setNote(note);
+        a.setCreatedAt(Instant.now());a.setSubmissionAt(d.getSubmittedAt());a.setSimilarity(d.getSimilarity());
+        a.setFullName(d.getFullName());a.setDocumentNumber(d.getDocumentNumber());a.setDocumentData(d.getDocumentData());
+        a.setFrontImage(d.getFrontImage());a.setBackImage(d.getBackImage());a.setFaceImage(d.getFaceImage());a.setSelfieImage(d.getSelfieImage());
+        appeals.saveAndFlush(a);return appealSummary(a);
+    }
+    @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
+    public Appeal latestAppeal(UUID user) {
+        access.active(user);return appeals.findFirstByUserIdOrderByCreatedAtDesc(user).map(this::appealSummary).orElse(null);
+    }
+    private com.handsfree.be.entity.IdentityAppeal accessibleAppeal(UUID actor, UUID id) {
+        var a=appeals.findById(id).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_NOT_FOUND));
+        if(!a.getUserId().equals(actor)) access.operator(actor,true);else access.active(actor);
+        return a;
+    }
+    @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
+    public Appeal appeal(UUID actor, UUID id) { return appealSummary(accessibleAppeal(actor,id)); }
+    @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
+    public byte[] appealImage(UUID actor, UUID id, String kind) {
+        var a=accessibleAppeal(actor,id);
+        byte[] bytes=switch(kind) {case "front" -> a.getFrontImage();case "back" -> a.getBackImage();
+            case "face" -> a.getFaceImage();case "selfie" -> a.getSelfieImage();default -> null;};
+        if(bytes==null) throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
+        return crypto.decrypt(bytes);
+    }
+    @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
+    public com.handsfree.be.dto.response.PageResponse<Appeal> appeals(UUID actor,int page,String state,String search) {
+        access.operator(actor,true);
+        if(state==null || !List.of("","REQUESTED","PROCESSING","RESOLVED","REJECTED").contains(state)) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        if(search==null || search.length()>100) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        return com.handsfree.be.dto.response.PageResponse.from(appeals.search(state,search.trim().toLowerCase(Locale.ROOT),
+            org.springframework.data.domain.PageRequest.of(Math.max(0,page),20)).map(a -> new Appeal(a.getId(),a.getUserId(),a.getStatus(),a.getNote(),a.getReason(),a.getCreatedAt(),a.getResolvedAt(),a.getClaimedBy(),a.getClaimedAt(),null,null,a.getSimilarity(),null)));
+    }
+    private com.handsfree.be.entity.IdentityAppeal lockedAppeal(UUID actor,UUID id) {
+        access.operator(actor,true);
+        UUID owner=appeals.findOwner(id).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_NOT_FOUND));
+        users.lockById(owner).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        return appeals.lockById(id).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_NOT_FOUND));
+    }
+    @Override @org.springframework.transaction.annotation.Transactional
+    public Appeal claimAppeal(UUID actor,UUID id,boolean release) {
+        var a=lockedAppeal(actor,id);
+        if(release) {
+            if(!"PROCESSING".equals(a.getStatus()) || !actor.equals(a.getClaimedBy())) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+            a.setStatus("REQUESTED");a.setClaimedBy(null);a.setClaimedAt(null);
+        } else {
+            if("PROCESSING".equals(a.getStatus()) && actor.equals(a.getClaimedBy())) return appealSummary(a);
+            if(!"REQUESTED".equals(a.getStatus())) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+            a.setStatus("PROCESSING");a.setClaimedBy(actor);a.setClaimedAt(Instant.now());
+        }
+        appeals.saveAndFlush(a);management.log(actor,release?"IDENTITY_RELEASE":"IDENTITY_CLAIM",id.toString());return appealSummary(a);
+    }
+    @Override @org.springframework.transaction.annotation.Transactional
+    public Appeal resolveAppeal(UUID actor,UUID id,Review request) {
+        var a=lockedAppeal(actor,id);
+        if(!"PROCESSING".equals(a.getStatus()) || !actor.equals(a.getClaimedBy())) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+        var d=submissions.lockById(a.getUserId()).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT));
+        if(!Objects.equals(a.getSubmissionAt(),d.getSubmittedAt()) || request==null) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+        review(actor,a.getUserId(),new Review(request.approved(),d.getSubmittedAt(),request.fullName(),request.reason(),d.getVersion()));
+        return appealSummary(a);
     }
     private IdentityVerification get(UUID user) { return identities.findById(user).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_NOT_FOUND)); }
     private byte[] jpeg(MultipartFile file) {

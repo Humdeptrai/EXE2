@@ -7,7 +7,8 @@ export type NotificationType =
   | "CHAT_MESSAGE_RECEIVED"
   | "RATING_RECEIVED"
   | "REPORT_RESOLVED"
-  | "REPORT_REJECTED";
+  | "REPORT_REJECTED"
+  | "IDENTITY_REVIEWED";
 
 export interface NotificationItem {
   id: string;

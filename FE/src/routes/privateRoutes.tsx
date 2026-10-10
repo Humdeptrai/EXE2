@@ -1,3 +1,4 @@
+import IdentityAppealPage from "../features/identity/pages/IdentityAppealPage";
 import IdentityOnboardingPage from "../features/identity/pages/IdentityOnboardingPage";
 import WalletPage from "../features/payment/pages/WalletPage";
 import ReportDetailPage from "../features/management/pages/ReportDetailPage";
@@ -33,6 +34,7 @@ export const privateRoutes = [
       { path: "home", element: <HomePage /> },
       { path: "discover", element: <DiscoverPage /> },
       { path: "profile", element: <ProfilePage /> },
+      { path: "identity/requests/:requestId", element: <IdentityAppealPage /> },
       { path: "face-comparison", element: <FaceComparisonPage /> },
       { path: "posts", element: <MyJobsPage /> },
       { path: "candidates", element: <CandidatesOverviewPage /> },

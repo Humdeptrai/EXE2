@@ -28,6 +28,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
     private void user(UUID user) { if(access.active(user).getRole()!=com.handsfree.be.constant.UserRole.USER) throw new AppException(ErrorCode.FORBIDDEN); }
     private IdentityProgress locked(UUID id) {
         user(id);users.lockById(id).orElseThrow(()->new AppException(ErrorCode.USER_NOT_FOUND));
+        identity.requireNoOpenAppeal(id);
         return repository.lockById(id).orElseGet(()->{ var p=new IdentityProgress();p.setUserId(id);p.setStatus("DRAFT");return p; });
     }
     private void save(IdentityProgress p) { p.setUpdatedAt(Instant.now());repository.saveAndFlush(p); }
@@ -146,11 +147,11 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         if(!p.isSelfiePassed() || !p.isFrontPassed() || !p.isBackPassed()) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
         byte[] f=crypto.decrypt(p.getFrontImage()),b=crypto.decrypt(p.getBackImage());
         if("VERIFIED".equals(p.getStatus()) && "VERIFIED".equals(identity.status(user).status()))
-            return new FaceComparisonService.Completion("VERIFIED","MATCH",0,.363,true,true,true,true,"Hồ sơ đã được xác minh và lưu.");
+            return new FaceComparisonService.Completion("VERIFIED","MATCH",0,.32,true,true,true,true,"Hồ sơ đã được xác minh và lưu.");
         var response=worker.send("POST","/checkpoints/finish",new String[]{"checkpoint","front","back"},new byte[][]{crypto.decrypt(p.getCheckpoint()),f,b});
         var result=complete(user,response,f,b);
         p.setStatus(result.status());
-        if("REJECTED".equals(result.status())) { p.setFrontPassed(false);p.setFrontReason(result.message()); }
+        if("REJECTED".equals(result.status()) && !result.documentReadable()) { p.setFrontPassed(false);p.setFrontReason(result.message()); }
         save(p);return result;
     }
     private FaceComparisonService.Completion complete(UUID user,JsonNode r,byte[] f,byte[] b) {
@@ -166,7 +167,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             && r.path("frontReadable").asBoolean(false) && r.path("backReadable").asBoolean(false)
             && r.path("documentNumber").asString("").matches("[0-9]{12}");
         if(!Double.isFinite(score) || score< -1 || score>1 || !Double.isFinite(threshold)
-                || threshold<.363 || threshold>=1 || !Double.isFinite(pad) || pad<.8 || pad>1 || !motion || !anti)
+                || threshold<.32 || threshold>=1 || !Double.isFinite(pad) || pad<.8 || pad>1 || !motion || !anti)
             throw invalidResponse("finish", "face_or_pad_metrics_invalid");
         double selfieScore=r.path("selfieScanScore").asDouble(Double.NaN);
         double selfiePad=r.path("selfiePadScore").asDouble(Double.NaN);
@@ -175,8 +176,6 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         boolean match=score>=threshold;
         if(!quality || !readable) return new FaceComparisonService.Completion("REJECTED",match?"MATCH":"NO_MATCH",score,threshold,motion,anti,readable,false,
             documentRetry(r.path("reasonCode").asString("")));
-        if(score<.30) return new FaceComparisonService.Completion("REJECTED","NO_MATCH",score,threshold,motion,anti,readable,false,
-            "Khuôn mặt chưa đủ tương đồng với ảnh trên CCCD. Chụp lại mặt trước bằng đúng CCCD của bạn; kết quả quét và selfie được giữ lại.");
         String name=java.text.Normalizer.normalize(r.path("fullName").asString(""), java.text.Normalizer.Form.NFC).trim();
         boolean nameReadable=name.length()>=2 && name.length()<=100
             && name.codePoints().allMatch(c->Character.isLetter(c) || c==' ' || c=='.' || c=='\'' || c=='-');
@@ -197,8 +196,9 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             : "Họ tên OCR chưa đủ rõ; có thể thử lại hoặc nhờ ADMIN kiểm tra";
         identity.storeScan(user,new com.handsfree.be.service.IdentityService.ScanSubmission(
             f,b,portrait,selfie,name,r.path("documentNumber").asString(""),evidence,score,approved,reason));
-        return new FaceComparisonService.Completion(approved?"VERIFIED":"REVIEW_REQUIRED",match?"MATCH":"NO_MATCH",score,threshold,true,true,true,approved,
+        return new FaceComparisonService.Completion(approved?"VERIFIED":score<.30?"REJECTED":"REVIEW_REQUIRED",match?"MATCH":"NO_MATCH",score,threshold,true,true,true,approved,
             approved?"Xác minh tự động thành công. Bạn có thể đăng hoặc nhận việc khi thông tin hồ sơ đã đầy đủ."
-            : "Chưa đủ điều kiện xác minh tự động. Các bước đã lưu được giữ lại. Bạn có thể chụp lại mặt trước CCCD hoặc nhờ ADMIN kiểm tra hồ sơ đã gửi.");
+            : !match ? "Khuôn mặt chưa đủ khớp với ảnh CCCD. Các bước đã lưu được giữ lại; bạn có thể thử lại hoặc gửi yêu cầu ADMIN xét duyệt."
+            : "Họ tên OCR chưa đủ rõ. Các bước đã lưu được giữ lại; bạn có thể thử lại hoặc gửi yêu cầu ADMIN xét duyệt.");
     }
 }

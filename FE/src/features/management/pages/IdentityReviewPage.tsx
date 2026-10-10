@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import IdentityImageViewer from "../../../components/feedback/IdentityImageViewer";
+import IdentityAppeals from "../../identity/components/IdentityAppeals";
 import api from "../../../config/axios";
 import { useAuth } from "../../../context/AuthContext";
 import type { ApiResponse } from "../../../types/api";
@@ -18,7 +20,7 @@ function PrivateImage({ user, kind }: { user: string; kind: string }) {
       .catch(e => { if (!controller.signal.aborted) setError(getApiErrorMessage(e, "Không tải được ảnh riêng tư.")); });
     return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [user, kind]);
-  return <figure style={{ margin: 0 }}><figcaption>{kind === "front" ? "Mặt trước CCCD" : kind === "back" ? "Mặt sau CCCD" : kind === "selfie" ? "Selfie chụp trực tiếp" : "Khuôn mặt đã quét"}</figcaption>{url ? <img src={url} alt={kind} style={{ width: "100%", maxHeight: 360, objectFit: "contain", borderRadius: 12 }} /> : <p>{error || "Đang tải ảnh…"}</p>}</figure>;
+  return <figure style={{ margin: 0 }}><figcaption>{kind === "front" ? "Mặt trước CCCD" : kind === "back" ? "Mặt sau CCCD" : kind === "selfie" ? "Selfie chụp trực tiếp" : "Khuôn mặt đã quét"}</figcaption>{url ? <IdentityImageViewer src={url} alt={kind} style={{ width: "100%", maxHeight: 360, objectFit: "contain", borderRadius: 12 }} /> : <p>{error || "Đang tải ảnh…"}</p>}</figure>;
 }
 export default function IdentityReviewPage() {
   const { user } = useAuth(); const admin = user?.role === "ADMIN";
@@ -58,6 +60,7 @@ export default function IdentityReviewPage() {
     finally { setReviewing(false); }
   }
   return <div><div className="op-page-heading"><div><h1>Hồ sơ xác thực</h1><p>{admin ? "Hồ sơ đạt yêu cầu được xác minh tự động. ADMIN có thể kiểm tra bổ sung khi cần." : "STAFF chỉ xem trạng thái; ảnh CCCD chỉ dành cho ADMIN."}</p></div><button className="op-button secondary" disabled={loading} onClick={() => void load()}>Làm mới</button></div>
+    {admin && <IdentityAppeals />}
     {error && <p className="op-notice" role="alert">{error}</p>}
     <section className="op-card op-table-card"><div className="op-table-scroll"><table className="op-table"><thead><tr><th>Tài khoản</th><th>Trạng thái</th><th>Ngày gửi</th><th>Kết quả</th>{admin && <th>Hồ sơ riêng tư</th>}</tr></thead><tbody>{rows.map(r => <tr key={r.userId}><td>{r.userId}</td><td>{labels[r.status] || r.status}</td><td>{r.submittedAt ? new Date(r.submittedAt).toLocaleString("vi-VN") : "—"}</td><td>{r.reason}</td>{admin && <td><button className="op-row-button" onClick={() => void view(r.userId)}>Xem CCCD & khuôn mặt</button></td>}</tr>)}</tbody></table>{loading && <p role="status">Đang tải…</p>}{!loading && !rows.length && <p className="op-empty">Chưa có hồ sơ</p>}</div><footer className="op-pagination"><span>Trang {page + 1}</span><div><button disabled={!page || loading} onClick={() => setPage(page - 1)}>Trước</button><button disabled={last || loading} onClick={() => setPage(page + 1)}>Tiếp</button></div></footer></section>
     {detail && <OperatorModal title="Hồ sơ danh tính riêng tư" onClose={() => { if (!reviewing) setDetail(null); }}><p>{labels[detail.verification.status] || detail.verification.status}: {detail.verification.reason}</p><p>Họ tên được xác nhận: {detail.fullName || "Chưa xác thực"}</p><p>Điểm so khớp: {detail.similarity ?? "—"} · Kiểm tra động tác/PAD: {detail.live ? "Đạt kiểm tra của nguồn xử lý" : "Chưa đạt"}</p><div style={{ display: "grid", gap: 20 }}>{(detail.selfiePresent ? ["front", "back", "face", "selfie"] : ["front", "back", "face"]).map(kind => <PrivateImage key={`${detail.verification.userId}-${detail.pending}-${detail.version}-${kind}`} user={detail.verification.userId} kind={kind} />)}</div><details><summary>Nội dung OCR và thông tin kiểm tra</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 12 }}>{detail.documentData || "Chưa có dữ liệu"}</pre></details><p className="op-muted">Hồ sơ VERIFIED có thể được xác minh tự động hoặc duyệt thủ công; xem lý do để biết nguồn xác minh. Hồ sơ cần kiểm tra bổ sung có thể được người dùng thực hiện lại hoặc ADMIN duyệt sau khi kiểm tra đủ ảnh và OCR. Kiểm tra này không xác nhận giấy tờ do cơ quan nhà nước cấp.</p>
@@ -71,9 +74,9 @@ export default function IdentityReviewPage() {
       </section>}
       {admin && detail.pending && detail.verification.status === "REVIEW_REQUIRED" && <section style={{ display: "grid", gap: 12 }}>
         <label>Họ tên trên CCCD đã kiểm tra<input className="op-input" style={{ display: "block", width: "100%", marginTop: 6 }} value={reviewName} maxLength={100} disabled={reviewing} onChange={e => setReviewName(e.target.value)} /></label>
-        <label>Lý do từ chối<textarea className="op-input" style={{ display: "block", width: "100%", marginTop: 6 }} value={reviewReason} maxLength={500} disabled={reviewing} onChange={e => setReviewReason(e.target.value)} /></label>
+        <label>Lý do duyệt / từ chối<textarea className="op-input" style={{ display: "block", width: "100%", marginTop: 6 }} value={reviewReason} maxLength={500} disabled={reviewing} onChange={e => setReviewReason(e.target.value)} /></label>
         {error && <p className="op-notice" role="alert">{error}</p>}
-        <button className="op-button" disabled={reviewing || !detail.selfiePresent || reviewName.trim().length < 2} onClick={() => void review(true)}>Tôi đã kiểm tra hồ sơ — duyệt xác minh</button>
+        <button className="op-button" disabled={reviewing || !detail.selfiePresent || reviewName.trim().length < 2 || !reviewReason.trim()} onClick={() => void review(true)}>Tôi đã kiểm tra hồ sơ — duyệt xác minh</button>
         <button className="op-button secondary" disabled={reviewing || !reviewReason.trim()} onClick={() => void review(false)}>Từ chối và yêu cầu gửi lại</button>
       </section>}</OperatorModal>}
   </div>;

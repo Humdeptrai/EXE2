@@ -14,6 +14,18 @@ public interface IdentityService {
     record DocumentCorrection(String documentNumber, String reason, boolean pending, Long version) {}
     record ScanSubmission(byte[] front, byte[] back, byte[] face, byte[] selfie, String fullName,
                           String documentNumber, String evidence, double similarity, boolean approved, String reason) {}
+    record Appeal(UUID id, UUID userId, String status, String note, String reason, Instant createdAt,
+                  Instant resolvedAt, UUID claimedBy, Instant claimedAt, String fullName, String documentNumber,
+                  Double similarity, String documentData) {}
+    record AppealRequest(String note) {}
+    Appeal requestReview(UUID user, AppealRequest request);
+    Appeal latestAppeal(UUID user);
+    Appeal appeal(UUID actor, UUID id);
+    byte[] appealImage(UUID actor, UUID id, String kind);
+    com.handsfree.be.dto.response.PageResponse<Appeal> appeals(UUID actor, int page, String state, String search);
+    Appeal claimAppeal(UUID actor, UUID id, boolean release);
+    Appeal resolveAppeal(UUID actor, UUID id, Review request);
+    void requireNoOpenAppeal(UUID user);
     void storeScan(UUID user, ScanSubmission data);
     MyIdentity mine(UUID user);
     byte[] ownSelfie(UUID user);

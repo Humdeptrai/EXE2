@@ -9,5 +9,6 @@ public enum NotificationType {
     CHAT_MESSAGE_RECEIVED,
     REPORT_RESOLVED,
     REPORT_REJECTED,
+    IDENTITY_REVIEWED,
     RATING_RECEIVED
 }

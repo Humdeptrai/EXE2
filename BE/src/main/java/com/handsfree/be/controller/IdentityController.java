@@ -12,6 +12,32 @@ import java.util.UUID;
 public class IdentityController {
     private final IdentityService identity;
     private UUID id(Authentication a) { return UUID.fromString(a.getName()); }
+    @PostMapping("/identity/requests")
+    public ApiResponse<?> requestReview(Authentication a,@RequestBody(required=false) IdentityService.AppealRequest request) {
+        return ApiResponse.success(200,"Đã gửi yêu cầu xét duyệt",identity.requestReview(id(a),request));
+    }
+    @GetMapping("/identity/requests/latest")
+    public ApiResponse<?> latestAppeal(Authentication a) { return ApiResponse.success(200,"Yêu cầu gần nhất",identity.latestAppeal(id(a))); }
+    @GetMapping("/identity/requests/{request}")
+    public ApiResponse<?> appeal(Authentication a,@PathVariable UUID request) { return ApiResponse.success(200,"Chi tiết yêu cầu",identity.appeal(id(a),request)); }
+    @GetMapping("/identity/requests/{request}/images/{kind}")
+    public ResponseEntity<byte[]> appealImage(Authentication a,@PathVariable UUID request,@PathVariable String kind) { return image(identity.appealImage(id(a),request,kind)); }
+    @GetMapping("/admin/identity-appeals")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<?> appeals(Authentication a,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="") String state,@RequestParam(defaultValue="") String search) {
+        return ApiResponse.success(200,"Yêu cầu xét duyệt",identity.appeals(id(a),page,state,search));
+    }
+    @PostMapping("/admin/identity-appeals/{request}/claim")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<?> claim(Authentication a,@PathVariable UUID request) { return ApiResponse.success(200,"Đã nhận xử lý",identity.claimAppeal(id(a),request,false)); }
+    @PostMapping("/admin/identity-appeals/{request}/release")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<?> release(Authentication a,@PathVariable UUID request) { return ApiResponse.success(200,"Đã huỷ nhận xử lý",identity.claimAppeal(id(a),request,true)); }
+    @PostMapping("/admin/identity-appeals/{request}/review")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<?> resolveAppeal(Authentication a,@PathVariable UUID request,@RequestBody IdentityService.Review requestBody) {
+        return ApiResponse.success(200,"Đã xử lý yêu cầu",identity.resolveAppeal(id(a),request,requestBody));
+    }
     @GetMapping("/identity/eligibility")
     public ApiResponse<?> eligibility(Authentication a) {
         return ApiResponse.success(200, "Điều kiện đăng và nhận việc", identity.eligibility(id(a)));

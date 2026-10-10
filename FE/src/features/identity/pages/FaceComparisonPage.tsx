@@ -7,6 +7,8 @@ import api from "../../../config/axios";
 import type { ApiResponse } from "../../../types/api";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
 import PrivateIdentityImage from "../components/PrivateIdentityImage";
+import IdentityImageViewer from "../../../components/feedback/IdentityImageViewer";
+import IdentityAppealRequest from "../components/IdentityAppealRequest";
 import "./FaceComparisonPage.css";
 
 type Slot = "front" | "back";
@@ -27,9 +29,9 @@ async function normalize(blob: Blob): Promise<File> {
   } finally { bitmap.close(); }
 }
 function Preview({ file, label }: { file: File | null; label: string }) {
-  const ref = useRef<HTMLImageElement>(null);
-  useEffect(() => { if (!file || !ref.current) return; const url = URL.createObjectURL(file); ref.current.src = url; return () => URL.revokeObjectURL(url); }, [file]);
-  return file ? <img ref={ref} alt={label} /> : <p>Chưa có ảnh</p>;
+  const [image, setImage] = useState<{ file: File; url: string } | null>(null);
+  useEffect(() => { if (!file) return; const url = URL.createObjectURL(file); setImage({ file, url }); return () => URL.revokeObjectURL(url); }, [file]);
+  return file && image?.file === file ? <IdentityImageViewer src={image.url} alt={label} /> : <p>Chưa có ảnh</p>;
 }
 function DocumentCamera({ title, onClose, children }: PropsWithChildren<{ title: string; onClose: () => void }>) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -52,6 +54,7 @@ export default function FaceComparisonPage() {
   const { confirm } = useFeedback();
   const [saved, setSaved] = useState<IdentityProgress | null>(null);
   const [loading, setLoading] = useState(true);
+  const [appealPending, setAppealPending] = useState(false);
   const [draft, setDraft] = useState<File | null>(null);
   const [capturing, setCapturing] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -117,6 +120,7 @@ export default function FaceComparisonPage() {
     }
   }, [camera]);
   async function open(target: Slot | "face") {
+    if (appealPending) return;
     closeCamera(); setError(""); const current = cameraAttempt.current;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera cần HTTPS hoặc localhost.");
@@ -136,7 +140,7 @@ export default function FaceComparisonPage() {
     return await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error("Không đọc được camera.")), "image/jpeg", camera === "face" ? .9 : .95));
   }
   async function select(target: Slot, blob: Blob): Promise<boolean> {
-    if (busy) return false;
+    if (busy || appealPending) return false;
     setError(""); setBusy(true); const current = attempt.current;
     try {
       const file = await normalize(blob); const body = new FormData(); body.append("document", file);
@@ -231,7 +235,7 @@ export default function FaceComparisonPage() {
     finally { if (current === attempt.current) setBusy(false); }
   }
   async function finish() {
-    if (!saved?.frontPassed || !saved.backPassed || busy) return;
+    if (!saved?.frontPassed || !saved.backPassed || busy || appealPending) return;
     closeCamera(); setBusy(true); setError(""); const current = attempt.current;
     try {
       const r = await api.post<ApiResponse<Result>>("/identity/progress/finish", null, { timeout: 150000 });
@@ -261,20 +265,20 @@ export default function FaceComparisonPage() {
     {error && <div className="hf-face-error" role="alert">{error}</div>}
     {phase === "scan" && <section className="hf-face-scan"><h2>1. Quét khuôn mặt</h2><p>Đủ sáng, tháo kính tối màu. Thực hiện đúng hướng rồi giữ đầu ổn định.</p>
       <label className="hf-face-consent"><input type="checkbox" checked={consent} disabled={busy} onChange={e => setConsent(e.target.checked)} /><span>Tôi đồng ý xử lý CCCD và khuôn mặt để xác minh. CCCD chỉ tôi và ADMIN được xem. Selfie đã xác minh được chia sẻ với đối tác khi cả hai hoàn tất phí kết nối.</span></label>
-      {!camera && <button disabled={!consent || busy || loading} onClick={() => void open("face")}>Mở camera</button>}
+      {!camera && <button disabled={!consent || busy || loading || appealPending} onClick={() => void open("face")}>Mở camera</button>}
     </section>}
-    {phase === "selfie" && <section className="hf-face-scan"><h2>2. Chụp selfie trực tiếp</h2><p>Nhìn thẳng, giữ trọn khuôn mặt trong khung rồi bấm chụp. Selfie phải khớp người vừa quét.</p>{!camera && <button disabled={expired} onClick={() => void open("face")}>Mở lại camera selfie</button>}</section>}
+    {phase === "selfie" && <section className="hf-face-scan"><h2>2. Chụp selfie trực tiếp</h2><p>Nhìn thẳng, giữ trọn khuôn mặt trong khung rồi bấm chụp. Selfie phải khớp người vừa quét.</p>{!camera && <button disabled={expired || appealPending} onClick={() => void open("face")}>Mở lại camera selfie</button>}</section>}
     {phase === "documents" && <><section className="hf-face-scan"><h2>Selfie đã khớp phiên quét</h2><div className="hf-face-preview">{selfie ? <Preview file={selfie} label="Selfie vừa chụp" /> : saved?.selfieUrl ? <PrivateIdentityImage path={saved.selfieUrl} alt="Selfie đã lưu" /> : null}</div></section>
       <p>Chụp rõ cả hai mặt CCCD, đủ bốn góc và chừa một khoảng viền trên nền tương phản. Số CCCD sẽ được đọc tự động; bạn không nhập hoặc sửa số trực tiếp.</p>
       <div className="hf-face-grid">{(["front", "back"] as const).map(target => <section key={target} ref={target === "back" ? backStep : frontStep}><h2>{target === "front" ? "Mặt trước CCCD" : "Mặt sau CCCD"} {saved?.[target === "front" ? "frontPassed" : "backPassed"] && <span className="hf-step-check" aria-label="Đã đạt">✓</span>}</h2>
         <div className="hf-face-preview">{files[target] ? <Preview file={files[target]} label={target === "front" ? "Mặt trước CCCD" : "Mặt sau CCCD"} /> : saved?.[target === "front" ? "frontUrl" : "backUrl"] ? <PrivateIdentityImage path={saved[target === "front" ? "frontUrl" : "backUrl"]! + `?v=${saved.version}`} alt={target === "front" ? "Mặt trước đã lưu" : "Mặt sau đã lưu"} /> : <p>Chưa có ảnh</p>}</div>
         {saved?.[target === "front" ? "frontReason" : "backReason"] && <p className="hf-face-error" role="alert">{saved[target === "front" ? "frontReason" : "backReason"]}</p>}
-        <div className="hf-face-actions"><button disabled={busy || expired} onClick={() => void open(target)}>{saved?.[target === "front" ? "frontUrl" : "backUrl"] ? "Chụp lại mặt này" : "Chụp CCCD"}</button><label className={busy || expired ? "hf-disabled" : ""}>Chọn ảnh CCCD<input type="file" accept="image/jpeg,image/png" disabled={busy || expired} onChange={e => { const f = e.target.files?.[0]; if (f) void select(target, f); e.target.value = ""; }} /></label></div></section>)}</div>
-      <button ref={submitStep} className="hf-face-submit" disabled={busy || !saved?.frontPassed || !saved.backPassed} onClick={() => void finish()}>{busy ? "Đang đối chiếu hồ sơ…" : "Xác minh hồ sơ"}</button></>}
+        <div className="hf-face-actions"><button disabled={busy || expired || appealPending} onClick={() => void open(target)}>{saved?.[target === "front" ? "frontUrl" : "backUrl"] ? "Chụp lại mặt này" : "Chụp CCCD"}</button><label className={busy || expired || appealPending ? "hf-disabled" : ""}>Chọn ảnh CCCD<input type="file" accept="image/jpeg,image/png" disabled={busy || expired || appealPending} onChange={e => { const f = e.target.files?.[0]; if (f) void select(target, f); e.target.value = ""; }} /></label></div></section>)}</div>
+      <button ref={submitStep} className="hf-face-submit" disabled={busy || appealPending || !saved?.frontPassed || !saved.backPassed} onClick={() => void finish()}>{busy ? "Đang đối chiếu hồ sơ…" : "Xác minh hồ sơ"}</button></>}
     {camera === "face" && <div className="hf-face-camera"><div className={`hf-live-view ${camera === "face" ? "hf-mirror" : ""}`}><video ref={video} autoPlay muted playsInline />{camera === "face" && <div className="hf-live-oval" />}</div>
       {(phase === "scan" || saved?.scanPassed) && <div className="hf-scan-progress" role="status"><div><strong>Tiến trình quét khuôn mặt</strong><span>{saved?.scanPassed ? 100 : scan?.progress || 0}%</span></div><progress max={100} value={saved?.scanPassed ? 100 : scan?.progress || 0} aria-label="Tiến trình riêng của bước quét mặt" /><small>Động tác đạt: {saved?.scanPassed ? 6 : scan?.completed || 0}/{scan?.total || 6}. Chỉ tăng khi hệ thống xác nhận đúng.</small></div>}
       <><h3>{phase === "selfie" ? "Nhìn thẳng để chụp selfie" : scan ? directions[scan.step] : "Nhìn thẳng vào camera"}</h3><p aria-live="polite">{phase === "scan" ? scan?.message || "Nhấn bắt đầu quét." : "Không dùng ảnh chụp sẵn; hãy chụp trực tiếp bằng camera."}</p>
-        <div className="hf-face-actions">{phase === "scan" ? <button disabled={busy || !consent} onClick={() => void begin()}>{busy ? "Đang quét…" : "Bắt đầu quét"}</button> : <button disabled={busy || expired} onClick={() => void captureSelfie()}>{busy ? "Đang kiểm tra…" : "Chụp selfie"}</button>}</div></>
+        <div className="hf-face-actions">{phase === "scan" ? <button disabled={busy || appealPending || !consent} onClick={() => void begin()}>{busy ? "Đang quét…" : "Bắt đầu quét"}</button> : <button disabled={busy || expired || appealPending} onClick={() => void captureSelfie()}>{busy ? "Đang kiểm tra…" : "Chụp selfie"}</button>}</div></>
     </div>}
     {(camera === "front" || camera === "back") && <DocumentCamera title={camera === "front" ? "Chụp mặt trước CCCD" : "Chụp mặt sau CCCD"} onClose={() => void dismissDocument()}>
       {error && <div className="hf-face-error" role="alert">{error}</div>}
@@ -287,6 +291,7 @@ export default function FaceComparisonPage() {
     </DocumentCamera>}
     {(camera || expiresAt > 0 || busy) && <button className="hf-face-back" onClick={reset}>{saved?.scanPassed ? "Đóng camera / giữ tiến trình đã lưu" : "Dừng phiên quét"}</button>}
     {!loading && saved?.scanPassed && <p className="hf-face-note">Các bước đã đạt được lưu riêng tư. Bạn có thể về hồ sơ hoặc quay lại sau để tiếp tục; không cần quét lại khi chỉ một mặt CCCD chưa đạt.</p>}
-    {result && <section className={`hf-face-result ${result.status === "REJECTED" ? "hf-no-match" : "hf-match"}`} aria-live="polite"><h2>{result.identityVerified ? "Xác minh thành công" : result.status === "REJECTED" ? "Cần thực hiện lại" : "Cần kiểm tra bổ sung"}</h2><p>{result.message}</p><div className="hf-onboarding-actions"><Link to="/profile">Xem hồ sơ, selfie và số CCCD</Link>{result.identityVerified ? <Link to={next}>Tiếp tục sử dụng HandsFree</Link> : <button onClick={() => { setResult(null); setPhase("documents"); }}>Chụp lại CCCD cần bổ sung</button>}</div></section>}
+    {!result && <IdentityAppealRequest status={saved?.status || "DRAFT"} onPending={setAppealPending} />}
+    {result && <section className={`hf-face-result ${result.status === "REJECTED" ? "hf-no-match" : "hf-match"}`} aria-live="polite"><h2>{result.identityVerified ? "Xác minh thành công" : result.status === "REJECTED" ? "Cần thực hiện lại" : "Cần kiểm tra bổ sung"}</h2><p>{result.message}</p><div className="hf-onboarding-actions"><Link to="/profile">Xem hồ sơ, selfie và số CCCD</Link>{result.identityVerified ? <Link to={next}>Tiếp tục sử dụng HandsFree</Link> : <button disabled={appealPending} onClick={() => { setResult(null); setPhase("documents"); }}>Chụp lại CCCD cần bổ sung</button>}</div>{!result.identityVerified && <IdentityAppealRequest status={result.status} onPending={setAppealPending} />}</section>}
   </main>;
 }
