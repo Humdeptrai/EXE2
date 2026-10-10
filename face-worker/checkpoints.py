@@ -75,7 +75,7 @@ def document(app, token, side, raw, decode, feature, threshold):
     if not state.get('selfie'): raise HTTPException(422, 'Selfie required')
     started = time.monotonic()
     card, quality = card_image(decode(raw, max_edge=2400))
-    reason = ('FRONT_' if side == 'front' else 'BACK_') + 'QUALITY'
+    reason = side.upper() + '_QUALITY_' + quality.get('reason', 'CARD_FRAME')
     data = dict(passed=False, quality=quality, reasonCode=reason)
     if card is not None:
         try:

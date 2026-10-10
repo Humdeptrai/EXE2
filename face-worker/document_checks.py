@@ -16,8 +16,66 @@ def plain(text):
                            if unicodedata.category(c) != 'Mn').split())
 
 
-def card_image(image):
-    """Require four visible card edges and rectify the largest plausible ID card."""
+def _line_quadrilaterals(gray):
+    """Join four supported straight sides when shadows break a closed contour."""
+    height, width = gray.shape
+    detected = cv2.createLineSegmentDetector(cv2.LSD_REFINE_STD).detect(gray)[0]
+    if detected is None:
+        return []
+    lines = []
+    for raw in detected.reshape(-1, 4):
+        start, end = raw[:2], raw[2:]
+        length = float(np.linalg.norm(end - start))
+        if length >= min(width, height) * .25:
+            lines.append((start, end, (end - start) / length, length))
+    lines = sorted(lines, key=lambda line: line[3], reverse=True)[:40]
+    pairs = []
+    for i, first in enumerate(lines):
+        for second in lines[i+1:]:
+            if abs(float(np.dot(first[2], second[2]))) < .97:
+                continue
+            delta = second[0] - first[0]
+            separation = abs(float(first[2][0] * delta[1] - first[2][1] * delta[0]))
+            if separation < min(width, height) * .2:
+                continue
+            pairs.append((first, second))
+    pairs.sort(key=lambda pair: pair[0][3] + pair[1][3], reverse=True)
+    pairs = pairs[:60]
+    edges = cv2.dilate(cv2.Canny(gray, 30, 100), np.ones((5, 5), np.uint8))
+    candidates = []
+    def crossing(a, b):
+        matrix = np.column_stack((a[2], -b[2]))
+        if abs(float(np.linalg.det(matrix))) < .1:
+            return None
+        distance = np.linalg.solve(matrix, b[0] - a[0])[0]
+        return a[0] + distance * a[2]
+    for i, horizontal in enumerate(pairs):
+        for vertical in pairs[i+1:]:
+            if abs(float(np.dot(horizontal[0][2], vertical[0][2]))) > .25:
+                continue
+            corners = [crossing(horizontal[0], vertical[0]), crossing(horizontal[0], vertical[1]),
+                       crossing(horizontal[1], vertical[1]), crossing(horizontal[1], vertical[0])]
+            if any(point is None for point in corners):
+                continue
+            points = np.asarray(corners, np.float32)
+            if (points[:, 0].min() < 1 or points[:, 1].min() < 1
+                    or points[:, 0].max() > width - 2 or points[:, 1].max() > height - 2
+                    or not cv2.isContourConvex(points) or cv2.contourArea(points) < width * height * .2):
+                continue
+            supported = True
+            for start, end in zip(points, np.roll(points, -1, axis=0)):
+                samples = start + np.linspace(.1, .9, 60)[:, None] * (end - start)
+                pixels = np.rint(samples).astype(int)
+                if float(np.mean(edges[pixels[:, 1], pixels[:, 0]] > 0)) < .65:
+                    supported = False
+                    break
+            if supported:
+                candidates.append(points)
+    return candidates
+
+
+def _card_candidates(image):
+    """Find bounded quadrilaterals; rounded cards may need colour boundaries."""
     height, width = image.shape[:2]
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # Detect boundaries at a bounded scale; map coordinates back to the original
@@ -31,9 +89,21 @@ def card_image(image):
         edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
         found, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         contours.extend(contour.astype(np.float32) / scale for contour in found)
-    too_small = False
-    quality_failure = None
-    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:80]:
+    # Wood grain/shadows can break a Canny perimeter. Independent colour
+    # channels separate a light card from its background without relying on
+    # the capture overlay (uploads use the same detector).
+    small = cv2.resize(image, (detection.shape[1], detection.shape[0]), interpolation=cv2.INTER_AREA)
+    lab = cv2.cvtColor(small, cv2.COLOR_BGR2LAB)
+    hsv = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
+    for channel in (lab[:, :, 0], lab[:, :, 1], lab[:, :, 2], hsv[:, :, 1]):
+        _, mask = cv2.threshold(cv2.GaussianBlur(channel, (5, 5), 0), 0, 255,
+                                cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        for region in (mask, cv2.bitwise_not(mask)):
+            region = cv2.morphologyEx(region, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
+            found, _ = cv2.findContours(region, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours.extend(contour.astype(np.float32) / scale for contour in found)
+    contours.extend(points / scale for points in _line_quadrilaterals(detection))
+    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:120]:
         if cv2.contourArea(contour) < width * height * .20:
             continue
         points = None
@@ -44,11 +114,18 @@ def card_image(image):
                 points = candidate
                 break
         if points is None:
-            continue
+            # A nearly rectangular convex region can have >4 vertices solely
+            # because the card corners are rounded. Never fit arbitrary blobs.
+            rectangle = cv2.minAreaRect(hull)
+            area = rectangle[1][0] * rectangle[1][1]
+            if area <= 0 or cv2.contourArea(hull) / area < .92 or cv2.contourArea(contour) / area < .85:
+                continue
+            points = cv2.boxPoints(rectangle)
         points = points.reshape(4, 2).astype(np.float32)
-        # Leave a margin: touching image borders can mean a cropped document.
-        if (points[:, 0].min() < 3 or points[:, 1].min() < 3
-                or points[:, 0].max() > width - 4 or points[:, 1].max() > height - 4):
+        # Keep all fitted corners inside the image; a narrow but visible
+        # border is valid too. Do not demand a fixed capture-overlay margin.
+        if (points[:, 0].min() < 1 or points[:, 1].min() < 1
+                or points[:, 0].max() > width - 2 or points[:, 1].max() > height - 2):
             continue
         # Sort around the centroid, then rotate to the top-left corner.
         center = points.mean(axis=0)
@@ -62,6 +139,14 @@ def card_image(image):
             card_width, card_height = card_height, card_width
         if not 1.35 <= card_width / max(card_height, 1) <= 1.90:
             continue
+        yield points, card_width, card_height
+
+
+def card_image(image):
+    """Rectify a visible card, then enforce original resolution and quality."""
+    too_small = False
+    quality_failure = None
+    for points, card_width, card_height in _card_candidates(image):
         if card_width < 550 or card_height < 320:
             too_small = True
             continue

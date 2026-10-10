@@ -130,6 +130,10 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
     }
     private String documentRetry(String reason) {
         return switch(reason) {
+            case "FRONT_QUALITY_CARD_FRAME", "BACK_QUALITY_CARD_FRAME" -> "Chưa nhận diện được đường viền CCCD trong ảnh. Chọn ảnh có đủ toàn bộ thẻ, viền tách khỏi nền và một khoảng nền quanh thẻ.";
+            case "FRONT_QUALITY_TOO_SMALL", "BACK_QUALITY_TOO_SMALL" -> "CCCD trong ảnh có độ phân giải quá thấp. Chọn ảnh gốc hoặc chụp gần hơn, giữ toàn bộ thẻ trong ảnh.";
+            case "FRONT_QUALITY_BLUR", "BACK_QUALITY_BLUR" -> "Chi tiết trên CCCD chưa đủ nét để đọc. Chọn ảnh gốc rõ chữ hoặc lấy nét lại vào thẻ.";
+            case "FRONT_QUALITY_LIGHTING", "BACK_QUALITY_LIGHTING" -> "Ánh sáng trên CCCD chưa phù hợp. Tránh bóng đổ, vùng tối hoặc phản sáng che chữ.";
             case "FRONT_OCR" -> "Chưa đọc rõ mặt trước CCCD. Chụp lại mặt trước, giữ đủ bốn góc và chữ rõ nét.";
             case "BACK_OCR" -> "Chưa đọc rõ mặt sau CCCD. Chỉ cần chụp lại mặt sau; các bước đã đạt được giữ lại.";
             case "FRONT_FACE" -> "Chưa nhận rõ khuôn mặt trên CCCD. Chụp lại mặt trước.";
