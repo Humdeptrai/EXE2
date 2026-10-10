@@ -97,8 +97,8 @@ def document(app, token, side, raw, decode, feature, threshold):
                 except HTTPException as error:
                     if error.status_code != 422: raise
                     data.update(passed=False, reasonCode='FRONT_FACE')
-    logger.info('Document check: side=%s passed=%s reason=%s quality=%s confidence=%.1f elapsedMs=%d',
-                side, data['passed'], data['reasonCode'], quality.get('reason'), data.get('confidence', 0), round((time.monotonic()-started)*1000))
+    logger.info('Document check: side=%s passed=%s reason=%s quality=%s confidence=%.1f nameExtracted=%s elapsedMs=%d',
+                side, data['passed'], data['reasonCode'], quality.get('reason'), data.get('confidence', 0), bool(data.get('fullName')), round((time.monotonic()-started)*1000))
     data['digest'] = hashlib.sha256(raw).hexdigest()
     state['documents'][side] = data
     return dict(policyVersion=4, passed=data['passed'], reasonCode=data['reasonCode'], checkpoint=seal(state))

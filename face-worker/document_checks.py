@@ -120,6 +120,8 @@ def read_card(image, side=None):
                 (cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray), 11, False),
                 (cv2.rotate(gray, cv2.ROTATE_180), 11, True))
     best = ('', 0.0)
+    best_rank = (-1, -1, -1.0)
+    best_rotated = False
     completed = 0
     last_timeout = None
     for candidate, psm, rotated in attempts:
@@ -132,43 +134,73 @@ def read_card(image, side=None):
             last_timeout = error
             continue
         completed += 1
-        if confidence > best[1]:
-            best = text, confidence
-        if side in ('front', 'back'):
-            fields = document_fields(text if side == 'front' else '', text if side == 'back' else '',
-                                     confidence if side == 'front' else 0, confidence if side == 'back' else 0)
-            if fields[side + 'Readable']:
-                if rotated:
-                    image[:] = cv2.rotate(image, cv2.ROTATE_180)
-                return text, confidence
-        elif confidence >= 45 and len(text) >= 60:
+        fields = document_fields(text if side == 'front' else '', text if side == 'back' else '',
+                                 confidence if side == 'front' else 0, confidence if side == 'back' else 0)
+        readable = fields.get(str(side) + 'Readable', confidence >= 45 and len(text) >= 60)
+        # A pass that reads the number but misses the name must not prevent a
+        # later layout from extracting a complete front document.
+        has_name = bool(fields['fullName']) if side == 'front' else True
+        rank = (int(readable), int(has_name), confidence)
+        if rank > best_rank:
+            best, best_rank, best_rotated = (text, confidence), rank, rotated
+        if readable and has_name:
+            if rotated:
+                image[:] = cv2.rotate(image, cv2.ROTATE_180)
             return text, confidence
     if not completed and last_timeout is not None:
         raise last_timeout
     if not best[0]:
         # No recognized characters is a readable-image failure, not a service outage.
         return '', 0.0
+    if best_rotated:
+        image[:] = cv2.rotate(image, cv2.ROTATE_180)
     return best
 
 
+_NAME_LABEL = re.compile(
+    r"(?:h[oọ]\s+(?:v[aà]\s+)?t[eê]n|h[oọ]\s*,?\s*ch[uữ]\s+[dđ][eệ]m\s+v[aà]\s+t[eê]n(?:\s+khai\s+sinh)?|full\s*name)",
+    re.IGNORECASE)
+_NAME_STOPS = re.compile(
+    r"\b(?:NGAY SINH|DATE OF|GIOI TINH|QUOC TICH|SEX|NATIONALITY|QUE QUAN|NOI CU TRU|"
+    r"NOI SINH|PLACE OF|CO GIA TRI|CAN CUOC|CONG DAN|IDENTITY)\b")
+
+
+def _name_value(value):
+    value = unicodedata.normalize('NFC', value).strip(" :/|;.,")
+    # Remove bilingual labels only at the beginning; never guess a name from
+    # an arbitrary uppercase line elsewhere on the card or from profile data.
+    while True:
+        label = _NAME_LABEL.match(value)
+        if not label:
+            break
+        value = value[label.end():].strip(" :/|;.,")
+    value = ' '.join(value.split())
+    if (2 <= len(value) <= 100 and len(value.split()) >= 2
+            and all(c.isalpha() or c in " .'-" for c in value)
+            and not _NAME_STOPS.search(plain(value))
+            and not _NAME_LABEL.search(value)):
+        return value
+    return ''
+
+
 def extract_name(text):
-    lines = text.splitlines()
+    # Sparse OCR inserts empty lines between the Vietnamese label, English
+    # label and name. Count meaningful lines rather than only two raw lines.
+    lines = [unicodedata.normalize('NFC', line).strip() for line in text.splitlines() if line.strip()]
     for index, line in enumerate(lines):
-        normalized = plain(line)
-        if not any(label in normalized for label in ('HO VA TEN', 'FULL NAME')):
+        label = _NAME_LABEL.search(line)
+        if not label:
             continue
-        # Prefer the label's own value; allow bilingual labels before the name.
-        colon_value = line.rsplit(':', 1)[-1].strip() if ':' in line else ''
-        for candidate in [colon_value] + lines[index+1:index+3]:
-            candidate = candidate.strip(' :')
-            normalized_candidate = plain(candidate)
-            if any(label in normalized_candidate for label in ('NGAY SINH', 'DATE OF', 'GIOI TINH', 'QUOC TICH', 'SEX', 'NATIONALITY', 'QUE QUAN', 'NOI CU TRU')):
-                break
-            if (2 <= len(candidate) <= 100 and len(candidate.split()) >= 2
-                    and all(c.isalpha() or c in " .'-" for c in candidate)
-                    and not any(label in normalized_candidate for label in
-                                ('HO VA TEN', 'FULL NAME', 'NGAY SINH', 'DATE OF', 'GIOI TINH', 'QUOC TICH'))):
+        value = _name_value(line[label.end():])
+        if value:
+            return value
+        for following in lines[index+1:index+5]:
+            # Skip the second bilingual label before checking field boundaries.
+            candidate = _name_value(following)
+            if candidate:
                 return candidate
+            if _NAME_STOPS.search(plain(following)):
+                break
     return ''
 
 
