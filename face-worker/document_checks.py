@@ -17,8 +17,9 @@ def plain(text):
 
 
 def _line_quadrilaterals(gray):
-    """Join four supported straight sides when shadows break a closed contour."""
+    """Join visible sides, allowing rounded corners to meet just outside the image."""
     height, width = gray.shape
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
     detected = cv2.createLineSegmentDetector(cv2.LSD_REFINE_STD).detect(gray)[0]
     if detected is None:
         return []
@@ -26,7 +27,7 @@ def _line_quadrilaterals(gray):
     for raw in detected.reshape(-1, 4):
         start, end = raw[:2], raw[2:]
         length = float(np.linalg.norm(end - start))
-        if length >= min(width, height) * .25:
+        if length >= min(width, height) * .10:
             lines.append((start, end, (end - start) / length, length))
     lines = sorted(lines, key=lambda line: line[3], reverse=True)[:40]
     pairs = []
@@ -41,7 +42,7 @@ def _line_quadrilaterals(gray):
             pairs.append((first, second))
     pairs.sort(key=lambda pair: pair[0][3] + pair[1][3], reverse=True)
     pairs = pairs[:60]
-    edges = cv2.dilate(cv2.Canny(gray, 30, 100), np.ones((5, 5), np.uint8))
+    edges = cv2.dilate(cv2.Canny(gray, 10, 30), np.ones((5, 5), np.uint8))
     candidates = []
     def crossing(a, b):
         matrix = np.column_stack((a[2], -b[2]))
@@ -58,18 +59,30 @@ def _line_quadrilaterals(gray):
             if any(point is None for point in corners):
                 continue
             points = np.asarray(corners, np.float32)
-            if (points[:, 0].min() < 1 or points[:, 1].min() < 1
-                    or points[:, 0].max() > width - 2 or points[:, 1].max() > height - 2
+            if (points[:, 0].min() < -width * .02 or points[:, 1].min() < -height * .02
+                    or points[:, 0].max() > width * 1.02 or points[:, 1].max() > height * 1.02
                     or not cv2.isContourConvex(points) or cv2.contourArea(points) < width * height * .2):
                 continue
             supported = True
             for start, end in zip(points, np.roll(points, -1, axis=0)):
                 samples = start + np.linspace(.1, .9, 60)[:, None] * (end - start)
+                visible = ((samples[:, 0] >= 0) & (samples[:, 0] < width)
+                           & (samples[:, 1] >= 0) & (samples[:, 1] < height))
+                if float(np.mean(visible)) < .90:
+                    supported = False
+                    break
                 pixels = np.rint(samples).astype(int)
-                if float(np.mean(edges[pixels[:, 1], pixels[:, 0]] > 0)) < .65:
+                pixels[:, 0] = np.clip(pixels[:, 0], 0, width - 1)
+                pixels[:, 1] = np.clip(pixels[:, 1], 0, height - 1)
+                if float(np.mean(edges[pixels[visible, 1], pixels[visible, 0]] > 0)) < .65:
                     supported = False
                     break
             if supported:
+                # Rounded corners can have a virtual straight-side intersection
+                # outside the photo. Keep only existing pixels; never synthesize
+                # missing text or portrait content beyond the image boundary.
+                points[:, 0] = np.clip(points[:, 0], 1, width - 2)
+                points[:, 1] = np.clip(points[:, 1], 1, height - 2)
                 candidates.append(points)
     return candidates
 
