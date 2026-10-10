@@ -1,5 +1,6 @@
 """Server-owned challenge sessions. RGB PAD is experimental, not certified eKYC."""
 import base64
+import logging
 import secrets
 import subprocess
 import time
@@ -16,6 +17,18 @@ STEP_SECONDS = 25
 HOLD_SECONDS = .8
 PAD_THRESHOLD = .80
 SESSIONS = {}
+logger = logging.getLogger("uvicorn.error")
+
+
+def face_sharpness(gray):
+    # Laplacian variance depends on pixel scale. A high-resolution face has
+    # smoother adjacent pixels than the same sharp face in a smaller frame.
+    # Measure at a consistent face scale; do not resize the recognition/PAD image.
+    height, width = gray.shape[:2]
+    scale = min(1.0, 256.0 / max(width, height))
+    sample = cv2.resize(gray, (round(width * scale), round(height * scale)),
+                        interpolation=cv2.INTER_AREA) if scale < 1.0 else gray
+    return float(cv2.Laplacian(sample, cv2.CV_64F).var())
 
 
 def initialize(app, models):
@@ -125,7 +138,12 @@ def frame(app, sid, raw, decode, feature):
         gray=cv2.cvtColor(crop,cv2.COLOR_BGR2GRAY)
         if float(gray.mean())<45 or float(gray.mean())>235:
             raise ValueError('Ánh sáng chưa phù hợp. Tránh quá tối hoặc ngược sáng.')
-        if cv2.Laplacian(gray,cv2.CV_64F).var()<35:
+        sharpness=face_sharpness(gray)
+        if sharpness<35:
+            if now-s.get('quality_logged_at',0)>=5:
+                logger.warning('Face quality rejected: stage=scan reason=blur faceSize=%sx%s normalizedSharpness=%.2f threshold=35',
+                               gray.shape[1],gray.shape[0],sharpness)
+                s['quality_logged_at']=now
             raise ValueError('Ảnh mặt bị mờ. Lau camera và giữ đầu ổn định.')
         if s['reference'] is not None:
             same=float(app.state.recognizer.match(s['reference'],vector,cv2.FaceRecognizerSF_FR_COSINE))
@@ -191,7 +209,10 @@ def capture_selfie(app, sid, raw, decode, feature, threshold):
         if w < image.shape[1] * .18 or x < 0 or y < 0 or x+w > image.shape[1] or y+h > image.shape[0]:
             raise ValueError('Đưa trọn khuôn mặt vào giữa khung selfie.')
         gray = cv2.cvtColor(image[int(y):int(y+h), int(x):int(x+w)], cv2.COLOR_BGR2GRAY)
-        if gray.mean() < 45 or gray.mean() > 235 or cv2.Laplacian(gray, cv2.CV_64F).var() < 35:
+        sharpness = face_sharpness(gray)
+        if gray.mean() < 45 or gray.mean() > 235 or sharpness < 35:
+            logger.warning('Face quality rejected: stage=selfie faceSize=%sx%s brightness=%.2f normalizedSharpness=%.2f',
+                           gray.shape[1],gray.shape[0],float(gray.mean()),sharpness)
             raise ValueError('Selfie chưa rõ hoặc ánh sáng chưa phù hợp.')
         score = float(app.state.recognizer.match(session['reference'], vector, cv2.FaceRecognizerSF_FR_COSINE))
         pad_score = pad(app, image, boxes[0])
