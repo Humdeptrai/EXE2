@@ -1,5 +1,6 @@
 """Server-owned challenge sessions. RGB PAD is experimental, not certified eKYC."""
 import base64
+import hashlib
 import logging
 import secrets
 import subprocess
@@ -226,9 +227,25 @@ def capture_selfie(app, sid, raw, decode, feature, threshold):
 
 
 def finish(app,sid,front,back,decode,feature,threshold):
+    cleanup()
+    session = SESSIONS.get(sid)
+    if session is None:
+        raise HTTPException(410, 'Phiên quét đã hết hạn.')
+    digest = hashlib.sha256(front + back).digest()
+    if session.get('finish_response') is not None:
+        if session['finish_digest'] != digest:
+            raise HTTPException(422, 'Hồ sơ phiên này đã được đối chiếu. Hãy bắt đầu phiên mới.')
+        return session['finish_response']
+    response = finish_documents(app,sid,front,back,decode,feature,threshold)
+    session['finish_digest'] = digest
+    session['finish_response'] = response
+    return response
+
+
+def finish_documents(app,sid,front,back,decode,feature,threshold):
     from document_checks import card_image, read_card, document_fields
     cleanup()
-    s=SESSIONS.pop(sid,None)
+    s=SESSIONS.get(sid)
     if s is None or s['index']!=len(s['steps']) or not s['portrait'] or len(s['pad'])<6 or not s.get('selfie'):
         raise HTTPException(422,'Chưa hoàn tất phiên quét khuôn mặt.')
     response=dict(policyVersion=3,selfiePassed=True,selfieScanScore=s['selfie_score'],selfiePadScore=s['selfie_pad'],decision='NO_MATCH',cosineScore=0.0,threshold=threshold,
@@ -244,7 +261,8 @@ def finish(app,sid,front,back,decode,feature,threshold):
     response['documentQualityPassed']=True
     try:
         text,front_confidence=read_card(card); back_text,back_confidence=read_card(reverse)
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as error:
+        logger.warning("Document OCR unavailable: exception=%s", type(error).__name__)
         raise HTTPException(503,'Bộ đọc CCCD chưa sẵn sàng. Vui lòng thử lại sau.')
     fields=document_fields(text,back_text,front_confidence,back_confidence)
     response.update(fields,frontText=text,backText=back_text,

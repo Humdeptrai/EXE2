@@ -1,5 +1,7 @@
 import { safeNext } from "../../../services/identityService";
-import { useEffect, useRef, useState } from "react";
+import { type PropsWithChildren, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useFeedback } from "../../../components/feedback/FeedbackContext";
 import { Link, useSearchParams } from "react-router-dom";
 import api from "../../../config/axios";
 import type { ApiResponse } from "../../../types/api";
@@ -28,7 +30,30 @@ function Preview({ file, label }: { file: File | null; label: string }) {
   useEffect(() => { if (!file || !ref.current) return; const url = URL.createObjectURL(file); ref.current.src = url; return () => URL.revokeObjectURL(url); }, [file]);
   return file ? <img ref={ref} alt={label} /> : <p>Chưa có ảnh</p>;
 }
+function DocumentCamera({ title, onClose, children }: PropsWithChildren<{ title: string; onClose: () => void }>) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current;
+    const focus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    element?.showModal();
+    return () => { element?.close(); document.body.style.overflow = overflow; focus?.focus({ preventScroll: true }); };
+  }, []);
+  return createPortal(<dialog ref={dialog} className="hf-face hf-document-camera" aria-labelledby="hf-document-camera-title"
+    onCancel={event => { event.preventDefault(); onClose(); }}>
+    <header className="hf-document-camera-heading"><h2 id="hf-document-camera-title">{title}</h2>
+      <button type="button" aria-label="Đóng camera CCCD" onClick={onClose}>✕</button></header>
+    {children}
+  </dialog>, document.body);
+}
 export default function FaceComparisonPage() {
+  const { confirm } = useFeedback();
+  const [draft, setDraft] = useState<File | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const backStep = useRef<HTMLElement>(null);
+  const submitStep = useRef<HTMLButtonElement>(null);
   const [params] = useSearchParams(); const next = safeNext(params.get("next"));
   const [phase, setPhase] = useState<"scan" | "selfie" | "documents" | "result">("scan");
   const [files, setFiles] = useState<Record<Slot, File | null>>({ front: null, back: null });
@@ -45,7 +70,7 @@ export default function FaceComparisonPage() {
   const remaining = Math.max(0, Math.ceil((expiresAt - clock) / 1000));
   const expired = expiresAt > 0 && remaining === 0 && phase !== "result";
   function closeCamera() {
-    cameraAttempt.current++; stream.current?.getTracks().forEach(t => t.stop()); stream.current = null; setCamera(null);
+    cameraAttempt.current++; stream.current?.getTracks().forEach(t => t.stop()); stream.current = null; setCamera(null); setDraft(null);
   }
   function reset() {
     attempt.current++; if (timer.current) clearTimeout(timer.current); request.current?.abort(); closeCamera();
@@ -94,9 +119,35 @@ export default function FaceComparisonPage() {
     catch (e) { if (current === attempt.current) setError(e instanceof Error ? e.message : "Không đọc được ảnh."); }
   }
   async function captureDocument() {
-    if (!camera || camera === "face" || busy) return;
-    try { const target = camera; await select(target, await image()); closeCamera(); }
-    catch { setError("Không chụp được ảnh CCCD. Vui lòng thử lại."); }
+    if (!camera || camera === "face" || busy || capturing) return;
+    const current = cameraAttempt.current;
+    setCapturing(true); setError("");
+    try {
+      const file = await normalize(await image());
+      if (current !== cameraAttempt.current) return;
+      setDraft(file); stream.current?.getTracks().forEach(t => t.stop()); stream.current = null;
+    } catch (e) { if (current === cameraAttempt.current) setError(e instanceof Error ? e.message : "Không chụp được ảnh CCCD."); }
+    finally { setCapturing(false); }
+  }
+  function saveDocument() {
+    if (!camera || camera === "face" || !draft) return;
+    const target = camera;
+    setFiles(previous => ({ ...previous, [target]: draft })); closeCamera();
+    requestAnimationFrame(() => {
+      const nextStep = target === "front" ? backStep.current : submitStep.current;
+      nextStep?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (target === "back") submitStep.current?.focus({ preventScroll: true });
+      else backStep.current?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+    });
+  }
+  async function dismissDocument() {
+    if (closing || capturing) return;
+    if (!draft) { closeCamera(); return; }
+    setClosing(true);
+    const current = cameraAttempt.current;
+    const save = await confirm({ title: "Bạn có muốn lưu ảnh?", message: "Ảnh CCCD vừa chụp chưa được lưu.", confirmLabel: "Lưu ảnh", cancelLabel: "Không lưu" });
+    if (current === cameraAttempt.current) { if (save) saveDocument(); else closeCamera(); }
+    setClosing(false);
   }
   async function sendFrame(sid: string, current: number) {
     if (current !== attempt.current) return;
@@ -148,11 +199,16 @@ export default function FaceComparisonPage() {
     const body = new FormData(); body.append("front", files.front); body.append("back", files.back);
     try {
       const r = await api.post<ApiResponse<Result>>(`/identity/face-comparison/sessions/${sid}/finish`, body,
-        { headers: { "Content-Type": undefined }, timeout: 90000, signal: request.current?.signal });
+        { headers: { "Content-Type": undefined }, timeout: 150000, signal: request.current?.signal });
       if (current !== attempt.current) return;
       session.current = null; setResult(r.data.result); setPhase("result");
     } catch (e) {
-      if (current === attempt.current) { session.current = null; setPhase("result"); setError(getApiErrorMessage(e, "Chưa xác minh được hồ sơ. Vui lòng bắt đầu lại.")); }
+      if (current === attempt.current) {
+        const code = (e as { response?: { data?: { code?: number } } }).response?.data?.code;
+        const retryable = !code || code === 42944 || code === 50260;
+        if (!retryable) { session.current = null; setPhase("result"); }
+        setError(getApiErrorMessage(e, "Chưa kết nối được dịch vụ xác thực.") + (retryable ? " Ảnh đã được giữ lại. Hãy bấm Xác minh hồ sơ để thử lại trước khi phiên hết hạn." : ""));
+      }
     } finally { if (current === attempt.current) setBusy(false); }
   }
   const progress = result?.identityVerified ? 100 : phase === "documents" || phase === "result" ? 80 : phase === "selfie" ? 60 : Math.round((scan?.progress || 0) * .6);
@@ -169,15 +225,23 @@ export default function FaceComparisonPage() {
     {phase === "selfie" && <section className="hf-face-scan"><h2>2. Chụp selfie trực tiếp</h2><p>Nhìn thẳng, giữ trọn khuôn mặt trong khung rồi bấm chụp. Selfie phải khớp người vừa quét.</p>{!camera && <button disabled={expired} onClick={() => void open("face")}>Mở lại camera selfie</button>}</section>}
     {phase === "documents" && <><section className="hf-face-scan"><h2>Selfie đã khớp phiên quét</h2><div className="hf-face-preview"><Preview file={selfie} label="Selfie vừa chụp" /></div></section>
       <p>Chụp rõ cả hai mặt CCCD, đủ bốn góc và chừa một khoảng viền trên nền tương phản. Số CCCD sẽ được đọc tự động; bạn không nhập hoặc sửa số trực tiếp.</p>
-      <div className="hf-face-grid">{(["front", "back"] as const).map(target => <section key={target}><h2>{target === "front" ? "Mặt trước CCCD" : "Mặt sau CCCD"}</h2>
+      <div className="hf-face-grid">{(["front", "back"] as const).map(target => <section key={target} ref={target === "back" ? backStep : undefined}><h2>{target === "front" ? "Mặt trước CCCD" : "Mặt sau CCCD"}</h2>
         <div className="hf-face-preview"><Preview file={files[target]} label={target === "front" ? "Mặt trước CCCD" : "Mặt sau CCCD"} /></div>
         <div className="hf-face-actions"><button disabled={busy || expired} onClick={() => void open(target)}>Chụp CCCD</button><label className={busy || expired ? "hf-disabled" : ""}>Chọn ảnh CCCD<input type="file" accept="image/jpeg,image/png" disabled={busy || expired} onChange={e => { const f = e.target.files?.[0]; if (f) void select(target, f); e.target.value = ""; }} /></label></div></section>)}</div>
-      <button className="hf-face-submit" disabled={busy || expired || !files.front || !files.back} onClick={() => void finish()}>{busy ? "Đang đối chiếu hồ sơ…" : "Xác minh hồ sơ"}</button></>}
-    {camera && <div className="hf-face-camera"><div className={`hf-live-view ${camera === "face" ? "hf-mirror" : ""}`}><video ref={video} autoPlay muted playsInline />{camera === "face" && <div className="hf-live-oval" />}</div>
-      {camera === "face" ? <><h3>{phase === "selfie" ? "Nhìn thẳng để chụp selfie" : scan ? directions[scan.step] : "Nhìn thẳng vào camera"}</h3><p aria-live="polite">{phase === "scan" ? scan?.message || "Nhấn bắt đầu quét." : "Không dùng ảnh chụp sẵn; hãy chụp trực tiếp bằng camera."}</p>
+      <button ref={submitStep} className="hf-face-submit" disabled={busy || expired || !files.front || !files.back} onClick={() => void finish()}>{busy ? "Đang đối chiếu hồ sơ…" : "Xác minh hồ sơ"}</button></>}
+    {camera === "face" && <div className="hf-face-camera"><div className={`hf-live-view ${camera === "face" ? "hf-mirror" : ""}`}><video ref={video} autoPlay muted playsInline />{camera === "face" && <div className="hf-live-oval" />}</div>
+      <><h3>{phase === "selfie" ? "Nhìn thẳng để chụp selfie" : scan ? directions[scan.step] : "Nhìn thẳng vào camera"}</h3><p aria-live="polite">{phase === "scan" ? scan?.message || "Nhấn bắt đầu quét." : "Không dùng ảnh chụp sẵn; hãy chụp trực tiếp bằng camera."}</p>
         <div className="hf-face-actions">{phase === "scan" ? <button disabled={busy || !consent} onClick={() => void begin()}>{busy ? "Đang quét…" : "Bắt đầu quét"}</button> : <button disabled={busy || expired} onClick={() => void captureSelfie()}>{busy ? "Đang kiểm tra…" : "Chụp selfie"}</button>}</div></>
-      : <div className="hf-face-actions"><button disabled={busy} onClick={() => void captureDocument()}>Chụp ảnh</button><button disabled={busy} onClick={closeCamera}>Đóng camera</button></div>}
     </div>}
+    {(camera === "front" || camera === "back") && <DocumentCamera title={camera === "front" ? "Chụp mặt trước CCCD" : "Chụp mặt sau CCCD"} onClose={() => void dismissDocument()}>
+      {error && <div className="hf-face-error" role="alert">{error}</div>}
+      {draft ? <><div className="hf-document-review"><Preview file={draft} label="Ảnh CCCD vừa chụp, chưa lưu" /></div>
+        <p>Kiểm tra đủ bốn góc, chữ rõ nét và không bị loá trước khi lưu.</p>
+        <div className="hf-face-actions"><button disabled={closing} onClick={saveDocument}>Lưu</button><button disabled={closing} onClick={() => void open(camera)}>Huỷ / chụp lại</button></div></>
+      : <><div className="hf-live-view"><video ref={video} autoPlay muted playsInline /><div className="hf-document-guide" aria-hidden="true" /></div>
+        <p>Đặt CCCD nằm ngang trong khung, giữ đủ bốn góc trên nền tương phản.</p>
+        <div className="hf-face-actions"><button disabled={capturing || closing} onClick={() => void captureDocument()}>{capturing ? "Đang chụp…" : "Chụp ảnh"}</button></div></>}
+    </DocumentCamera>}
     {(expiresAt > 0 || busy || phase === "result") && <button className="hf-face-back" onClick={reset}>Hủy / bắt đầu lại</button>}
     {result && <section className={`hf-face-result ${result.status === "REJECTED" ? "hf-no-match" : "hf-match"}`} aria-live="polite"><h2>{result.identityVerified ? "Xác minh thành công" : result.status === "REJECTED" ? "Cần thực hiện lại" : "Cần kiểm tra bổ sung"}</h2><p>{result.message}</p><div className="hf-onboarding-actions"><Link to="/profile">Xem hồ sơ, selfie và số CCCD</Link><Link to={next}>Tiếp tục</Link></div></section>}
   </main>;

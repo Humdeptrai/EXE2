@@ -1,6 +1,7 @@
 """Image quality and OCR checks for app verification, not document authenticity."""
 import csv
 import io
+import os
 import re
 import subprocess
 import unicodedata
@@ -66,7 +67,7 @@ def read_card(image):
     _, jpeg = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 95])
     result = subprocess.run(['tesseract', 'stdin', 'stdout', '-l', 'vie+eng', '--psm', '6', 'tsv'],
                             input=jpeg.tobytes(), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                            timeout=15, check=True)
+                            timeout=45, check=True, env={**os.environ, "OMP_THREAD_LIMIT": "1"})
     lines = {}
     confidences = []
     for row in csv.DictReader(io.StringIO(result.stdout.decode('utf-8', errors='replace')), delimiter='\t'):

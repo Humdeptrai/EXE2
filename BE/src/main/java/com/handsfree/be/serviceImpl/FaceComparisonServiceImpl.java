@@ -98,7 +98,7 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
         long started = System.nanoTime();
         String operation = suffix.replaceAll("/sessions/[^/]+", "/sessions/{session}");
         try {
-            var request = HttpRequest.newBuilder(endpoint(suffix)).timeout(Duration.ofSeconds(60)).header("X-Face-Key", key);
+            var request = HttpRequest.newBuilder(endpoint(suffix)).timeout(Duration.ofSeconds(suffix.endsWith("/finish") ? 120 : 60)).header("X-Face-Key", key);
             if (images == null) request.method(method, HttpRequest.BodyPublishers.noBody());
             else {
                 String boundary="hf"+UUID.randomUUID().toString().replace("-", "");
@@ -196,7 +196,16 @@ public class FaceComparisonServiceImpl implements com.handsfree.be.service.FaceC
         var s=owned(user,id);
         byte[] f=jpeg(front), b=jpeg(back);
         if(!sessions.remove(id,s)) throw new AppException(ErrorCode.IDENTITY_SESSION_EXPIRED);
-        var r=call("POST","/sessions/"+s.remote()+"/finish",new String[]{"front","back"},new byte[][]{f,b});
+        tools.jackson.databind.JsonNode r;
+        try {
+            r=call("POST","/sessions/"+s.remote()+"/finish",new String[]{"front","back"},new byte[][]{f,b});
+        } catch (AppException error) {
+            // Worker keeps the completed scan and caches successful document responses.
+            // Recover a transient busy/network failure without requiring another face scan.
+            if (error.getErrorCode() == ErrorCode.IDENTITY_SCAN_BUSY || error.getErrorCode() == ErrorCode.IDENTITY_GATEWAY_ERROR)
+                sessions.putIfAbsent(id,s);
+            throw error;
+        }
         // Legacy workers did not check document quality: never auto-approve their responses.
         if(r.path("policyVersion").asInt(0)!=3) throw invalidResponse("finish", "policy_version_mismatch");
         double score=r.path("cosineScore").asDouble(Double.NaN), threshold=r.path("threshold").asDouble(Double.NaN);
