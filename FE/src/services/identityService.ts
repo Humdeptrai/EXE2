@@ -10,7 +10,16 @@ export type MyIdentity = {
   selfieUrl: string | null;
   pendingReplacement: boolean;
 };
+export type IdentityProgress = {
+  scanPassed: boolean; selfiePassed: boolean; frontPassed: boolean; backPassed: boolean;
+  frontReason: string | null; backReason: string | null; status: string; documentNumber: string | null;
+  selfieUrl: string | null; frontUrl: string | null; backUrl: string | null; updatedAt: string | null; version: number;
+};
 export const identityService = {
+  async progress(signal?: AbortSignal): Promise<IdentityProgress> {
+    const r = await api.get<ApiResponse<IdentityProgress>>("/identity/progress", { signal });
+    return r.data.result;
+  },
   async mine(signal?: AbortSignal): Promise<MyIdentity> {
     const r = await api.get<ApiResponse<MyIdentity>>("/identity/me", { signal });
     return r.data.result;

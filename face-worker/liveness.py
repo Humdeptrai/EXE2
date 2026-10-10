@@ -66,7 +66,7 @@ def start():
     secrets.SystemRandom().shuffle(directions)
     sid = secrets.token_urlsafe(32)
     now = time.monotonic()
-    SESSIONS[sid] = dict(steps=['CENTER'] + sum(([x, 'CENTER'] for x in directions), []),
+    SESSIONS[sid] = dict(steps=['CENTER'] + directions + ['CENTER'],
         index=0, expires=now+TTL, step_started=now, last=0, hold=None,
         reference=None, portrait=None, selfie=None, selfie_score=None, selfie_pad=None, pad=[], bad=0, frame_hash=None, hold_count=0, baseline=None)
     return progress(sid, SESSIONS[sid], 'Nhìn thẳng vào camera, giữ đầu ổn định.')
@@ -74,9 +74,13 @@ def start():
 
 def progress(sid, s, message):
     n = len(s['steps'])
-    return dict(sessionId=sid, step=s['steps'][s['index']] if s['index'] < n else 'DONE',
+    result = dict(sessionId=sid, step=s['steps'][s['index']] if s['index'] < n else 'DONE',
         completed=s['index'], total=n, progress=round(100*s['index']/n),
         complete=s['index']==n, message=message, expiresIn=max(0, int(s['expires']-time.monotonic())))
+    if result['complete']:
+        from checkpoints import export_scan
+        result['checkpoint'] = export_scan(s)
+    return result
 
 
 def pose(app, image):
@@ -240,7 +244,7 @@ def capture_selfie(app, sid, raw, decode, feature, threshold):
             raise ValueError('Selfie chưa khớp phiên quét hoặc chưa đạt kiểm tra người thật.')
         _, jpeg = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 90])
         session['selfie'] = jpeg.tobytes(); session['selfie_score'] = score; session['selfie_pad'] = pad_score
-        return dict(policyVersion=3, accepted=True, expiresIn=max(0, int(session['expires']-time.monotonic())))
+        return dict(policyVersion=4, accepted=True, expiresIn=max(0, int(session['expires']-time.monotonic())))
     except ValueError as error:
         raise HTTPException(422, str(error))
 
@@ -267,7 +271,7 @@ def finish_documents(app,sid,front,back,decode,feature,threshold):
     s=SESSIONS.get(sid)
     if s is None or s['index']!=len(s['steps']) or not s['portrait'] or len(s['pad'])<6 or not s.get('selfie'):
         raise HTTPException(422,'Chưa hoàn tất phiên quét khuôn mặt.')
-    response=dict(policyVersion=3,selfiePassed=True,selfieScanScore=s['selfie_score'],selfiePadScore=s['selfie_pad'],decision='NO_MATCH',cosineScore=0.0,threshold=threshold,
+    response=dict(policyVersion=4,selfiePassed=True,selfieScanScore=s['selfie_score'],selfiePadScore=s['selfie_pad'],decision='NO_MATCH',cosineScore=0.0,threshold=threshold,
         motionPassed=True,antiSpoofPassed=True,padScore=float(np.mean(s['pad'])),
         documentReadable=False,documentQualityPassed=False,frontReadable=False,backReadable=False,
         documentNumber='',fullName='',frontText='',backText='',documentValidated=False,

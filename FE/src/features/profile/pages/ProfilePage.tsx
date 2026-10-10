@@ -1,5 +1,7 @@
 import ReputationSummary from "../../rating/components/ReputationSummary";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import IdentityProgressFields from "../../identity/components/IdentityProgressFields";
+import type { IdentityProgress } from "../../../services/identityService";
 import IdentityPrivateFields from "../../identity/components/IdentityPrivateFields";
 import type { MyIdentity } from "../../../services/identityService";
 import IdentityProfileCard from "../../identity/components/IdentityProfileCard";
@@ -78,13 +80,14 @@ export default function ProfilePage() {
     return () => { active = false; window.removeEventListener("handsfree:rating-updated", loadReputation); };
   }, [user?.id]);
 
+  const [verificationProgress, setVerificationProgress] = useState<IdentityProgress | null>(null);
   const [identity, setIdentity] = useState<Eligibility | null>(null);
   const [privateIdentity, setPrivateIdentity] = useState<MyIdentity | null>(null);
   const [identityError, setIdentityError] = useState("");
   useEffect(() => {
     const controller = new AbortController();
-    void Promise.all([identityService.eligibility(controller.signal), identityService.mine(controller.signal)]).then(([result, personal]) => {
-      if (!controller.signal.aborted) setPrivateIdentity(personal);
+    void Promise.all([identityService.eligibility(controller.signal), identityService.mine(controller.signal), identityService.progress(controller.signal)]).then(([result, personal, progress]) => {
+      if (!controller.signal.aborted) { setPrivateIdentity(personal); setVerificationProgress(progress); }
       if (!controller.signal.aborted) { setIdentity(result); setIdentityError(""); }
     }).catch((error) => {
       if (!controller.signal.aborted) { setIdentity(null); setIdentityError(getApiErrorMessage(error, "Không tải được trạng thái xác minh. Vui lòng tải lại trang.")); }
@@ -102,7 +105,10 @@ export default function ProfilePage() {
     Boolean(user?.email?.trim()),
     Boolean(user?.avatarUrl?.trim()),
     identity?.identityVerified === true,
-    identity?.selfieVerified === true,
+    identity?.selfieVerified === true || verificationProgress?.selfiePassed === true,
+    identity?.identityVerified === true || verificationProgress?.scanPassed === true,
+    identity?.identityVerified === true || verificationProgress?.frontPassed === true,
+    identity?.identityVerified === true || verificationProgress?.backPassed === true,
     identity?.documentConfirmed === true,
   ];
   const progress = Math.floor(completedItems.filter(Boolean).length * 100 / completedItems.length);
@@ -255,7 +261,7 @@ export default function ProfilePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Email</p><p className="mt-1 break-all font-bold">{user?.email || "Không có"}</p></div>
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Số điện thoại</p><p className="mt-1 font-bold">{user?.phone || "Chưa cập nhật"}</p></div>
-                <IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} />
+                <IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} progress={verificationProgress} /><IdentityProgressFields state={verificationProgress} verified={identity?.identityVerified === true} />
               </div>
             </div>
           )}
@@ -306,7 +312,7 @@ export default function ProfilePage() {
                 </div>
               </fieldset>
 
-              <div className="grid gap-3 sm:grid-cols-2"><IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} /></div>
+              <div className="grid gap-3 sm:grid-cols-2"><IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} progress={verificationProgress} /><IdentityProgressFields state={verificationProgress} verified={identity?.identityVerified === true} /></div>
 
               {message && <UserNotice message={message.text} tone={message.type} />}
 

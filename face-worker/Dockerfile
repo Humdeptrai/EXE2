@@ -22,7 +22,7 @@ COPY download_models.py .
 
 RUN python download_models.py
 
-COPY app.py liveness.py document_checks.py ./
+COPY app.py liveness.py document_checks.py checkpoints.py ./
 
 RUN useradd --uid 10001 --create-home worker
 

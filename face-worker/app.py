@@ -18,7 +18,7 @@ THRESHOLD = float(os.environ.get("FACE_COMPARE_THRESHOLD", "0.363"))
 MODELS = Path(os.environ.get("FACE_MODELS_DIR", "models"))
 LOCK = threading.Lock()
 MAX_IMAGE = 5 * 1024 * 1024
-MAX_BODY = 2 * MAX_IMAGE + 65536
+MAX_BODY = 30 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 16_000_000
 cv2.setNumThreads(1)
 logger = logging.getLogger("uvicorn.error")
@@ -163,3 +163,25 @@ async def finalize(request: Request, sid: str):
             if getattr(upload, "content_type", None) != "image/jpeg": raise HTTPException(422, "JPEG required")
             data.append(await upload.read(MAX_IMAGE + 1))
     return await run_in_threadpool(locked, finish, request.app, sid, *data, decode, feature, THRESHOLD)
+
+@app.post("/checkpoints/{operation}")
+async def checkpoint_operation(request: Request, operation: str):
+    from checkpoints import MAX_CHECKPOINT, selfie, document, finish
+    from starlette.concurrency import run_in_threadpool
+    expected = {"selfie": {"checkpoint", "selfie"}, "front": {"checkpoint", "front"},
+                "back": {"checkpoint", "back"}, "finish": {"checkpoint", "front", "back"}}
+    if operation not in expected: raise HTTPException(404, "Unknown operation")
+    async with request.form(max_files=3, max_fields=0, max_part_size=MAX_CHECKPOINT) as form:
+        if set(form.keys()) != expected[operation]: raise HTTPException(422, "Missing evidence")
+        token = await form['checkpoint'].read(MAX_CHECKPOINT+1)
+        images = {}
+        for name in expected[operation]-{'checkpoint'}:
+            upload = form[name]
+            if getattr(upload, 'content_type', None) != 'image/jpeg': raise HTTPException(422, 'JPEG required')
+            images[name] = await upload.read(MAX_IMAGE+1)
+            if len(images[name]) > MAX_IMAGE: raise HTTPException(413, 'Image too large')
+    if operation == 'selfie':
+        return await run_in_threadpool(locked, selfie, request.app, token, images['selfie'], decode, feature, THRESHOLD)
+    if operation == 'finish':
+        return await run_in_threadpool(locked, finish, token, images['front'], images['back'], THRESHOLD)
+    return await run_in_threadpool(locked, document, request.app, token, operation, images[operation], decode, feature, THRESHOLD)
