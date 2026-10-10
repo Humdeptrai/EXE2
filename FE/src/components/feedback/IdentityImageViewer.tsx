@@ -20,12 +20,14 @@ function Viewer({ src, alt, close }: { src: string; alt: string; close: () => vo
   }, []);
   function zoom(factor: number) { setView(v => { const scale = Math.max(1, Math.min(5, v.scale * factor)); return scale === 1 ? { scale, x: 0, y: 0 } : { ...v, scale }; }); }
   return createPortal(<dialog ref={dialog} className="hf-identity-viewer" aria-label={alt} onCancel={e => { e.preventDefault(); close(); }}>
-    <header><strong>{alt}</strong><div><button aria-label="Thu nhỏ" disabled={view.scale <= 1} onClick={() => zoom(1 / 1.25)}>−</button><span>{Math.round(view.scale * 100)}%</span><button aria-label="Phóng to" disabled={view.scale >= 5} onClick={() => zoom(1.25)}>+</button><button onClick={() => setView({ scale: 1, x: 0, y: 0 })}>Đặt lại</button><button aria-label="Đóng ảnh" onClick={close}>✕</button></div></header>
+    <header><strong>{alt}</strong><div><button type="button" aria-label="Thu nhỏ" disabled={view.scale <= 1} onClick={() => zoom(1 / 1.25)}>−</button><select aria-label="Mức phóng to" value={view.scale} onChange={e => { const scale = Number(e.target.value); setView(v => scale === 1 ? { scale, x: 0, y: 0 } : { ...v, scale }); }}>
+      {[...new Set([1, 1.25, 1.5, 2, 3, 4, 5, view.scale])].sort((a, b) => a - b).map(scale => <option key={scale} value={scale}>{Math.round(scale * 100)}%</option>)}
+    </select><button type="button" aria-label="Phóng to" disabled={view.scale >= 5} onClick={() => zoom(1.25)}>+</button><button type="button" aria-label="Đóng ảnh" onClick={close}>✕</button></div></header>
     <div className="hf-identity-viewer-stage" onWheel={e => zoom(e.deltaY < 0 ? 1.1 : 1 / 1.1)}
       onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pointers.current.size === 2) { const [a, b] = [...pointers.current.values()]; distance.current = Math.hypot(a.x - b.x, a.y - b.y); } }}
       onPointerMove={e => { const previous = pointers.current.get(e.pointerId); if (!previous) return; pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pointers.current.size === 2) { const [a, b] = [...pointers.current.values()]; const next = Math.hypot(a.x - b.x, a.y - b.y); if (distance.current > 0) zoom(next / distance.current); distance.current = next; } else { setView(v => v.scale > 1 ? { ...v, x: v.x + e.clientX - previous.x, y: v.y + e.clientY - previous.y } : v); } }}
       onPointerUp={e => { pointers.current.delete(e.pointerId); distance.current = 0; }} onPointerCancel={e => { pointers.current.delete(e.pointerId); distance.current = 0; }}>
       <img src={src} alt={alt} draggable={false} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }} />
-    </div><p>Cuộn hoặc chụm hai ngón để zoom. Kéo để xem ảnh khi phóng to.</p>
+    </div><p>Cuộn hoặc chụm hai ngón để zoom · Kéo để xem ảnh · Escape để đóng</p>
   </dialog>, document.body);
 }
