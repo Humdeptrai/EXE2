@@ -171,8 +171,8 @@ export default function ProfilePage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (onboarding && (!form.fullName.trim() || !/^0\d{9}$/.test(form.phone.trim()) || !form.location.trim() || !form.bio.trim() || !form.tags.length)) {
-      setMessage({ type: "error", text: "Vui lòng điền họ tên, số điện thoại hợp lệ, nơi ở, giới thiệu và ít nhất một kỹ năng trước khi tiếp tục." });
+    if (onboarding && (!form.fullName.trim() || !/^0\d{9}$/.test(form.phone.trim()) || !form.location.trim())) {
+      setMessage({ type: "error", text: "Vui lòng điền họ tên, số điện thoại hợp lệ và nơi ở trước khi tiếp tục." });
       return;
     }
     setSaving(true);
@@ -294,12 +294,12 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
-              <label className="block text-sm font-extrabold">Giới thiệu bản thân *
-                <textarea required={onboarding} value={form.bio} onChange={(e) => setField("bio", e.target.value)} maxLength={500} rows={5} placeholder="Chia sẻ ngắn về kinh nghiệm, cách làm việc và thời gian bạn thường rảnh..." className="mt-2 min-h-32 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium leading-6 outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
+              <label className="block text-sm font-extrabold">Giới thiệu bản thân (không bắt buộc)
+                <textarea value={form.bio} onChange={(e) => setField("bio", e.target.value)} maxLength={500} rows={5} placeholder="Chia sẻ ngắn về kinh nghiệm, cách làm việc và thời gian bạn thường rảnh..." className="mt-2 min-h-32 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium leading-6 outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
                 <span className="mt-1 block text-right text-xs font-bold text-slate-400">{form.bio.length}/500</span>
               </label>
               <fieldset>
-                <legend className="text-sm font-extrabold">Kỹ năng & sở thích * <span className="font-medium text-slate-400">(tối đa 8)</span></legend>
+                <legend className="text-sm font-extrabold">Kỹ năng & sở thích (không bắt buộc) <span className="font-medium text-slate-400">(tối đa 8)</span></legend>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {AVAILABLE_TAGS.map((tag) => {
                     const selected = form.tags.includes(tag);

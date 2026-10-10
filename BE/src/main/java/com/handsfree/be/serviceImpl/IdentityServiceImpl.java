@@ -38,8 +38,6 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         if (!org.springframework.util.StringUtils.hasText(account.getFullName())) missing.add("Họ tên");
         if (account.getPhone() == null || !account.getPhone().trim().matches("0[0-9]{9}")) missing.add("Số điện thoại hợp lệ");
         if (!org.springframework.util.StringUtils.hasText(account.getLocation())) missing.add("Nơi ở / khu vực");
-        if (!org.springframework.util.StringUtils.hasText(account.getBio())) missing.add("Giới thiệu");
-        if (account.getProfileTags() == null || account.getProfileTags().isEmpty()) missing.add("Ít nhất một kỹ năng");
         boolean profileComplete = missing.isEmpty();
         var record = identities.findStateByUserId(user);
         String state = record.map(IdentityRepository.State::getStatus).orElse("NOT_SUBMITTED");

@@ -90,6 +90,7 @@ def _ocr(image, psm, timeout):
                             input=encoded.tobytes(), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                             timeout=timeout, check=True, env={**os.environ, "OMP_THREAD_LIMIT": "1"})
     lines, confidences = {}, []
+    bounds = {}
     for row in csv.DictReader(io.StringIO(result.stdout.decode('utf-8', errors='replace')), delimiter='\t'):
         word = (row.get('text') or '').strip()
         try:
@@ -100,9 +101,30 @@ def _ocr(image, psm, timeout):
             continue
         key = (row.get('block_num'), row.get('par_num'), row.get('line_num'))
         lines.setdefault(key, []).append(word)
+        left, top, width, height = (int(row.get(field) or 0) for field in ('left', 'top', 'width', 'height'))
+        if key not in bounds:
+            bounds[key] = [left, top, left + width, top + height]
+        else:
+            box = bounds[key]
+            bounds[key] = [min(box[0], left), min(box[1], top), max(box[2], left + width), max(box[3], top + height)]
         if len(word) >= 2:
             confidences.append(confidence)
-    return '\n'.join(' '.join(words) for words in lines.values())[:8000], float(np.mean(confidences)) if confidences else 0.0
+    # PSM 11 can emit each part of a name as a separate block. Reconstruct
+    # visual rows from bounding boxes, not Tesseract's arbitrary block order.
+    rows = []
+    for key in sorted(lines, key=lambda key: (bounds[key][1], bounds[key][0])):
+        box = bounds[key]
+        center = (box[1] + box[3]) / 2
+        height = max(1, box[3] - box[1])
+        target = next((row for row in reversed(rows)
+                       if abs(row['center'] - center) <= .45 * min(row['height'], height)), None)
+        if target is None:
+            target = dict(center=center, height=height, pieces=[])
+            rows.append(target)
+        target['pieces'].append((box[0], ' '.join(lines[key])))
+    text = '\n'.join(' '.join(value for _, value in sorted(row['pieces']))
+                     for row in sorted(rows, key=lambda row: row['center']))
+    return text[:8000], float(np.mean(confidences)) if confidences else 0.0
 
 
 def read_card(image, side=None):
@@ -157,50 +179,72 @@ def read_card(image, side=None):
     return best
 
 
+def _unaccent(text):
+    # Keep character offsets after NFC normalization; plain() collapses spaces.
+    return ''.join(c for c in unicodedata.normalize('NFD', text.upper().replace('Đ', 'D'))
+                   if unicodedata.category(c) != 'Mn')
+
+
 _NAME_LABEL = re.compile(
-    r"(?:h[oọ]\s+(?:v[aà]\s+)?t[eê]n|h[oọ]\s*,?\s*ch[uữ]\s+[dđ][eệ]m\s+v[aà]\s+t[eê]n(?:\s+khai\s+sinh)?|full\s*name)",
-    re.IGNORECASE)
+    r"(?:HO\s+(?:VA\s+)?TEN|HO\s*,?\s*CHU\s+DEM\s+VA\s+TEN(?:\s+KHAI\s+SINH)?|FULL\s*NAME)")
 _NAME_STOPS = re.compile(
     r"\b(?:NGAY SINH|DATE OF|GIOI TINH|QUOC TICH|SEX|NATIONALITY|QUE QUAN|NOI CU TRU|"
-    r"NOI SINH|PLACE OF|CO GIA TRI|CAN CUOC|CONG DAN|IDENTITY)\b")
+    r"NOI SINH|PLACE OF|CO GIA TRI|CAN CUOC|CONG DAN|IDENTITY|PERSONAL IDENTIFICATION|"
+    r"SOCIALIST|CONG HOA|DOC LAP|FREEDOM|SO\s*:|NO\s*:)\b")
 
 
 def _name_value(value):
     value = unicodedata.normalize('NFC', value).strip(" :/|;.,")
-    # Remove bilingual labels only at the beginning; never guess a name from
-    # an arbitrary uppercase line elsewhere on the card or from profile data.
     while True:
-        label = _NAME_LABEL.match(value)
+        label = _NAME_LABEL.match(_unaccent(value))
         if not label:
             break
         value = value[label.end():].strip(" :/|;.,")
+    stop = _NAME_STOPS.search(_unaccent(value))
+    if stop:
+        value = value[:stop.start()].strip(" :/|;.,")
     value = ' '.join(value.split())
     if (2 <= len(value) <= 100 and len(value.split()) >= 2
             and all(c.isalpha() or c in " .'-" for c in value)
-            and not _NAME_STOPS.search(plain(value))
-            and not _NAME_LABEL.search(value)):
+            and not _NAME_LABEL.search(_unaccent(value))):
         return value
     return ''
 
 
 def extract_name(text):
-    # Sparse OCR inserts empty lines between the Vietnamese label, English
-    # label and name. Count meaningful lines rather than only two raw lines.
     lines = [unicodedata.normalize('NFC', line).strip() for line in text.splitlines() if line.strip()]
     for index, line in enumerate(lines):
-        label = _NAME_LABEL.search(line)
+        label = _NAME_LABEL.search(_unaccent(line))
         if not label:
             continue
-        value = _name_value(line[label.end():])
+        values = []
+        tail = line[label.end():]
+        value = _name_value(tail)
         if value:
-            return value
+            values.append(value)
+        elif tail.strip(" :/|;.,").isalpha() and not _NAME_LABEL.search(_unaccent(tail)):
+            values.append(tail.strip(" :/|;.,"))
+        if _NAME_STOPS.search(_unaccent(tail)):
+            return ' '.join(values)
         for following in lines[index+1:index+5]:
-            # Skip the second bilingual label before checking field boundaries.
+            # Only collect letters inside the labelled name field, ending at
+            # the next field. Do not invent a name from account/profile data.
+            normalized = _unaccent(following)
             candidate = _name_value(following)
             if candidate:
-                return candidate
-            if _NAME_STOPS.search(plain(following)):
+                values.append(candidate)
+            elif not _NAME_LABEL.search(normalized) and following.strip(" :/|;.,"):
+                # Allow a wrapped single-word name segment, never digits.
+                segment = following.strip(" :/|;.,")
+                if segment.isalpha() and not _NAME_STOPS.search(normalized):
+                    values.append(segment)
+                elif values:
+                    break
+            if _NAME_STOPS.search(normalized):
                 break
+        name = _name_value(' '.join(values))
+        if name:
+            return name
     return ''
 
 

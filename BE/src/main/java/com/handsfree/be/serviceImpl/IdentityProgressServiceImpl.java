@@ -65,7 +65,17 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
                     if (w < 320 || h < 240 || w > 5000 || h > 5000 || (long) w * h > 16000000)
                         throw new IllegalArgumentException();
                     var out = new ByteArrayOutputStream();
-                    ImageIO.write(reader.read(0), "jpg", out);
+                    // Decode fully and strip metadata, but preserve small OCR text at high quality.
+                    var decoded = reader.read(0);
+                    var writers = ImageIO.getImageWritersByFormatName("jpeg");
+                    var writer = writers.next();
+                    try (var output = ImageIO.createImageOutputStream(out)) {
+                        writer.setOutput(output);
+                        var parameters = writer.getDefaultWriteParam();
+                        parameters.setCompressionMode(javax.imageio.ImageWriteParam.MODE_EXPLICIT);
+                        parameters.setCompressionQuality(.95f);
+                        writer.write(null, new javax.imageio.IIOImage(decoded, null, null), parameters);
+                    } finally { writer.dispose(); }
                     if (out.size() > 5 * 1024 * 1024) throw new IllegalArgumentException();
                     return out.toByteArray();
                 } finally { reader.dispose(); }
@@ -163,7 +173,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             documentRetry(r.path("reasonCode").asString("")));
         if(score<.30) return new FaceComparisonService.Completion("REJECTED","NO_MATCH",score,threshold,motion,anti,readable,false,
             "Khuôn mặt chưa đủ tương đồng với ảnh trên CCCD. Chụp lại mặt trước bằng đúng CCCD của bạn; kết quả quét và selfie được giữ lại.");
-        String name=r.path("fullName").asString("").trim();
+        String name=java.text.Normalizer.normalize(r.path("fullName").asString(""), java.text.Normalizer.Form.NFC).trim();
         boolean nameReadable=name.length()>=2 && name.length()<=100
             && name.codePoints().allMatch(c->Character.isLetter(c) || c==' ' || c=='.' || c=='\'' || c=='-');
         boolean approved=match && nameReadable;

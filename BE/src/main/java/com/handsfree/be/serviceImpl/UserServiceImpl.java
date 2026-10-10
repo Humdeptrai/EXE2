@@ -133,9 +133,7 @@ public class UserServiceImpl implements UserService {
 
     private boolean isProfileCompleted(User user) {
         return StringUtils.hasText(user.getFullName())
-                && StringUtils.hasText(user.getBio())
-                && StringUtils.hasText(user.getLocation())
-                && user.getProfileTags() != null
-                && !user.getProfileTags().isEmpty();
+                && user.getPhone() != null && user.getPhone().trim().matches("0[0-9]{9}")
+                && StringUtils.hasText(user.getLocation());
     }
 }

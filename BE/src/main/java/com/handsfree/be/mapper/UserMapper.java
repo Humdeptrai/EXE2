@@ -22,7 +22,9 @@ public class UserMapper {
                 user.getBio(),
                 user.getLocation(),
                 tags,
-                user.isProfileCompleted(),
+                org.springframework.util.StringUtils.hasText(user.getFullName())
+                        && user.getPhone() != null && user.getPhone().trim().matches("0[0-9]{9}")
+                        && org.springframework.util.StringUtils.hasText(user.getLocation()),
                 user.getAuthProvider(),
                 user.getRole(),
                 user.getCurrentMode(),

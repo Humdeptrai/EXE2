@@ -113,7 +113,27 @@ def finish(token, front, back, threshold):
             raise HTTPException(422, 'Document checkpoint does not match saved evidence')
     if not state.get('selfie') or state['selfieScore'] < threshold or state['selfiePad'] < .8:
         raise HTTPException(422, 'Selfie required')
-    f, b = docs['front'], docs['back']
+    f, b = dict(docs['front']), docs['back']
+    # Old signed checkpoints retain the old parser's empty name even after a
+    # redeploy. Re-read only this field from the exact saved front evidence;
+    # never use a profile name or change validated face comparison scores.
+    if not f.get('fullName'):
+        from document_checks import extract_name, card_image, read_card, document_fields
+        f['fullName'] = extract_name(f.get('text', ''))
+        if not f['fullName']:
+            image = cv2.imdecode(np.frombuffer(front, np.uint8), cv2.IMREAD_COLOR)
+            if image is not None:
+                card, quality = card_image(image)
+                if card is not None and quality['passed']:
+                    try:
+                        text, confidence = read_card(card, side='front')
+                    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as error:
+                        logger.warning('Saved front OCR unavailable: exception=%s', type(error).__name__)
+                        raise HTTPException(503, 'OCR unavailable')
+                    fields = document_fields(text, '', confidence, 0)
+                    if fields['frontReadable'] and fields['documentNumber'] == f['documentNumber']:
+                        f.update(fullName=fields['fullName'], text=text, confidence=confidence)
+        logger.info('Saved front name refresh: nameExtracted=%s', bool(f['fullName']))
     score = min(f['scanScore'], f['selfieScore'])
     return dict(policyVersion=4, motionPassed=True, antiSpoofPassed=True, padScore=float(np.mean(state['pad'])),
                 selfiePassed=True, selfieScanScore=state['selfieScore'], selfiePadScore=state['selfiePad'],

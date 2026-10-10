@@ -5,7 +5,7 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
-    PROFILE_REQUIRED(40361, HttpStatus.FORBIDDEN, "Vui lòng hoàn thiện họ tên, số điện thoại hợp lệ, nơi ở, giới thiệu và kỹ năng trước khi đăng hoặc nhận việc"),
+    PROFILE_REQUIRED(40361, HttpStatus.FORBIDDEN, "Vui lòng hoàn thiện họ tên, số điện thoại hợp lệ và nơi ở trước khi đăng hoặc nhận việc"),
     IDENTITY_REVIEW_CONFLICT(40961, HttpStatus.CONFLICT, "Hồ sơ đã thay đổi hoặc không còn chờ duyệt. Vui lòng tải lại hồ sơ"),
     JOB_HAS_MATCH_HISTORY(40914, HttpStatus.CONFLICT, "Bài đã có lịch sử matching nên không thể xóa. Giữ bài đã hủy để bảo toàn lịch sử thanh toán"),
     IDENTITY_REQUIRED(40360, HttpStatus.FORBIDDEN, "Vui lòng xác thực danh tính trước khi đăng bài hoặc nhận việc"),
