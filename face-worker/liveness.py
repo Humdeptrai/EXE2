@@ -14,7 +14,8 @@ from fastapi import HTTPException
 from vendor.MiniFASNet import MiniFASNetV2, MiniFASNetV1SE
 
 TTL = 300
-STEP_SECONDS = 25
+STEP_SECONDS = 60
+FRAME_IDLE_SECONDS = 5.0
 HOLD_SECONDS = .8
 PAD_THRESHOLD = .80
 SESSIONS = {}
@@ -109,6 +110,24 @@ def pad(app, image, box):
 
 
 def frame(app, sid, raw, decode, feature):
+    started = time.monotonic()
+    try:
+        return process_frame(app, sid, raw, decode, feature)
+    finally:
+        session = SESSIONS.get(sid)
+        if session is not None:
+            completed = time.monotonic()
+            # The next frame is sent only after FE receives this response.
+            # Inference time is not time the user stopped providing frames.
+            session['last_processed'] = completed
+            if completed - started > 1.5 and completed - session.get('latency_logged_at', 0) >= 5:
+                logger.warning('Face frame processing slow: elapsedMs=%d step=%s acceptedFrames=%d',
+                               round((completed-started)*1000), session['steps'][session['index']] if session['index'] < len(session['steps']) else 'DONE',
+                               session.get('hold_count', 0))
+                session['latency_logged_at'] = completed
+
+
+def process_frame(app, sid, raw, decode, feature):
     import hashlib
     cleanup()
     s=SESSIONS.get(sid)
@@ -118,7 +137,7 @@ def frame(app, sid, raw, decode, feature):
     if now-s['step_started']>STEP_SECONDS:
         del SESSIONS[sid]; raise HTTPException(410,'Quá thời gian thực hiện động tác. Hãy bắt đầu lại.')
     if now-s['last']<.25: raise HTTPException(429,'Gửi khung hình quá nhanh.')
-    if now-s['last']>1.5:
+    if now-s.get('last_processed', now)>FRAME_IDLE_SECONDS:
         s['hold']=None; s['hold_count']=0
     s['last']=now
     digest=hashlib.sha256(raw).digest()
