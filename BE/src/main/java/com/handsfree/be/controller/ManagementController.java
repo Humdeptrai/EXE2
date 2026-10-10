@@ -69,29 +69,7 @@ public class ManagementController {
 
     @GetMapping("/staff/jobs")
     public ApiResponse<?> jobs(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        access.operator(id(a), false);
-        return ApiResponse.success(
-                200,
-                "Bài đăng",
-                PageResponse.from(
-                        jobs.findAll(
-                                        PageRequest.of(
-                                                Math.max(0, page),
-                                                20,
-                                                Sort.by(Sort.Direction.DESC, "createdAt")))
-                                .map(
-                                        j ->
-                                                Map.of(
-                                                        "id",
-                                                        j.getId(),
-                                                        "title",
-                                                        j.getTitle(),
-                                                        "status",
-                                                        j.getStatus(),
-                                                        "hidden",
-                                                        j.isModerationHidden(),
-                                                        "ownerId",
-                                                        j.getOwner().getId()))));
+        return ApiResponse.success(200, "Bài đăng", management.jobs(id(a), page));
     }
 
     @GetMapping("/staff/jobs/{jobId}")
@@ -181,27 +159,7 @@ public class ManagementController {
     @GetMapping("/admin/matches")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public ApiResponse<?> matches(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        access.operator(id(a), true);
-        return ApiResponse.success(
-                200,
-                "Matching",
-                PageResponse.from(
-                        matches.findAll(page(page))
-                                .map(
-                                        m ->
-                                                Map.of(
-                                                        "id",
-                                                        m.getId(),
-                                                        "title",
-                                                        m.getJobPost().getTitle(),
-                                                        "consumerId",
-                                                        m.getConsumer().getId(),
-                                                        "providerId",
-                                                        m.getProvider().getId(),
-                                                        "paymentDeadlineAt",
-                                                        m.getPaymentDeadlineAt() == null ? "" : m.getPaymentDeadlineAt().toString(),
-                                                        "status",
-                                                        m.getStatus()))));
+        return ApiResponse.success(200, "Matching", management.matches(id(a), page));
     }
 
     @GetMapping("/admin/topups")

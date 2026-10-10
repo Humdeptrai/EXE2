@@ -29,6 +29,24 @@ public class ManagementServiceImpl implements ManagementService {
     private final WalletService wallet;
     private final WalletEntryRepository entries;
 
+    @Override @Transactional(readOnly = true)
+    public com.handsfree.be.dto.response.PageResponse<JobRow> jobs(UUID actor, int page) {
+        access.operator(actor, false);
+        return com.handsfree.be.dto.response.PageResponse.from(jobs.findAll(
+            org.springframework.data.domain.PageRequest.of(Math.max(0, page), 20,
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt")))
+            .map(j -> new JobRow(j.getId(), j.getTitle(), j.getStatus().name(), j.isModerationHidden(),
+                j.getOwner().getId(), j.getOwner().getFullName())));
+    }
+    @Override @Transactional(readOnly = true)
+    public com.handsfree.be.dto.response.PageResponse<MatchRow> matches(UUID actor, int page) {
+        access.operator(actor, true);
+        return com.handsfree.be.dto.response.PageResponse.from(matches.findAll(
+            org.springframework.data.domain.PageRequest.of(Math.max(0, page), 20))
+            .map(m -> new MatchRow(m.getId(), m.getJobPost().getTitle(), m.getConsumer().getId(),
+                m.getConsumer().getFullName(), m.getProvider().getId(), m.getProvider().getFullName(),
+                m.getPaymentDeadlineAt() == null ? "" : m.getPaymentDeadlineAt().toString(), m.getStatus().name())));
+    }
     public void log(UUID actor, String action, String detail) {
         audit.save(
                 AdminAudit.builder()

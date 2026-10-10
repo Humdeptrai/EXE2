@@ -7,6 +7,7 @@ import java.time.Instant;
 
 public interface IdentityService {
     record Status(UUID userId, String status, String reason, Instant submittedAt, Instant verifiedAt, boolean enabled) {}
+    record QueueRow(UUID userId, String accountName, String status, String reason, Instant submittedAt, Instant verifiedAt) {}
     record Dossier(Status verification, String fullName, String documentData, Double similarity, Boolean live,
                    String documentNumber, boolean pending, long version, boolean selfiePresent, boolean activeVerified) {}
     record MyIdentity(Status verification, String documentNumber, boolean documentConfirmed,
@@ -16,7 +17,7 @@ public interface IdentityService {
                           String documentNumber, String evidence, double similarity, boolean approved, String reason) {}
     record Appeal(UUID id, UUID userId, String status, String note, String reason, Instant createdAt,
                   Instant resolvedAt, UUID claimedBy, Instant claimedAt, String fullName, String documentNumber,
-                  Double similarity, String documentData) {}
+                  Double similarity, String documentData, String accountName, String claimedName) {}
     record AppealRequest(String note) {}
     Appeal requestReview(UUID user, AppealRequest request);
     Appeal latestAppeal(UUID user);
@@ -43,6 +44,6 @@ public interface IdentityService {
     Dossier dossier(UUID actor, UUID user);
     byte[] adminImage(UUID actor, UUID user, String kind);
     byte[] verifiedFace(UUID user);
-    com.handsfree.be.dto.response.PageResponse<Status> list(UUID actor, int page);
+    com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor, int page);
     byte[] counterpartFace(UUID actor, UUID match);
 }

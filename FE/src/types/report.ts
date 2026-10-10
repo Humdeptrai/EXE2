@@ -4,7 +4,7 @@ export interface ReportEvidence {
   id: string; originalName: string; contentType: string; sizeBytes: number; path: string;
 }
 export interface Report {
-  id: string; reporterId: string; targetType: ReportTarget; targetId: string;
+  id: string; reporterId: string; reporterName: string; targetName: string | null; targetType: ReportTarget; targetId: string;
   reason: string; status: ReportStatus; resolution: string | null;
   createdAt: string; resolvedAt: string | null; resolvedBy: string | null;
   assignedTo: string | null; assignedName: string | null; assignedAt: string | null;

@@ -100,3 +100,16 @@
 .hf-keyboard-open .hf-app .hf-main{padding-bottom:16px}
 .hf-keyboard-open .hf-app .hf-form-actions,.hf-keyboard-open .hf-app .hf-detail-actions,.hf-keyboard-open .hf-app .hf-candidate-actions{position:static}
 .hf-keyboard-open .hf-app .hf-user-toast{bottom:12px}
+
+/* The account dropdown stays within the phone viewport and above page content. */
+.hf-account-menu{position:relative}
+.hf-account-menu-trigger{display:block;border:0;border-radius:50%;padding:0;background:transparent;cursor:pointer}
+.hf-account-menu-trigger:focus-visible{outline:2px solid #007f95;outline-offset:4px}
+.hf-account-menu-panel{position:absolute;right:0;top:calc(100% + 12px);width:280px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 160px);overflow:auto;background:#fff;border:1px solid #d8e9ec;border-radius:20px;padding:8px;box-shadow:0 16px 48px #12394426;color:#153944}
+.hf-account-menu-heading{display:grid;gap:4px;padding:12px;border-bottom:1px solid #e5eef0;margin-bottom:6px}
+.hf-account-menu-heading strong,.hf-account-menu-heading span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hf-account-menu-heading strong{font-size:15px}.hf-account-menu-heading span{font-size:12px;color:#6b8a91}
+.hf-account-menu-panel nav a,.hf-account-menu-logout{display:flex;align-items:center;gap:12px;min-height:46px;width:100%;border:0;border-radius:12px;padding:10px 12px;background:transparent;color:#365d68;text-decoration:none;font-size:14px;font-weight:700;text-align:left;cursor:pointer}
+.hf-account-menu-panel nav a:hover,.hf-account-menu-panel nav a:focus-visible{background:#e8f6f8;color:#007f95;outline:0}
+.hf-account-menu-logout{margin-top:6px;border-top:1px solid #e5eef0;color:#be123c}
+.hf-account-menu-logout:hover,.hf-account-menu-logout:focus-visible{background:#fff1f2;outline:2px solid #fda4af;outline-offset:-2px}

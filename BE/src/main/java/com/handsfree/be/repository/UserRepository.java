@@ -12,6 +12,9 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("select u from User u where u.id = :id")
     Optional<User> lockById(@org.springframework.data.repository.query.Param("id") UUID id);
+    interface Name { UUID getId(); String getFullName(); }
+    Optional<Name> findNameById(UUID id);
+    java.util.List<Name> findNamesByIdIn(java.util.Collection<UUID> ids);
     boolean existsByEmailIgnoreCase(String email);
     boolean existsByPhone(String phone);
 

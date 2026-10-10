@@ -9,6 +9,7 @@ import { HandsFreeLogo } from "../brand/HandsFreeLogo";
 import { AppIcon } from "../ui/AppIcon";
 import { useAuth } from "../../context/AuthContext";
 import ModeSwitcher from "./ModeSwitcher";
+import AccountMenu from "./AccountMenu";
 import { useNotifications } from "../../context/NotificationContext";
 
 const consumerItems = [
@@ -114,9 +115,7 @@ function AppShellLayout() {
               <NavLink to="/wallet" className="rounded-full bg-[#e8f6f8] px-3 py-2 text-xs font-bold text-[#007f95]">Ví</NavLink>
               {(user?.role === "ADMIN" || user?.role === "STAFF") && <NavLink to="/management" className="rounded-full bg-[#e8f6f8] px-3 py-2 text-xs font-bold text-[#007f95]">Quản lý</NavLink>}
               <div className="hidden w-72 md:block lg:hidden"><ModeSwitcher /></div>
-              <NavLink to="/profile" aria-label="Mở hồ sơ" className="rounded-full focus:outline-none focus:ring-2 focus:ring-[#007f95] focus:ring-offset-2">
-                <Avatar />
-              </NavLink>
+              <AccountMenu avatar={<Avatar />} />
             </div>
           </div>
           <div className="mt-3 md:hidden"><ModeSwitcher /></div>

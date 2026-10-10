@@ -1,7 +1,7 @@
 import api from "../config/axios";
 import type { ApiResponse } from "../types/api";
 import type { PageResponse } from "../types/job";
-export type IdentityAppeal = { id: string; userId: string; status: string; note: string; reason: string | null; createdAt: string; resolvedAt: string | null; claimedBy: string | null; claimedAt: string | null; fullName: string | null; documentNumber: string | null; similarity: number | null; documentData: string | null };
+export type IdentityAppeal = { id: string; userId: string; accountName: string; claimedName: string | null; status: string; note: string; reason: string | null; createdAt: string; resolvedAt: string | null; claimedBy: string | null; claimedAt: string | null; fullName: string | null; documentNumber: string | null; similarity: number | null; documentData: string | null };
 export const appealLabels: Record<string, string> = { REQUESTED: "Đã gửi yêu cầu", PROCESSING: "Đang xử lý", RESOLVED: "Đã duyệt", REJECTED: "Không được duyệt" };
 export const identityAppealService = {
   async latest(signal?: AbortSignal) { return (await api.get<ApiResponse<IdentityAppeal | null>>("/identity/requests/latest", { signal })).data.result; },

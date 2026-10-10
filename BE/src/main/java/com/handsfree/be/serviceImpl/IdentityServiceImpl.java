@@ -288,13 +288,18 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         if (!"VERIFIED".equals(i.getStatus()) || i.getSelfieImage() == null || i.getSelfieVerifiedAt() == null) throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
         return crypto.decrypt(i.getSelfieImage());
     }
-    @Override public com.handsfree.be.dto.response.PageResponse<Status> list(UUID actor, int page) {
+    @Override @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor, int page) {
         access.operator(actor, false);
-        return com.handsfree.be.dto.response.PageResponse.from(identities.findReviewQueue(org.springframework.data.domain.PageRequest.of(Math.max(page, 0), 20)).map(i -> {
-                var pending = submissions.findStateByUserId(i.getUserId());
-                return pending.map(d -> new Status(i.getUserId(), d.getStatus(), d.getReason(), d.getSubmittedAt(), null, properties.isEnabled()))
-                        .orElseGet(() -> summary(i));
-            }));
+        var queue = identities.findReviewQueue(org.springframework.data.domain.PageRequest.of(Math.max(page, 0), 20));
+        var names = users.findNamesByIdIn(queue.getContent().stream().map(IdentityRepository.State::getUserId).toList())
+            .stream().collect(java.util.stream.Collectors.toMap(UserRepository.Name::getId, n -> n.getFullName() == null ? "" : n.getFullName()));
+        return com.handsfree.be.dto.response.PageResponse.from(queue.map(i -> {
+            var state = submissions.findStateByUserId(i.getUserId())
+                .map(d -> new Status(i.getUserId(), d.getStatus(), d.getReason(), d.getSubmittedAt(), null, properties.isEnabled()))
+                .orElseGet(() -> summary(i));
+            return new QueueRow(state.userId(), names.getOrDefault(i.getUserId(), ""), state.status(), state.reason(), state.submittedAt(), state.verifiedAt());
+        }));
     }
     @Override @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public byte[] counterpartFace(UUID actor, UUID match) {
@@ -308,10 +313,13 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     @Override public void requireNoOpenAppeal(UUID user) {
         if (appeals.existsByUserIdAndStatusIn(user, OPEN_APPEALS)) throw new AppException(ErrorCode.IDENTITY_APPEAL_BUSY);
     }
+    private String accountName(UUID id) {
+        return id == null ? null : users.findNameById(id).map(UserRepository.Name::getFullName).orElse("");
+    }
     private Appeal appealSummary(com.handsfree.be.entity.IdentityAppeal a) {
         return new Appeal(a.getId(), a.getUserId(), a.getStatus(), a.getNote(), a.getReason(), a.getCreatedAt(),
             a.getResolvedAt(), a.getClaimedBy(), a.getClaimedAt(), crypto.text(a.getFullName()),
-            crypto.text(a.getDocumentNumber()), a.getSimilarity(), crypto.text(a.getDocumentData()));
+            crypto.text(a.getDocumentNumber()), a.getSimilarity(), crypto.text(a.getDocumentData()), accountName(a.getUserId()), accountName(a.getClaimedBy()));
     }
     @Override @org.springframework.transaction.annotation.Transactional
     public Appeal requestReview(UUID user, AppealRequest request) {
@@ -359,7 +367,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         if(state==null || !List.of("","REQUESTED","PROCESSING","RESOLVED","REJECTED").contains(state)) throw new AppException(ErrorCode.VALIDATION_FAILED);
         if(search==null || search.length()>100) throw new AppException(ErrorCode.VALIDATION_FAILED);
         return com.handsfree.be.dto.response.PageResponse.from(appeals.search(state,search.trim().toLowerCase(Locale.ROOT),
-            org.springframework.data.domain.PageRequest.of(Math.max(0,page),20)).map(a -> new Appeal(a.getId(),a.getUserId(),a.getStatus(),a.getNote(),a.getReason(),a.getCreatedAt(),a.getResolvedAt(),a.getClaimedBy(),a.getClaimedAt(),null,null,a.getSimilarity(),null)));
+            org.springframework.data.domain.PageRequest.of(Math.max(0,page),20)).map(a -> new Appeal(a.getId(),a.getUserId(),a.getStatus(),a.getNote(),a.getReason(),a.getCreatedAt(),a.getResolvedAt(),a.getClaimedBy(),a.getClaimedAt(),null,null,a.getSimilarity(),null,accountName(a.getUserId()),accountName(a.getClaimedBy()))));
     }
     private com.handsfree.be.entity.IdentityAppeal lockedAppeal(UUID actor,UUID id) {
         access.operator(actor,true);

@@ -14,6 +14,6 @@ public interface IdentityAppealRepository extends JpaRepository<IdentityAppeal, 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from IdentityAppeal a where a.id=:id")
     Optional<IdentityAppeal> lockById(@Param("id") UUID id);
-    @Query("select a from IdentityAppeal a where (:state='' or a.status=:state) and (:search='' or lower(cast(a.userId as string)) like concat('%',:search,'%') or lower(cast(a.id as string)) like concat('%',:search,'%')) order by a.createdAt desc")
+    @Query("select a from IdentityAppeal a left join User u on u.id=a.userId where (:state='' or a.status=:state) and (:search='' or lower(cast(a.userId as string)) like concat('%',:search,'%') or lower(cast(a.id as string)) like concat('%',:search,'%') or lower(u.fullName) like concat('%',:search,'%')) order by a.createdAt desc")
     Page<IdentityAppeal> search(@Param("state") String state, @Param("search") String search, Pageable pageable);
 }

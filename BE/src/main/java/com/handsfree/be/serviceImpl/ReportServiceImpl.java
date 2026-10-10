@@ -168,6 +168,15 @@ public class ReportServiceImpl implements ReportService {
         ReportEvidence file = evidence.findByIdAndReport_Id(evidenceId, reportId).orElseThrow(() -> new AppException(ErrorCode.REPORT_NOT_FOUND));
         return new PrivateReportFile(storage.open(file), file.getContentType(), file.getOriginalName(), file.getSizeBytes());
     }
+    private String targetName(ModerationReport report) {
+        return switch (report.getTargetType()) {
+            case "USER", "SUPPORT" -> users.findNameById(report.getTargetId()).map(UserRepository.Name::getFullName).orElse("");
+            case "JOB" -> jobs.findById(report.getTargetId()).map(j -> j.getOwner().getFullName()).orElse("");
+            case "MATCH" -> matches.findById(report.getTargetId()).map(m ->
+                m.getConsumer().getId().equals(report.getReporterId()) ? m.getProvider().getFullName() : m.getConsumer().getFullName()).orElse("");
+            default -> "";
+        };
+    }
     private ReportResponse response(ModerationReport r, User user, boolean detailed) {
         boolean operator = user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.STAFF;
         boolean closed = !Set.of("OPEN", "IN_REVIEW").contains(r.getStatus());
@@ -179,6 +188,8 @@ public class ReportServiceImpl implements ReportService {
                 operator && !closed && r.getAssignedTo() != null && (owns || user.getRole() == UserRole.ADMIN),
                 operator && !closed && (owns || user.getRole() == UserRole.ADMIN),
                 detailed ? List.copyOf(r.getLinks()) : List.of(),
-                detailed ? evidence.findByReport_IdOrderByCreatedAtAsc(r.getId()).stream().map(e -> new ReportResponse.Evidence(e.getId(), e.getOriginalName(), e.getContentType(), e.getSizeBytes(), "/reports/" + r.getId() + "/evidence/" + e.getId())).toList() : List.of());
+                detailed ? evidence.findByReport_IdOrderByCreatedAtAsc(r.getId()).stream().map(e -> new ReportResponse.Evidence(e.getId(), e.getOriginalName(), e.getContentType(), e.getSizeBytes(), "/reports/" + r.getId() + "/evidence/" + e.getId())).toList() : List.of(),
+                users.findNameById(r.getReporterId()).map(UserRepository.Name::getFullName).orElse(""),
+                operator ? targetName(r) : null);
     }
 }
