@@ -114,12 +114,12 @@ def frame(app, sid, raw, decode, feature):
     image=decode(raw)
     try:
         pitch,yaw,roll=pose(app,image)
-        vector=feature(app,image)
-        detector=app.state.detector
-        detector.setInputSize((image.shape[1],image.shape[0])); _, boxes=detector.detect(image)
-        if boxes is None or len(boxes)!=1: raise ValueError('Giữ một khuôn mặt trong khung hình.')
+        boxes=app.state.detect_faces(image)
+        vector=feature(app,image,boxes)
         x,y,w,h=boxes[0][:4]
-        if w<image.shape[1]*.18 or w>image.shape[1]*.8 or h>image.shape[0]*.95 or abs((x+w/2)/image.shape[1]-.5)>.25 or abs((y+h/2)/image.shape[0]-.5)>.3:
+        if w>image.shape[1]*.8 or h>image.shape[0]*.95:
+            raise ValueError('Camera đang quá gần. Đưa điện thoại ra xa một chút để thấy trọn khuôn mặt.')
+        if w<image.shape[1]*.18 or abs((x+w/2)/image.shape[1]-.5)>.25 or abs((y+h/2)/image.shape[0]-.5)>.3:
             raise ValueError('Đưa mặt gần camera hơn và giữ trọn khuôn mặt trong khung.')
         crop=image[max(0,int(y)):min(image.shape[0],int(y+h)),max(0,int(x)):min(image.shape[1],int(x+w))]
         gray=cv2.cvtColor(crop,cv2.COLOR_BGR2GRAY)
@@ -167,7 +167,7 @@ def frame(app, sid, raw, decode, feature):
     except HTTPException as e:
         if sid not in SESSIONS: raise
         s['hold']=None
-        if e.status_code==422: return progress(sid,s,'Chưa nhận rõ khuôn mặt. Giữ mặt trong khung và đủ sáng.')
+        if e.status_code==422: return progress(sid,s,str(e.detail))
         raise
 
 
@@ -185,11 +185,8 @@ def capture_selfie(app, sid, raw, decode, feature, threshold):
             pitch -= session['baseline'][0]; yaw -= session['baseline'][1]; roll -= session['baseline'][2]
         if abs(pitch) > 15 or abs(yaw) > 12 or abs(roll) > 15:
             raise ValueError('Nhìn thẳng và giữ đầu ổn định khi chụp selfie.')
-        vector = feature(app, image)
-        detector = app.state.detector
-        detector.setInputSize((image.shape[1], image.shape[0])); _, boxes = detector.detect(image)
-        if boxes is None or len(boxes) != 1:
-            raise ValueError('Selfie phải có đúng một khuôn mặt.')
+        boxes = app.state.detect_faces(image)
+        vector = feature(app, image, boxes)
         x, y, w, h = boxes[0][:4]
         if w < image.shape[1] * .18 or x < 0 or y < 0 or x+w > image.shape[1] or y+h > image.shape[0]:
             raise ValueError('Đưa trọn khuôn mặt vào giữa khung selfie.')
