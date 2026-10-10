@@ -25,7 +25,9 @@ cv2.setNumThreads(1)
 async def lifespan(app):
     if len(KEY) < 32 or not math.isfinite(THRESHOLD) or not .363 <= THRESHOLD < 1:
         raise RuntimeError("Configure a shared key of at least 32 characters and a valid threshold")
-    app.state.detector = cv2.FaceDetectorYN.create(str(MODELS / "yunet.onnx"), "", (320, 320), 0.9, 0.3, 5000)
+    # Detection confidence is separate from biometric matching and PAD thresholds.
+    # 0.9 misses legitimate phone-camera faces before those checks can run.
+    app.state.detector = cv2.FaceDetectorYN.create(str(MODELS / "yunet.onnx"), "", (320, 320), 0.8, 0.3, 5000)
     app.state.recognizer = cv2.FaceRecognizerSF.create(str(MODELS / "sface.onnx"), "")
     from liveness import initialize
     initialize(app, MODELS)
