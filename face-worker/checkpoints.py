@@ -73,12 +73,13 @@ def document(app, token, side, raw, decode, feature, threshold):
     from document_checks import card_image, read_card, document_fields
     state = unseal(token)
     if not state.get('selfie'): raise HTTPException(422, 'Selfie required')
-    card, quality = card_image(decode(raw))
+    started = time.monotonic()
+    card, quality = card_image(decode(raw, max_edge=2400))
     reason = ('FRONT_' if side == 'front' else 'BACK_') + 'QUALITY'
     data = dict(passed=False, quality=quality, reasonCode=reason)
     if card is not None:
         try:
-            text, confidence = read_card(card)
+            text, confidence = read_card(card, side=side)
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as error:
             logger.warning('Document OCR unavailable: side=%s exception=%s', side, type(error).__name__)
             raise HTTPException(503, 'OCR unavailable')
@@ -96,6 +97,8 @@ def document(app, token, side, raw, decode, feature, threshold):
                 except HTTPException as error:
                     if error.status_code != 422: raise
                     data.update(passed=False, reasonCode='FRONT_FACE')
+    logger.info('Document check: side=%s passed=%s reason=%s quality=%s confidence=%.1f elapsedMs=%d',
+                side, data['passed'], data['reasonCode'], quality.get('reason'), data.get('confidence', 0), round((time.monotonic()-started)*1000))
     data['digest'] = hashlib.sha256(raw).hexdigest()
     state['documents'][side] = data
     return dict(policyVersion=4, passed=data['passed'], reasonCode=data['reasonCode'], checkpoint=seal(state))

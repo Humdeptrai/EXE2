@@ -283,7 +283,7 @@ def finish_documents(app,sid,front,back,decode,feature,threshold):
         response['reasonCode']='BACK_QUALITY'; return response
     response['documentQualityPassed']=True
     try:
-        text,front_confidence=read_card(card); back_text,back_confidence=read_card(reverse)
+        text,front_confidence=read_card(card, side='front'); back_text,back_confidence=read_card(reverse, side='back')
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as error:
         logger.warning("Document OCR unavailable: exception=%s", type(error).__name__)
         raise HTTPException(503,'Bộ đọc CCCD chưa sẵn sàng. Vui lòng thử lại sau.')

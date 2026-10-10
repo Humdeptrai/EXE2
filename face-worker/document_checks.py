@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import unicodedata
+import time
 
 import cv2
 import numpy as np
@@ -19,14 +20,30 @@ def card_image(image):
     """Require four visible card edges and rectify the largest plausible ID card."""
     height, width = image.shape[:2]
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(cv2.GaussianBlur(gray, (5, 5), 0), 40, 120)
-    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
-    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:25]:
+    # Detect boundaries at a bounded scale; map coordinates back to the original
+    # pixels for OCR. Contrast enhancement helps light cards on light surfaces.
+    scale = min(1.0, 1000 / max(width, height))
+    detection = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    enhanced = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(detection)
+    contours = []
+    for source in (detection, enhanced):
+        edges = cv2.Canny(cv2.GaussianBlur(source, (5, 5), 0), 40, 120)
+        edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+        found, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        contours.extend(contour.astype(np.float32) / scale for contour in found)
+    too_small = False
+    quality_failure = None
+    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:80]:
         if cv2.contourArea(contour) < width * height * .20:
             continue
-        points = cv2.approxPolyDP(contour, .02 * cv2.arcLength(contour, True), True)
-        if len(points) != 4 or not cv2.isContourConvex(points):
+        points = None
+        hull = cv2.convexHull(contour)
+        for epsilon in (.015, .025, .04):
+            candidate = cv2.approxPolyDP(hull, epsilon * cv2.arcLength(hull, True), True)
+            if len(candidate) == 4 and cv2.isContourConvex(candidate):
+                points = candidate
+                break
+        if points is None:
             continue
         points = points.reshape(4, 2).astype(np.float32)
         # Leave a margin: touching image borders can mean a cropped document.
@@ -46,7 +63,8 @@ def card_image(image):
         if not 1.35 <= card_width / max(card_height, 1) <= 1.90:
             continue
         if card_width < 550 or card_height < 320:
-            return None, dict(passed=False, reason='TOO_SMALL')
+            too_small = True
+            continue
         target = np.array([[0, 0], [int(card_width)-1, 0], [int(card_width)-1, int(card_height)-1],
                            [0, int(card_height)-1]], np.float32)
         card = cv2.warpPerspective(image, cv2.getPerspectiveTransform(points, target),
@@ -56,20 +74,22 @@ def card_image(image):
         brightness = float(detail.mean())
         white = float(np.mean(detail >= 250))
         if sharpness < 55:
-            return None, dict(passed=False, reason='BLUR', sharpness=sharpness)
+            quality_failure = dict(passed=False, reason='BLUR', sharpness=sharpness)
+            continue
         if brightness < 55 or brightness > 240 or white > .60:
-            return None, dict(passed=False, reason='LIGHTING', brightness=brightness)
+            quality_failure = dict(passed=False, reason='LIGHTING', brightness=brightness)
+            continue
         return card, dict(passed=True, reason='OK', sharpness=sharpness, brightness=brightness)
-    return None, dict(passed=False, reason='CARD_FRAME')
+    return None, quality_failure or dict(passed=False, reason='TOO_SMALL' if too_small else 'CARD_FRAME')
 
 
-def read_card(image):
-    _, jpeg = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 95])
-    result = subprocess.run(['tesseract', 'stdin', 'stdout', '-l', 'vie+eng', '--psm', '6', 'tsv'],
-                            input=jpeg.tobytes(), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                            timeout=45, check=True, env={**os.environ, "OMP_THREAD_LIMIT": "1"})
-    lines = {}
-    confidences = []
+def _ocr(image, psm, timeout):
+    # PNG avoids an additional lossy JPEG pass over small document characters.
+    _, encoded = cv2.imencode('.png', image)
+    result = subprocess.run(['tesseract', 'stdin', 'stdout', '-l', 'vie+eng', '--psm', str(psm), 'tsv'],
+                            input=encoded.tobytes(), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                            timeout=timeout, check=True, env={**os.environ, "OMP_THREAD_LIMIT": "1"})
+    lines, confidences = {}, []
     for row in csv.DictReader(io.StringIO(result.stdout.decode('utf-8', errors='replace')), delimiter='\t'):
         word = (row.get('text') or '').strip()
         try:
@@ -83,6 +103,52 @@ def read_card(image):
         if len(word) >= 2:
             confidences.append(confidence)
     return '\n'.join(' '.join(words) for words in lines.values())[:8000], float(np.mean(confidences)) if confidences else 0.0
+
+
+def read_card(image, side=None):
+    """Try sparse/bilingual layout before a block layout, with a shared time budget.
+
+    Never concatenate guesses from different OCR passes: a candidate must satisfy
+    the document policy on its own, including a unique 12-digit front number.
+    """
+    deadline = time.monotonic() + 45
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Bound OCR cost while preserving readable text; do not upscale tiny cards.
+    scale = min(1.0, 1800 / max(gray.shape))
+    gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    attempts = ((gray, 11, False), (gray, 6, False),
+                (cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray), 11, False),
+                (cv2.rotate(gray, cv2.ROTATE_180), 11, True))
+    best = ('', 0.0)
+    completed = 0
+    last_timeout = None
+    for candidate, psm, rotated in attempts:
+        remaining = deadline - time.monotonic()
+        if remaining <= 1:
+            break
+        try:
+            text, confidence = _ocr(candidate, psm, min(10, remaining))
+        except subprocess.TimeoutExpired as error:
+            last_timeout = error
+            continue
+        completed += 1
+        if confidence > best[1]:
+            best = text, confidence
+        if side in ('front', 'back'):
+            fields = document_fields(text if side == 'front' else '', text if side == 'back' else '',
+                                     confidence if side == 'front' else 0, confidence if side == 'back' else 0)
+            if fields[side + 'Readable']:
+                if rotated:
+                    image[:] = cv2.rotate(image, cv2.ROTATE_180)
+                return text, confidence
+        elif confidence >= 45 and len(text) >= 60:
+            return text, confidence
+    if not completed and last_timeout is not None:
+        raise last_timeout
+    if not best[0]:
+        # No recognized characters is a readable-image failure, not a service outage.
+        return '', 0.0
+    return best
 
 
 def extract_name(text):
@@ -112,9 +178,14 @@ def document_fields(front_text, back_text, front_confidence, back_confidence):
     back = plain(back_text)
     front_ok = (len(numbers) == 1 and len(front_text) >= 60 and front_confidence >= 45
                 and any(marker in front for marker in ('CAN CUOC', 'CONG DAN', 'IDENTITY')))
-    back_markers = ('DAN TOC', 'TON GIAO', 'DAC DIEM', 'NGAY CAP', 'DATE OF ISSUE',
-                    'CO QUAN', 'BO CONG AN', 'MINISTRY', 'NOI CU TRU', 'PLACE OF RESIDENCE', 'NOI SINH')
+    # Count distinct semantic fields, not overlapping synonyms of one heading.
+    back_groups = (('DAN TOC',), ('TON GIAO',), ('DAC DIEM', 'PERSONAL IDENTIFICATION'),
+                   ('NGAY CAP', 'DATE OF ISSUE'),
+                   ('CO QUAN', 'BO CONG AN', 'MINISTRY', 'CUC CANH SAT', 'CUC TRUONG',
+                    'CANH SAT QUAN LY', 'ISSUING AUTHORITY'),
+                   ('NOI CU TRU', 'PLACE OF RESIDENCE'), ('NOI SINH',),
+                   ('DATE OF EXPIRY', 'CO GIA TRI DEN'))
     back_ok = (len(back_text) >= 50 and back_confidence >= 45
-               and sum(marker in back for marker in back_markers) >= 2)
+               and sum(any(marker in back for marker in group) for group in back_groups) >= 2)
     return dict(frontReadable=front_ok, backReadable=back_ok,
                 documentNumber=next(iter(numbers)) if len(numbers) == 1 else '', fullName=extract_name(front_text))

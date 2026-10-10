@@ -18,11 +18,11 @@ async function normalize(blob: Blob): Promise<File> {
   const bitmap = await createImageBitmap(blob);
   try {
     if (bitmap.width < 320 || bitmap.height < 240 || bitmap.width * bitmap.height > 16000000) throw new Error("Ảnh cần rõ nét, ít nhất 320 × 240 và không quá 16 triệu điểm ảnh.");
-    const ratio = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const ratio = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
     const canvas = document.createElement("canvas"); canvas.width = Math.round(bitmap.width * ratio); canvas.height = Math.round(bitmap.height * ratio);
     const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("Không xử lý được ảnh.");
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const jpeg = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error("Không xử lý được ảnh.")), "image/jpeg", .9));
+    const jpeg = await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error("Không xử lý được ảnh.")), "image/jpeg", .95));
     return new File([jpeg], "document.jpg", { type: "image/jpeg" });
   } finally { bitmap.close(); }
 }
@@ -121,7 +121,7 @@ export default function FaceComparisonPage() {
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera cần HTTPS hoặc localhost.");
       const media = await navigator.mediaDevices.getUserMedia({ audio: false, video: {
-        facingMode: { ideal: target === "face" ? "user" : "environment" }, width: { ideal: 1280 }, height: { ideal: 720 },
+        facingMode: { ideal: target === "face" ? "user" : "environment" }, width: { ideal: target === "face" ? 1280 : 2400 }, height: { ideal: target === "face" ? 720 : 1600 },
       } });
       if (current !== cameraAttempt.current) { media.getTracks().forEach(t => t.stop()); return; }
       stream.current = media; setCamera(target);
@@ -130,10 +130,10 @@ export default function FaceComparisonPage() {
   async function image(): Promise<Blob> {
     const v = video.current;
     if (!v?.videoWidth || !v.videoHeight) throw new Error("Camera chưa sẵn sàng.");
-    const canvas = document.createElement("canvas"); const ratio = Math.min(1, 1280 / v.videoWidth);
+    const canvas = document.createElement("canvas"); const ratio = Math.min(1, (camera === "face" ? 1280 : 2400) / Math.max(v.videoWidth, v.videoHeight));
     canvas.width = Math.round(v.videoWidth * ratio); canvas.height = Math.round(v.videoHeight * ratio);
     canvas.getContext("2d")?.drawImage(v, 0, 0, canvas.width, canvas.height);
-    return await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error("Không đọc được camera.")), "image/jpeg", .9));
+    return await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error("Không đọc được camera.")), "image/jpeg", camera === "face" ? .9 : .95));
   }
   async function select(target: Slot, blob: Blob): Promise<boolean> {
     if (busy) return false;

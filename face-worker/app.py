@@ -63,7 +63,7 @@ async def limit_body(request: Request, call_next):
 def health():
     return {"status": "ok"}
 
-def decode(raw):
+def decode(raw, max_edge=1600):
     try:
         if not raw or len(raw) > MAX_IMAGE:
             raise ValueError()
@@ -72,8 +72,8 @@ def decode(raw):
             if image.format != "JPEG" or w < 320 or h < 240 or w > 5000 or h > 5000 or w * h > 16_000_000:
                 raise ValueError()
             image.load()
-            if max(w, h) > 1600:
-                image.thumbnail((1600, 1600))
+            if max(w, h) > max_edge:
+                image.thumbnail((max_edge, max_edge))
             return cv2.cvtColor(np.asarray(image.convert("RGB")), cv2.COLOR_RGB2BGR)
     except (ValueError, UnidentifiedImageError, OSError, Image.DecompressionBombError):
         raise HTTPException(422, "Use a clear JPEG image within the allowed size")
