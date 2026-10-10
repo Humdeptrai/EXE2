@@ -290,15 +290,22 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     }
     @Override @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor, int page) {
+        return list(actor,page,"","");
+    }
+    @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
+    public com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor,int page,String search,String state) {
         access.operator(actor, false);
-        var queue = identities.findReviewQueue(org.springframework.data.domain.PageRequest.of(Math.max(page, 0), 20));
+        if(search==null || search.length()>100 || !Set.of("","NOT_SUBMITTED","PROCESSING","REVIEW_REQUIRED","VERIFIED","REJECTED","ERROR").contains(state)) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        String q=search.trim().toLowerCase(Locale.ROOT);
+        if(!q.isEmpty()) q="%"+q.replace("!","!!").replace("%","!%").replace("_","!_")+"%";
+        var queue = identities.searchQueue(state,q,org.springframework.data.domain.PageRequest.of(Math.max(page, 0), 20));
         var names = users.findNamesByIdIn(queue.getContent().stream().map(IdentityRepository.State::getUserId).toList())
             .stream().collect(java.util.stream.Collectors.toMap(UserRepository.Name::getId, n -> n.getFullName() == null ? "" : n.getFullName()));
         return com.handsfree.be.dto.response.PageResponse.from(queue.map(i -> {
-            var state = submissions.findStateByUserId(i.getUserId())
+            var summaryState = submissions.findStateByUserId(i.getUserId())
                 .map(d -> new Status(i.getUserId(), d.getStatus(), d.getReason(), d.getSubmittedAt(), null, properties.isEnabled()))
                 .orElseGet(() -> summary(i));
-            return new QueueRow(state.userId(), names.getOrDefault(i.getUserId(), ""), state.status(), state.reason(), state.submittedAt(), state.verifiedAt());
+            return new QueueRow(summaryState.userId(), names.getOrDefault(i.getUserId(), ""), summaryState.status(), summaryState.reason(), summaryState.submittedAt(), summaryState.verifiedAt());
         }));
     }
     @Override @org.springframework.transaction.annotation.Transactional(readOnly = true)

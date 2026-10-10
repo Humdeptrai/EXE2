@@ -3,18 +3,19 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import "../operator.css";
+import "../operator-refactor.css";
 
 const items = [
-  { path: "", title: "Tổng quan", icon: "home" as const, group: "Không gian làm việc" },
-  { path: "revenue", title: "Doanh thu", icon: "star" as const, admin: true },
+  { path: "", title: "Tổng quan", icon: "home" as const, group: "Tổng quan" },
   { path: "reports", title: "Báo cáo", icon: "bell" as const, group: "Quản lý" },
   { path: "jobs", title: "Bài đăng", icon: "briefcase" as const },
   { path: "identities", title: "Hồ sơ xác thực", icon: "users" as const },
   { path: "users", title: "Tài khoản", icon: "users" as const, admin: true },
   { path: "matches", title: "Kết nối", icon: "chat" as const, admin: true },
-  { path: "topups", title: "Đơn nạp tiền", icon: "list" as const, admin: true, group: "Tài chính & hệ thống" },
+  { path: "revenue", title: "Doanh thu", icon: "star" as const, admin: true, group: "Tài chính" },
+  { path: "topups", title: "Đơn nạp tiền", icon: "list" as const, admin: true },
   { path: "ledger", title: "Sổ giao dịch ví", icon: "bookmark" as const, admin: true },
-  { path: "settings", title: "Cấu hình phí", icon: "filter" as const, admin: true },
+  { path: "settings", title: "Phí & thời gian", icon: "filter" as const, admin: true, group: "Cấu hình" },
   { path: "audit", title: "Nhật ký quản trị", icon: "clock" as const, admin: true },
 ];
 

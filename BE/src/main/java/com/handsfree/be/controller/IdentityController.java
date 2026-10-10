@@ -59,8 +59,8 @@ public class IdentityController {
         return ApiResponse.success(200, "Đã đối chiếu hồ sơ", identity.submit(id(a), front, back, face, video, consent));
     }
     @GetMapping("/staff/identities")
-    public ApiResponse<?> list(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        return ApiResponse.success(200, "Trạng thái xác thực", identity.list(id(a),page));
+    public ApiResponse<?> list(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state) {
+        return ApiResponse.success(200, "Trạng thái xác thực", identity.list(id(a),page,search,state));
     }
     @PostMapping("/admin/identities/{user}/review")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")

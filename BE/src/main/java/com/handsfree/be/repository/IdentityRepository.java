@@ -20,6 +20,9 @@ public interface IdentityRepository extends JpaRepository<IdentityVerification, 
     @Query(value = "select i from IdentityVerification i left join IdentitySubmission s on s.userId = i.userId order by coalesce(s.submittedAt, i.submittedAt) desc",
            countQuery = "select count(i) from IdentityVerification i")
     org.springframework.data.domain.Page<State> findReviewQueue(org.springframework.data.domain.Pageable page);
+    @Query(value="select i from IdentityVerification i left join IdentitySubmission s on s.userId=i.userId left join User u on u.id=i.userId where (:state='' or coalesce(s.status,i.status)=:state) and (:q='' or lower(u.fullName) like :q escape '!' or lower(cast(i.userId as string)) like :q escape '!') order by coalesce(s.submittedAt,i.submittedAt) desc, i.userId",
+           countQuery="select count(i) from IdentityVerification i left join IdentitySubmission s on s.userId=i.userId left join User u on u.id=i.userId where (:state='' or coalesce(s.status,i.status)=:state) and (:q='' or lower(u.fullName) like :q escape '!' or lower(cast(i.userId as string)) like :q escape '!')")
+    org.springframework.data.domain.Page<State> searchQueue(@Param("state") String state,@Param("q") String q,org.springframework.data.domain.Pageable page);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select i from IdentityVerification i where i.userId = :id")
     Optional<IdentityVerification> lockById(@Param("id") UUID id);

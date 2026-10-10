@@ -5,7 +5,7 @@ import com.handsfree.be.entity.WalletTopUp;
 import java.util.UUID;
 
 public interface WalletTopUpRepository
-        extends org.springframework.data.jpa.repository.JpaRepository<WalletTopUp, Long> {
+        extends org.springframework.data.jpa.repository.JpaRepository<WalletTopUp, Long>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<WalletTopUp> {
     java.util.Optional<WalletTopUp> findByOwnerIdAndRequestId(UUID ownerId, UUID requestId);
 
     org.springframework.data.domain.Page<WalletTopUp> findByOwnerIdOrderByCreatedAtDesc(

@@ -107,8 +107,15 @@ public class ReportServiceImpl implements ReportService {
     }
     @Override @Transactional(readOnly = true)
     public PageResponse<ReportResponse> list(UUID actor, int page) {
-        User user = access.operator(actor, false);
-        return PageResponse.from(reports.findAll(page(page)).map(r -> response(r, user, false)));
+        return list(actor,page,"","");
+    }
+    @Override @Transactional(readOnly=true)
+    public PageResponse<ReportResponse> list(UUID actor,int page,String search,String state) {
+        User user=access.operator(actor,false);
+        if(search==null || search.length()>100 || !Set.of("","OPEN","IN_REVIEW","RESOLVED","REJECTED").contains(state)) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        String q=search.trim().toLowerCase(Locale.ROOT);
+        if(!q.isEmpty()) q="%"+q.replace("!","!!").replace("%","!%").replace("_","!_")+"%";
+        return PageResponse.from(reports.search(q,state,page(page)).map(r -> response(r,user,false)));
     }
     private Pageable page(int page) { return PageRequest.of(Math.max(0, page), 20, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))); }
     private ModerationReport readable(User user, UUID id) {

@@ -26,23 +26,19 @@ import java.util.*;
 public class ManagementController {
     private final AccountAccess access;
     private final ManagementService management;
+    private final com.handsfree.be.service.OperatorListService lists;
     private final PlatformSettingsService settings;
     private final ModerationReportRepository reports;
-    private final AdminAuditRepository audits;
     private final UserRepository users;
     private final com.handsfree.be.mapper.JobPostMapper jobMapper;
     private final JobPostRepository jobs;
     private final JobMatchRepository matches;
-    private final WalletEntryRepository entries;
-    private final WalletTopUpRepository orders;
 
     private UUID id(Authentication a) {
         return UUID.fromString(a.getName());
     }
 
-    private PageRequest page(int p) {
-        return PageRequest.of(Math.max(0, p), 20);
-    }
+
 
     public record JobAction(boolean hidden, @NotBlank @Size(max = 1000) String reason) {}
 
@@ -68,8 +64,8 @@ public class ManagementController {
     }
 
     @GetMapping("/staff/jobs")
-    public ApiResponse<?> jobs(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        return ApiResponse.success(200, "Bài đăng", management.jobs(id(a), page));
+    public ApiResponse<?> jobs(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state) {
+        return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "jobs", page, search, state));
     }
 
     @GetMapping("/staff/jobs/{jobId}")
@@ -125,28 +121,8 @@ public class ManagementController {
     }
 
     @GetMapping("/admin/users")
-    public ApiResponse<?> users(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        access.operator(id(a), true);
-        return ApiResponse.success(
-                200,
-                "Người dùng",
-                PageResponse.from(
-                        users.findAll(page(page))
-                                .map(
-                                        u ->
-                                                Map.of(
-                                                        "id",
-                                                        u.getId(),
-                                                        "fullName",
-                                                        u.getFullName(),
-                                                        "email",
-                                                        u.getEmail() == null ? "" : u.getEmail(),
-                                                        "role",
-                                                        u.getRole(),
-                                                        "active",
-                                                        u.isActive(),
-                                                        "balance",
-                                                        u.getWalletBalance()))));
+    public ApiResponse<?> users(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state) {
+        return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "users", page, search, state));
     }
 
     @PatchMapping("/admin/users/{id}")
@@ -158,50 +134,23 @@ public class ManagementController {
 
     @GetMapping("/admin/matches")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public ApiResponse<?> matches(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        return ApiResponse.success(200, "Matching", management.matches(id(a), page));
+    public ApiResponse<?> matches(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state) {
+        return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "matches", page, search, state));
     }
 
     @GetMapping("/admin/topups")
-    public ApiResponse<?> orders(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        access.operator(id(a), true);
-        return ApiResponse.success(
-                200,
-                "Đơn nạp",
-                PageResponse.from(
-                        orders.findAll(
-                                PageRequest.of(
-                                        Math.max(0, page),
-                                        20,
-                                        Sort.by(Sort.Direction.DESC, "createdAt")))));
+    public ApiResponse<?> orders(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state) {
+        return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "topups", page, search, state));
     }
 
     @GetMapping("/admin/ledger")
-    public ApiResponse<?> ledger(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        access.operator(id(a), true);
-        return ApiResponse.success(
-                200,
-                "Sổ ví",
-                PageResponse.from(
-                        entries.findAll(
-                                PageRequest.of(
-                                        Math.max(0, page),
-                                        20,
-                                        Sort.by(Sort.Direction.DESC, "occurredAt")))));
+    public ApiResponse<?> ledger(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state) {
+        return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "ledger", page, search, state));
     }
 
     @GetMapping("/admin/audit")
-    public ApiResponse<?> audit(Authentication a, @RequestParam(defaultValue = "0") int page) {
-        access.operator(id(a), true);
-        return ApiResponse.success(
-                200,
-                "Nhật ký quản trị",
-                PageResponse.from(
-                        audits.findAll(
-                                PageRequest.of(
-                                        Math.max(0, page),
-                                        20,
-                                        Sort.by(Sort.Direction.DESC, "occurredAt")))));
+    public ApiResponse<?> audit(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state) {
+        return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "audit", page, search, state));
     }
 
     @PostMapping("/admin/matches/{matchId}/refund")

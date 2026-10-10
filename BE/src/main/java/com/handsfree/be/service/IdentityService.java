@@ -45,5 +45,6 @@ public interface IdentityService {
     byte[] adminImage(UUID actor, UUID user, String kind);
     byte[] verifiedFace(UUID user);
     com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor, int page);
+    com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor, int page, String search, String state);
     byte[] counterpartFace(UUID actor, UUID match);
 }

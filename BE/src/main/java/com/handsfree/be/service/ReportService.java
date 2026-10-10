@@ -11,6 +11,7 @@ public interface ReportService {
     ReportResponse create(UUID actor, ReportRequest request, List<MultipartFile> files);
     PageResponse<ReportResponse> mine(UUID actor, int page);
     PageResponse<ReportResponse> list(UUID actor, int page);
+    PageResponse<ReportResponse> list(UUID actor, int page, String search, String state);
     ReportResponse detail(UUID actor, UUID reportId);
     ReportResponse claim(UUID actor, UUID reportId);
     ReportResponse release(UUID actor, UUID reportId);

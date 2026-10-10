@@ -21,7 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface JobPostRepository extends JpaRepository<JobPost, UUID> {
+public interface JobPostRepository extends JpaRepository<JobPost, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<JobPost> {
     @EntityGraph(attributePaths = {"category"})
     Page<JobPost> findAllByOwner_IdAndStatusIn(UUID ownerId, Collection<JobStatus> statuses, Pageable pageable);
 

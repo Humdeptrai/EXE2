@@ -25,6 +25,7 @@ public class OperatorAnalyticsService {
         result.put("matches", count("select count(*) from job_matches"));
         result.put("reports", count("select count(*) from moderation_reports"));
         result.put("pendingReports", count("select count(*) from moderation_reports where status in ('OPEN','PENDING','IN_REVIEW')"));
+        result.put("pendingIdentities", count("select count(*) from identity_verifications i left join identity_submissions s on s.user_id=i.user_id where coalesce(s.status,i.status)='REVIEW_REQUIRED'"));
         result.put("hiddenJobs", count("select count(*) from job_posts where moderation_hidden=true"));
         result.put("reportStatuses", jdbc.query("select status, count(*) as total from moderation_reports group by status", (rs, row) -> Map.of("status", rs.getString("status"), "total", rs.getLong("total"))));
         result.put("jobStatuses", jdbc.query("select status, count(*) as total from job_posts group by status", (rs, row) -> Map.of("status", rs.getString("status"), "total", rs.getLong("total"))));

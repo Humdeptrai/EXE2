@@ -19,7 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface JobMatchRepository extends JpaRepository<JobMatch, UUID> {
+public interface JobMatchRepository extends JpaRepository<JobMatch, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<JobMatch> {
     @Query("select m.id from JobMatch m where m.status = :status and m.paymentDeadlineAt <= :now and m.connectionSucceededAt is null order by m.paymentDeadlineAt")
     List<UUID> findDueIds(@Param("status") MatchStatus status, @Param("now") java.time.Instant now, Pageable page);
 

@@ -1,7 +1,7 @@
 import { type PropsWithChildren, useEffect, useRef } from "react";
 import { AppIcon } from "../../../components/ui/AppIcon";
 
-export default function OperatorModal({ title, onClose, children }: PropsWithChildren<{ title: string; onClose: () => void }>) {
+export default function OperatorModal({ title, onClose, children, variant = "modal" }: PropsWithChildren<{ title: string; onClose: () => void; variant?: "modal" | "drawer" | "wide" }>) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   useEffect(() => { closeRef.current = onClose; }, [onClose]);
@@ -24,5 +24,5 @@ export default function OperatorModal({ title, onClose, children }: PropsWithChi
     document.addEventListener("keydown", key);
     return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", key); prior?.focus(); };
   }, []);
-  return <div className="op-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}><div ref={ref} className="op-root op-modal" role="dialog" aria-modal="true" aria-labelledby="op-modal-title" tabIndex={-1}><header><h2 id="op-modal-title">{title}</h2><button className="op-icon-button" aria-label="Đóng" onClick={onClose}><AppIcon name="close" className="op-icon" /></button></header>{children}</div></div>;
+  return <div className={`op-modal-overlay op-overlay-${variant}`} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}><div ref={ref} className={`op-root op-modal op-modal-${variant}`} role="dialog" aria-modal="true" aria-labelledby="op-modal-title" tabIndex={-1}><header><h2 id="op-modal-title">{title}</h2><button className="op-icon-button" aria-label="Đóng" onClick={onClose}><AppIcon name="close" className="op-icon" /></button></header>{children}</div></div>;
 }

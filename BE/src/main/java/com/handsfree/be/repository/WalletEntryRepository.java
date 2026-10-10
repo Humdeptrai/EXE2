@@ -5,7 +5,7 @@ import com.handsfree.be.entity.WalletEntry;
 import java.util.UUID;
 
 public interface WalletEntryRepository
-        extends org.springframework.data.jpa.repository.JpaRepository<WalletEntry, UUID> {
+        extends org.springframework.data.jpa.repository.JpaRepository<WalletEntry, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<WalletEntry> {
     boolean existsByDedupeKey(String key);
 
     org.springframework.data.domain.Page<WalletEntry> findByOwnerIdOrderByOccurredAtDesc(

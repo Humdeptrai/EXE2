@@ -14,7 +14,7 @@ export const reportService = {
     })).data.result;
   },
   async mine(page: number, signal?: AbortSignal) { return (await api.get<ApiResponse<PageResponse<Report>>>("/reports/mine", { params: { page }, signal })).data.result; },
-  async list(page: number, signal?: AbortSignal) { return (await api.get<ApiResponse<PageResponse<Report>>>("/staff/reports", { params: { page }, signal })).data.result; },
+  async list(page: number, signal?: AbortSignal, search = "", state = "") { return (await api.get<ApiResponse<PageResponse<Report>>>("/staff/reports", { params: { page, search, state }, signal })).data.result; },
   async detail(id: string, signal?: AbortSignal) { return (await api.get<ApiResponse<Report>>(`/reports/${id}`, { signal })).data.result; },
   async claim(id: string) { return (await api.post<ApiResponse<Report>>(`/staff/reports/${id}/claim`)).data.result; },
   async release(id: string) { return (await api.post<ApiResponse<Report>>(`/staff/reports/${id}/release`)).data.result; },
