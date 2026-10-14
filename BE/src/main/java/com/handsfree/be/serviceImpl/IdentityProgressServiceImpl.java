@@ -20,6 +20,8 @@ import java.io.ByteArrayOutputStream;
 public class IdentityProgressServiceImpl implements IdentityProgressService {
     private final IdentityProgressRepository repository;
     private final UserRepository users;
+    private final IdentityRepository identities;
+    private final IdentitySubmissionRepository submissions;
     private final AccountAccess access;
     private final IdentityCrypto crypto;
     private final FaceWorkerClient worker;
@@ -111,6 +113,23 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         if(!response.path("accepted").asBoolean(false)) throw new AppException(ErrorCode.IDENTITY_SCAN_FAILED);
         checkpoint(p,response);p.setSelfieImage(crypto.encrypt(raw));p.setSelfiePassed(true);
         p.setFrontPassed(false);p.setBackPassed(false);p.setFrontReason(null);p.setBackReason(null);p.setStatus("DRAFT");save(p);return summary(p);
+    }
+    @Override @Transactional public Progress replaceSelfie(UUID user,MultipartFile image) {
+        var p=locked(user);
+        var active=identities.lockById(user).orElseThrow(()->new AppException(ErrorCode.IDENTITY_REQUIRED));
+        if(!"VERIFIED".equals(active.getStatus()) || active.getSelfieVerifiedAt()==null
+                || submissions.existsById(user) || active.getFaceImage()==null || p.getCheckpoint()==null || p.getFaceImage()==null
+                || !java.util.Arrays.equals(crypto.decrypt(p.getFaceImage()),crypto.decrypt(active.getFaceImage())))
+            throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+        byte[] raw=jpeg(image);
+        var response=worker.send("POST","/checkpoints/selfie",new String[]{"checkpoint","selfie"},new byte[][]{crypto.decrypt(p.getCheckpoint()),raw});
+        if(response.path("policyVersion").asInt(0)!=4 || !response.path("accepted").asBoolean(false))
+            throw new AppException(ErrorCode.IDENTITY_SCAN_FAILED);
+        // Keep the approved scan, document evidence and original signed checkpoint unchanged.
+        active.setSelfieImage(crypto.encrypt(raw));active.setSelfieVerifiedAt(Instant.now());
+        identities.saveAndFlush(active);
+        p.setSelfieImage(crypto.encrypt(raw));p.setSelfiePassed(true);p.setStatus("VERIFIED");save(p);
+        return get(user);
     }
     @Override @Transactional public Progress document(UUID user,String side,MultipartFile image) {
         if(!java.util.Set.of("front","back").contains(side)) throw new AppException(ErrorCode.VALIDATION_FAILED);

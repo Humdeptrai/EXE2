@@ -1,21 +1,37 @@
+import { useEffect, useState } from "react";
+import SelfieRetake from "./SelfieRetake";
+import { identityService } from "../../../services/identityService";
 import { Link } from "react-router-dom";
 import type { MyIdentity, IdentityProgress } from "../../../services/identityService";
 import PrivateIdentityImage from "./PrivateIdentityImage";
 export default function IdentityPrivateFields({ state, progress }: { state: MyIdentity | null; progress?: IdentityProgress | null }) {
+  const [personal, setPersonal] = useState(state);
+  const [retake, setRetake] = useState(false);
+  const [revision, setRevision] = useState(0);
+  useEffect(() => setPersonal(state), [state]);
+  const photos = [
+    { label: "Ảnh quét khuôn mặt", path: personal?.faceUrl || (progress?.scanPassed ? "/identity/progress/images/face" : null) },
+    { label: "Selfie xác minh", path: personal?.selfieUrl || progress?.selfieUrl },
+    { label: "CCCD mặt trước", path: personal?.frontUrl || progress?.frontUrl },
+    { label: "CCCD mặt sau", path: personal?.backUrl || progress?.backUrl },
+  ];
   return <>
-    <div className="min-w-0 rounded-2xl border border-slate-200 p-4">
-      <p className="text-xs font-bold text-slate-400">Selfie xác minh</p>
-      <p className={`my-2 text-sm font-bold ${(state?.selfieVerified || progress?.selfiePassed) ? "text-emerald-700" : "text-red-600"}`}>{(state?.selfieVerified || progress?.selfiePassed) ? "✓ Selfie đã đạt và lưu" : "! Chưa có selfie đã xác minh"}</p>
-      {(state?.selfieUrl || progress?.selfieUrl) && <PrivateIdentityImage path={(state?.selfieUrl || progress?.selfieUrl)!} alt="Selfie của bạn" />}
-      <p className="mt-2 text-xs leading-5 text-slate-500">Selfie khác ảnh đại diện. Chỉ đối tác đã mở kết nối sau thanh toán mới xem được.</p>
-      <Link className="inline-flex min-h-11 items-center font-bold text-[#007f95]" to="/face-comparison">{(state?.selfieVerified || progress?.selfiePassed) ? "Cập nhật hồ sơ xác minh" : "Chụp selfie và xác minh"}</Link>
+    <div className="min-w-0 rounded-2xl border border-slate-200 p-4 sm:col-span-2">
+      <p className="font-bold text-slate-800">Ảnh xác minh của bạn</p>
+      <p className="mt-1 text-xs leading-5 text-slate-500">Bấm ảnh để xem và phóng to. Ảnh quét mặt và CCCD chỉ được xem, không chỉnh sửa tại đây.</p>
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">{photos.map(photo => <div key={photo.label} className="min-w-0 rounded-xl border border-slate-100 bg-slate-50 p-3">
+        <p className="mb-3 text-xs font-bold text-slate-500">{photo.label}</p>
+        {photo.path ? <PrivateIdentityImage path={`${photo.path}?v=${revision}`} alt={photo.label} /> : <p className="text-xs text-slate-400">Chưa có ảnh đã lưu</p>}
+      </div>)}</div>
+      {personal?.verification.status === "VERIFIED" ? <button type="button" disabled={personal.pendingReplacement} onClick={() => setRetake(true)} className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#007f95] px-5 font-bold text-white disabled:opacity-50">Chụp lại selfie</button> : <Link className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#007f95] px-5 font-bold text-white" to="/face-comparison">Tiếp tục xác minh</Link>}
+      {retake && <SelfieRetake onClose={() => setRetake(false)} onSaved={async () => { setPersonal(await identityService.mine()); setRevision(value => value + 1); }} />}
     </div>
     <div className="min-w-0 rounded-2xl border border-slate-200 p-4">
       <label className="text-xs font-bold text-slate-400" htmlFor="private-document-number">Số CCCD · Chỉ bạn và ADMIN</label>
-      <input id="private-document-number" readOnly value={state?.documentNumber || progress?.documentNumber || ""} placeholder="Chưa trích xuất được số CCCD" className="mt-2 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" />
-      <p className={`mt-2 text-sm font-bold ${state?.documentConfirmed ? "text-emerald-700" : "text-red-600"}`}>{state?.documentConfirmed ? "✓ Đã xác nhận" : progress?.documentNumber ? "Số đã đọc từ mặt trước; chờ hoàn tất đối chiếu" : "! Chưa xác nhận số CCCD"}</p>
-      <p className="mt-2 text-xs leading-5 text-slate-500">Nếu số chưa đúng, chụp lại CCCD hoặc liên hệ ADMIN để đối chiếu và sửa. Bạn không thể sửa trực tiếp.</p>
-      {state?.pendingReplacement && <p className="mt-2 text-xs text-amber-700">Bản cập nhật đang chờ xử lý. Hồ sơ đã xác minh trước đó vẫn được giữ.</p>}
+      <input id="private-document-number" readOnly value={personal?.documentNumber || progress?.documentNumber || ""} placeholder="Chưa trích xuất được số CCCD" className="mt-2 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" />
+      <p className={`mt-2 text-sm font-bold ${personal?.documentConfirmed ? "text-emerald-700" : "text-red-600"}`}>{personal?.documentConfirmed ? "✓ Đã xác nhận" : progress?.documentNumber ? "Số đã đọc từ mặt trước; chờ hoàn tất đối chiếu" : "! Chưa xác nhận số CCCD"}</p>
+      <p className="mt-2 text-xs leading-5 text-slate-500">Nếu số chưa đúng, liên hệ ADMIN để đối chiếu ảnh CCCD đã lưu và sửa. Bạn không thể sửa trực tiếp.</p>
+      {personal?.pendingReplacement && <p className="mt-2 text-xs text-amber-700">Bản cập nhật đang chờ xử lý. Hồ sơ đã xác minh trước đó vẫn được giữ.</p>}
     </div>
   </>;
 }

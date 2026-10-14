@@ -14,6 +14,8 @@ public class IdentityProgressController {
     @GetMapping public ApiResponse<?> get(Authentication a) { return ApiResponse.success(200,"Tiến trình đã lưu",progress.get(user(a))); }
     @PostMapping(value="/selfie",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> selfie(Authentication a,@RequestPart MultipartFile selfie) { return ApiResponse.success(200,"Đã lưu selfie",progress.selfie(user(a),selfie)); }
+    @PostMapping(value="/selfie/replacement",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<?> replaceSelfie(Authentication a,@RequestPart MultipartFile selfie) { return ApiResponse.success(200,"Đã cập nhật selfie",progress.replaceSelfie(user(a),selfie)); }
     @PostMapping(value="/documents/{side}",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> document(Authentication a,@PathVariable String side,@RequestPart MultipartFile document) { return ApiResponse.success(200,"Đã lưu bước CCCD",progress.document(user(a),side,document)); }
     @PostMapping("/finish") public ApiResponse<?> finish(Authentication a) { return ApiResponse.success(200,"Kết quả xác minh",progress.finish(user(a))); }

@@ -151,23 +151,45 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
                 && active.getSelfieImage() != null && active.getDocumentNumber() != null;
         boolean replacement = draft != null && active != null && "VERIFIED".equals(active.getStatus());
         if (!useActive && draft != null) return new MyIdentity(draftStatus(draft), crypto.text(draft.getDocumentNumber()), false,
-                draft.getSelfieImage() != null, false, draft.getSelfieImage() == null ? null : "/identity/me/selfie", replacement);
-        if (active == null) return new MyIdentity(status(user), null, false, false, false, null, false);
+                draft.getSelfieImage() != null, false, draft.getSelfieImage() == null ? null : "/identity/me/selfie", replacement,
+                draft.getFaceImage() == null ? null : "/identity/me/images/face",
+                draft.getFrontImage() == null ? null : "/identity/me/images/front",
+                draft.getBackImage() == null ? null : "/identity/me/images/back");
+        if (active == null) return new MyIdentity(status(user), null, false, false, false, null, false, null, null, null);
         return new MyIdentity(summary(active), crypto.text(active.getDocumentNumber()), useActive && active.getDocumentNumberConfirmedAt() != null,
                 active.getSelfieImage() != null, useActive && active.getSelfieVerifiedAt() != null,
-                active.getSelfieImage() == null ? null : "/identity/me/selfie", replacement);
+                active.getSelfieImage() == null ? null : "/identity/me/selfie", replacement,
+                active.getFaceImage() == null ? null : "/identity/me/images/face",
+                active.getFrontImage() == null ? null : "/identity/me/images/front",
+                active.getBackImage() == null ? null : "/identity/me/images/back");
     }
 
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public byte[] ownSelfie(UUID user) {
+    public byte[] ownSelfie(UUID user) { return ownImage(user, "selfie"); }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public byte[] ownImage(UUID user, String kind) {
         access.active(user);
-        var active = get(user);
-        if ("VERIFIED".equals(active.getStatus()) && active.getSelfieImage() != null) return crypto.decrypt(active.getSelfieImage());
+        var active = identities.findById(user).orElse(null);
         var draft = submissions.findById(user).orElse(null);
-        byte[] image = draft != null ? draft.getSelfieImage() : active.getSelfieImage();
-        if (image == null) throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
-        return crypto.decrypt(image);
+        boolean useActive = active != null && "VERIFIED".equals(active.getStatus())
+                && active.getSelfieImage() != null && active.getDocumentNumber() != null;
+        byte[] data;
+        if (!useActive && draft != null) data = switch (kind) {
+            case "face" -> draft.getFaceImage(); case "front" -> draft.getFrontImage();
+            case "back" -> draft.getBackImage(); case "selfie" -> draft.getSelfieImage();
+            default -> throw new AppException(ErrorCode.VALIDATION_FAILED);
+        };
+        else if (active != null) data = switch (kind) {
+            case "face" -> active.getFaceImage(); case "front" -> active.getFrontImage();
+            case "back" -> active.getBackImage(); case "selfie" -> active.getSelfieImage();
+            default -> throw new AppException(ErrorCode.VALIDATION_FAILED);
+        };
+        else throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
+        if (data == null) throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
+        return crypto.decrypt(data);
     }
 
     @Override

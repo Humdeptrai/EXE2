@@ -9,6 +9,7 @@ public interface IdentityProgressService {
     Progress get(UUID user);
     void saveScan(UUID user,String checkpoint);
     Progress selfie(UUID user,MultipartFile image);
+    Progress replaceSelfie(UUID user,MultipartFile image);
     Progress document(UUID user,String side,MultipartFile image);
     FaceComparisonService.Completion finish(UUID user);
     byte[] image(UUID user,String side);

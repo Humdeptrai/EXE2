@@ -9,6 +9,7 @@ export type MyIdentity = {
   selfieVerified: boolean;
   selfieUrl: string | null;
   pendingReplacement: boolean;
+  faceUrl: string | null; frontUrl: string | null; backUrl: string | null;
 };
 export type IdentityProgress = {
   scanPassed: boolean; selfiePassed: boolean; frontPassed: boolean; backPassed: boolean;

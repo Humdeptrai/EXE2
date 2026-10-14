@@ -46,6 +46,8 @@ public class IdentityController {
     public ApiResponse<?> mine(Authentication a) { return ApiResponse.success(200, "Hồ sơ danh tính riêng tư", identity.mine(id(a))); }
     @GetMapping("/identity/me/selfie")
     public ResponseEntity<byte[]> ownSelfie(Authentication a) { return image(identity.ownSelfie(id(a))); }
+    @GetMapping("/identity/me/images/{kind}")
+    public ResponseEntity<byte[]> ownImage(Authentication a, @PathVariable String kind) { return image(identity.ownImage(id(a), kind)); }
     @PatchMapping("/admin/identities/{user}/document-number")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<?> correctDocument(Authentication a, @PathVariable UUID user, @RequestBody IdentityService.DocumentCorrection request) {

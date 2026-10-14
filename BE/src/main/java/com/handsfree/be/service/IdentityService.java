@@ -11,7 +11,8 @@ public interface IdentityService {
     record Dossier(Status verification, String fullName, String documentData, Double similarity, Boolean live,
                    String documentNumber, boolean pending, long version, boolean selfiePresent, boolean activeVerified) {}
     record MyIdentity(Status verification, String documentNumber, boolean documentConfirmed,
-                      boolean selfieUploaded, boolean selfieVerified, String selfieUrl, boolean pendingReplacement) {}
+                      boolean selfieUploaded, boolean selfieVerified, String selfieUrl, boolean pendingReplacement,
+                      String faceUrl, String frontUrl, String backUrl) {}
     record DocumentCorrection(String documentNumber, String reason, boolean pending, Long version) {}
     record ScanSubmission(byte[] front, byte[] back, byte[] face, byte[] selfie, String fullName,
                           String documentNumber, String evidence, double similarity, boolean approved, String reason) {}
@@ -30,6 +31,7 @@ public interface IdentityService {
     void storeScan(UUID user, ScanSubmission data);
     MyIdentity mine(UUID user);
     byte[] ownSelfie(UUID user);
+    byte[] ownImage(UUID user, String kind);
     Dossier correctDocument(UUID actor, UUID user, DocumentCorrection request);
     record Eligibility(boolean eligible, boolean profileComplete, boolean identityVerified,
                        String identityStatus, java.util.List<String> missingRequirements, boolean selfieVerified, boolean documentConfirmed) {}
