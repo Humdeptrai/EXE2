@@ -70,7 +70,7 @@ def selfie(app, token, raw, decode, feature, threshold):
 
 
 def document(app, token, side, raw, decode, feature, threshold):
-    from document_checks import card_image, read_card, document_fields
+    from document_checks import card_image, read_card, document_fields, read_front_name
     state = unseal(token)
     if not state.get('selfie'): raise HTTPException(422, 'Selfie required')
     started = time.monotonic()
@@ -88,7 +88,8 @@ def document(app, token, side, raw, decode, feature, threshold):
         data.update(text=text, confidence=confidence, passed=fields[side+'Readable'],
                     reasonCode=('OK' if fields[side+'Readable'] else side.upper()+'_OCR'))
         if side == 'front':
-            data.update(documentNumber=fields['documentNumber'], fullName=fields['fullName'])
+            name = read_front_name(card) or fields['fullName']
+            data.update(documentNumber=fields['documentNumber'], fullName=name)
             if data['passed']:
                 try:
                     vector = feature(app, card)
@@ -118,7 +119,7 @@ def finish(token, front, back, threshold):
     # redeploy. Re-read only this field from the exact saved front evidence;
     # never use a profile name or change validated face comparison scores.
     if not f.get('fullName'):
-        from document_checks import extract_name, card_image, read_card, document_fields
+        from document_checks import extract_name, card_image, read_card, document_fields, read_front_name
         f['fullName'] = extract_name(f.get('text', ''))
         if not f['fullName']:
             image = cv2.imdecode(np.frombuffer(front, np.uint8), cv2.IMREAD_COLOR)
@@ -126,13 +127,15 @@ def finish(token, front, back, threshold):
                 card, quality = card_image(image)
                 if card is not None and quality['passed']:
                     try:
-                        text, confidence = read_card(card, side='front')
+                        f['fullName'] = read_front_name(card)
+                        if not f['fullName']:
+                            text, confidence = read_card(card, side='front')
+                            fields = document_fields(text, '', confidence, 0)
+                            if fields['frontReadable'] and fields['documentNumber'] == f['documentNumber']:
+                                f.update(fullName=fields['fullName'], text=text, confidence=confidence)
                     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as error:
                         logger.warning('Saved front OCR unavailable: exception=%s', type(error).__name__)
                         raise HTTPException(503, 'OCR unavailable')
-                    fields = document_fields(text, '', confidence, 0)
-                    if fields['frontReadable'] and fields['documentNumber'] == f['documentNumber']:
-                        f.update(fullName=fields['fullName'], text=text, confidence=confidence)
         logger.info('Saved front name refresh: nameExtracted=%s', bool(f['fullName']))
     score = min(f['scanScore'], f['selfieScore'])
     return dict(policyVersion=4, motionPassed=True, antiSpoofPassed=True, padScore=float(np.mean(state['pad'])),

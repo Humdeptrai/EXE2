@@ -27,6 +27,9 @@ export default function IdentityPrivateFields({ state, progress }: { state: MyId
       {retake && <SelfieRetake onClose={() => setRetake(false)} onSaved={async () => { setPersonal(await identityService.mine()); setRevision(value => value + 1); }} />}
     </div>
     <div className="min-w-0 rounded-2xl border border-slate-200 p-4">
+      <label className="text-xs font-bold text-slate-400" htmlFor="private-document-name">Họ và tên (CCCD) · Chỉ bạn và ADMIN</label>
+      <input id="private-document-name" readOnly value={personal?.documentFullName || ""} placeholder="Chưa đọc được họ tên từ CCCD" className="mt-2 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" />
+      <p className="mb-4 mt-2 text-xs leading-5 text-slate-500">Họ tên được đọc từ CCCD, độc lập với tên tài khoản. {personal?.verification.status === "VERIFIED" ? "Đã xác minh." : "Chưa xác minh hoàn tất."}</p>
       <label className="text-xs font-bold text-slate-400" htmlFor="private-document-number">Số CCCD · Chỉ bạn và ADMIN</label>
       <input id="private-document-number" readOnly value={personal?.documentNumber || progress?.documentNumber || ""} placeholder="Chưa trích xuất được số CCCD" className="mt-2 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" />
       <p className={`mt-2 text-sm font-bold ${personal?.documentConfirmed ? "text-emerald-700" : "text-red-600"}`}>{personal?.documentConfirmed ? "✓ Đã xác nhận" : progress?.documentNumber ? "Số đã đọc từ mặt trước; chờ hoàn tất đối chiếu" : "! Chưa xác nhận số CCCD"}</p>

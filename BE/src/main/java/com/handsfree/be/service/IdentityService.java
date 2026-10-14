@@ -12,7 +12,7 @@ public interface IdentityService {
                    String documentNumber, boolean pending, long version, boolean selfiePresent, boolean activeVerified) {}
     record MyIdentity(Status verification, String documentNumber, boolean documentConfirmed,
                       boolean selfieUploaded, boolean selfieVerified, String selfieUrl, boolean pendingReplacement,
-                      String faceUrl, String frontUrl, String backUrl) {}
+                      String faceUrl, String frontUrl, String backUrl, String documentFullName) {}
     record DocumentCorrection(String documentNumber, String reason, boolean pending, Long version) {}
     record ScanSubmission(byte[] front, byte[] back, byte[] face, byte[] selfie, String fullName,
                           String documentNumber, String evidence, double similarity, boolean approved, String reason) {}

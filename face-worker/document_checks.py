@@ -181,7 +181,7 @@ def card_image(image):
     return None, quality_failure or dict(passed=False, reason='TOO_SMALL' if too_small else 'CARD_FRAME')
 
 
-def _ocr(image, psm, timeout):
+def _ocr(image, psm, timeout, with_rows=False):
     # PNG avoids an additional lossy JPEG pass over small document characters.
     _, encoded = cv2.imencode('.png', image)
     result = subprocess.run(['tesseract', 'stdin', 'stdout', '-l', 'vie+eng', '--psm', str(psm), 'tsv'],
@@ -189,6 +189,7 @@ def _ocr(image, psm, timeout):
                             timeout=timeout, check=True, env={**os.environ, "OMP_THREAD_LIMIT": "1"})
     lines, confidences = {}, []
     bounds = {}
+    line_confidences = {}
     for row in csv.DictReader(io.StringIO(result.stdout.decode('utf-8', errors='replace')), delimiter='\t'):
         word = (row.get('text') or '').strip()
         try:
@@ -199,6 +200,7 @@ def _ocr(image, psm, timeout):
             continue
         key = (row.get('block_num'), row.get('par_num'), row.get('line_num'))
         lines.setdefault(key, []).append(word)
+        if len(word) >= 2: line_confidences.setdefault(key, []).append(confidence)
         left, top, width, height = (int(row.get(field) or 0) for field in ('left', 'top', 'width', 'height'))
         if key not in bounds:
             bounds[key] = [left, top, left + width, top + height]
@@ -217,12 +219,18 @@ def _ocr(image, psm, timeout):
         target = next((row for row in reversed(rows)
                        if abs(row['center'] - center) <= .45 * min(row['height'], height)), None)
         if target is None:
-            target = dict(center=center, height=height, pieces=[])
+            target = dict(center=center, height=height, pieces=[], confidence=[])
             rows.append(target)
         target['pieces'].append((box[0], ' '.join(lines[key])))
+        target['confidence'].extend(line_confidences.get(key, []))
     text = '\n'.join(' '.join(value for _, value in sorted(row['pieces']))
                      for row in sorted(rows, key=lambda row: row['center']))
-    return text[:8000], float(np.mean(confidences)) if confidences else 0.0
+    result = (text[:8000], float(np.mean(confidences)) if confidences else 0.0)
+    if with_rows:
+        return (*result, [{'text': ' '.join(value for _, value in sorted(row['pieces'])),
+                          'confidence': float(np.mean(row['confidence'])) if row['confidence'] else 0.0}
+                         for row in sorted(rows, key=lambda row: row['center'])])
+    return result
 
 
 def read_card(image, side=None):
@@ -318,6 +326,8 @@ def extract_name(text):
         values = []
         tail = line[label.end():]
         value = _name_value(tail)
+        if '/' in tail and not _NAME_LABEL.search(_unaccent(tail)):
+            value = ''  # Unreadable bilingual label, not part of the person's name.
         if value:
             values.append(value)
         elif tail.strip(" :/|;.,").isalpha() and not _NAME_LABEL.search(_unaccent(tail)):
@@ -328,6 +338,8 @@ def extract_name(text):
             # Only collect letters inside the labelled name field, ending at
             # the next field. Do not invent a name from account/profile data.
             normalized = _unaccent(following)
+            if _NAME_STOPS.search(normalized) or re.search(r'\d{1,2}\s*[/.-]\s*\d{1,2}\s*[/.-]\s*\d{4}', following):
+                break
             candidate = _name_value(following)
             if candidate:
                 values.append(candidate)
@@ -344,6 +356,59 @@ def extract_name(text):
         if name:
             return name
     return ''
+
+
+
+def read_front_name(image):
+    """Read the labelled name or the row between number and birth date.
+
+    Only document pixels are used. Crops/contrast aid OCR without weakening the
+    original card quality or face checks. No profile name or fixed name is used.
+    """
+    height, width = image.shape[:2]
+    roi = image[int(height*.40):int(height*.82), int(width*.27):int(width*.99)]
+    if roi.size == 0:
+        return ''
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    scale = min(2.0, 1400 / max(gray.shape))
+    enlarged = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    enhanced = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(enlarged)
+    deadline = time.monotonic() + 18
+    candidates = []
+    for candidate, psm in ((enlarged, 6), (enhanced, 6), (enlarged, 11)):
+        remaining = deadline-time.monotonic()
+        if remaining <= 1:
+            break
+        try:
+            _, _, rows = _ocr(candidate, psm, min(6, remaining), with_rows=True)
+        except subprocess.TimeoutExpired:
+            continue
+        number_rows = [i for i, row in enumerate(rows)
+                       if re.search(r'(?<!\d)(?:\d[ \t]*){12}(?![ \t]*\d)', row['text'])]
+        date_rows = [i for i, row in enumerate(rows)
+                     if re.search(r'\d{1,2}\s*[/.-]\s*\d{1,2}\s*[/.-]\s*\d{4}', row['text'])]
+        for i, row in enumerate(rows):
+            raw = row['text'].strip(" :/|;.,=‘’“”\"")
+            name = _name_value(raw)
+            if not name or row['confidence'] < 55 or _NAME_STOPS.search(_unaccent(raw)):
+                continue
+            # Require a name-like capitalized row, avoiding bilingual labels.
+            letters = [c for c in raw if c.isalpha()]
+            if not letters or sum(c.isupper() for c in letters)/len(letters) < .8:
+                continue
+            if any(len(word) < 2 for word in name.split()):
+                continue
+            labelled = any(_NAME_LABEL.search(_unaccent(rows[j]['text'])) for j in range(max(0,i-2),i))
+            bounded = any(n < i < d for n in number_rows for d in date_rows)
+            if labelled or bounded:
+                candidates.append((name, row['confidence']))
+    if not candidates:
+        return ''
+    # Agreement across preprocessing passes outranks a lone confident guess.
+    selected = max(candidates, key=lambda item: (sum(plain(other)==plain(item[0]) for other,_ in candidates), item[1]))[0]
+    variants = {name for name,_ in candidates if plain(name)==plain(selected)}
+    # Do not guess Vietnamese accents when OCR passes disagree about them.
+    return plain(selected) if len(variants)>1 else selected
 
 
 def document_fields(front_text, back_text, front_confidence, back_confidence):

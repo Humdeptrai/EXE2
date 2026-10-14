@@ -154,14 +154,14 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
                 draft.getSelfieImage() != null, false, draft.getSelfieImage() == null ? null : "/identity/me/selfie", replacement,
                 draft.getFaceImage() == null ? null : "/identity/me/images/face",
                 draft.getFrontImage() == null ? null : "/identity/me/images/front",
-                draft.getBackImage() == null ? null : "/identity/me/images/back");
-        if (active == null) return new MyIdentity(status(user), null, false, false, false, null, false, null, null, null);
+                draft.getBackImage() == null ? null : "/identity/me/images/back", crypto.text(draft.getFullName()));
+        if (active == null) return new MyIdentity(status(user), null, false, false, false, null, false, null, null, null, null);
         return new MyIdentity(summary(active), crypto.text(active.getDocumentNumber()), useActive && active.getDocumentNumberConfirmedAt() != null,
                 active.getSelfieImage() != null, useActive && active.getSelfieVerifiedAt() != null,
                 active.getSelfieImage() == null ? null : "/identity/me/selfie", replacement,
                 active.getFaceImage() == null ? null : "/identity/me/images/face",
                 active.getFrontImage() == null ? null : "/identity/me/images/front",
-                active.getBackImage() == null ? null : "/identity/me/images/back");
+                active.getBackImage() == null ? null : "/identity/me/images/back", crypto.text(active.getFullName()));
     }
 
     @Override

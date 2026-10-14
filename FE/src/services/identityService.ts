@@ -9,6 +9,7 @@ export type MyIdentity = {
   selfieVerified: boolean;
   selfieUrl: string | null;
   pendingReplacement: boolean;
+  documentFullName: string | null;
   faceUrl: string | null; frontUrl: string | null; backUrl: string | null;
 };
 export type IdentityProgress = {
