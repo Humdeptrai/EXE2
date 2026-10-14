@@ -51,6 +51,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class JobMatchingServiceImpl implements JobMatchingService {
     private final com.handsfree.be.service.ConnectionPaymentService connectionPaymentService;
+    private final ContactAccess contactAccess;
+    private final AccountAccess accountAccess;
+    private final com.handsfree.be.mapper.JobPostMapper jobPostMapper;
+    private final com.handsfree.be.service.RatingService ratingService;
     private final BusinessProperties businessProperties;
     private final PlatformSettingsService settings;
     private final IdentityService identity;
@@ -62,6 +66,29 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     private final MatchRatingRepository matchRatingRepository;
     private final JobMatchingMapper jobMatchingMapper;
     private final NotificationService notificationService;
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.handsfree.be.dto.response.MatchDetailResponse getDetail(UUID userId, UUID matchId) {
+        accountAccess.active(userId);
+        var match = jobMatchRepository.findById(matchId)
+                .orElseThrow(() -> new AppException(ErrorCode.MATCH_NOT_FOUND));
+        boolean consumer = match.getConsumer().getId().equals(userId);
+        if (!consumer && !match.getProvider().getId().equals(userId))
+            throw new AppException(ErrorCode.MATCH_NOT_FOUND);
+        if (match.getConnectionSucceededAt() == null || !contactAccess.unlocked(match))
+            throw new AppException(ErrorCode.FORBIDDEN);
+        var user = consumer ? match.getProvider() : match.getConsumer();
+        var visible = contactAccess.user(user, match);
+        var profile = new com.handsfree.be.dto.response.MatchUserResponse(user.getId(), user.getFullName(),
+                user.getAvatarUrl(), user.getLocation(), user.getBio(),
+                user.getProfileTags() == null ? List.of() : List.copyOf(user.getProfileTags()),
+                user.isProfileCompleted(), user.getPhone(), user.getEmail(), visible.verifiedFaceUrl(), visible.identityVerified());
+        return new com.handsfree.be.dto.response.MatchDetailResponse(
+                consumer ? jobMatchingMapper.toConsumerMatchResponse(match) : jobMatchingMapper.toProviderMatchResponse(match),
+                jobPostMapper.toResponse(match.getJobPost()), profile, ratingService.getUserReputation(user.getId()),
+                consumer ? "CONSUMER" : "PROVIDER");
+    }
 
     @Override
     @Transactional(readOnly = true)

@@ -43,6 +43,8 @@ public class OperatorAnalyticsService {
         Map<String, Object> result = moderation();
         result.put("month", month.toString());
         result.put("timezone", ZONE.getId());
+        result.put("today", LocalDate.now(ZONE).toString());
+        result.put("generatedAt", Instant.now().toString());
         result.put("grossFees", amount("select coalesce(-sum(amount),0) from wallet_entries where kind='CONNECTION_FEE'"));
         result.put("refunds", amount("select coalesce(sum(amount),0) from wallet_entries where kind='REFUND'"));
         result.put("topups", amount("select coalesce(sum(amount),0) from wallet_entries where kind='TOPUP'"));

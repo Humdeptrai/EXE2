@@ -1,3 +1,4 @@
+import IdentityImageViewer from "../../../components/feedback/IdentityImageViewer";
 import ReputationSummary from "../../rating/components/ReputationSummary";
 import RelatedMatchActions from "../../rating/components/RelatedMatchActions";
 import { isIdentityActionHandled } from "../../../config/axios";
@@ -133,9 +134,7 @@ export default function JobDetailPage() {
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="relative flex min-h-56 items-center justify-center overflow-hidden bg-slate-100">
           {job.media[imageIndex]?.url ? (
-            <a href={job.media[imageIndex].url} target="_blank" rel="noopener noreferrer" className="block max-w-full" aria-label="Mở ảnh gốc trong tab mới">
-              <JobVisual job={job} imageIndex={imageIndex} fit="original" />
-            </a>
+            <IdentityImageViewer src={job.media[imageIndex].url} alt={job.media[imageIndex].originalName || job.title} className="mx-auto block max-h-[70dvh] max-w-full object-contain" />
           ) : <JobVisual job={job} imageIndex={imageIndex} fit="original" /> }
           {job.media.length > 1 && (
             <>

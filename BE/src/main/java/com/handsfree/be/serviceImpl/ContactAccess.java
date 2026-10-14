@@ -17,7 +17,6 @@ public class ContactAccess {
     private final ConnectionPaymentRepository payments;
     private final WalletEntryRepository entries;
     private final IdentityRepository identities;
-    private final IdentityCrypto crypto;
 
     public boolean unlocked(JobMatch match) {
         if (match.getStatus() == MatchStatus.EXPIRED) return false;
@@ -39,7 +38,7 @@ public class ContactAccess {
         var verified = open ? identities.findPublicByUserId(u.getId()).filter(i -> "VERIFIED".equals(i.getStatus())).orElse(null) : null;
         return new MatchUserResponse(
                 u.getId(),
-                verified != null ? crypto.text(verified.getFullName()) : open ? u.getFullName() : "Người dùng HandsFree",
+                open ? u.getFullName() : "Người dùng HandsFree",
                 open ? u.getAvatarUrl() : null,
                 ContactPrivacy.redact(u.getLocation()),
                 ContactPrivacy.redact(u.getBio()),

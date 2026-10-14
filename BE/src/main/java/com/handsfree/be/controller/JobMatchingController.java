@@ -111,6 +111,13 @@ public class JobMatchingController {
         ));
     }
 
+    @GetMapping("/matches/{matchId}/detail")
+    public ResponseEntity<ApiResponse<com.handsfree.be.dto.response.MatchDetailResponse>> detail(
+            Authentication authentication, @PathVariable UUID matchId) {
+        return ResponseEntity.ok(ApiResponse.success(200, "Chi tiết kết nối",
+                jobMatchingService.getDetail(currentUserId(authentication), matchId)));
+    }
+
     private UUID currentUserId(Authentication authentication) {
         return UUID.fromString(authentication.getName());
     }

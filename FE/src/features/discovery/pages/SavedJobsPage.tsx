@@ -1,7 +1,7 @@
 import { isIdentityActionHandled } from "../../../config/axios";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
 import { jobService } from "../../../services/jobService";
@@ -25,7 +25,9 @@ const tabs: Array<{ key: SavedTab; label: string; countKey: keyof DiscoverySumma
 ];
 
 export default function SavedJobsPage() {
-  const [tab, setTab] = useState<SavedTab>("SAVED");
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get("tab");
+  const tab: SavedTab = tabs.find(t => t.key === requestedTab)?.key || "SAVED";
   const [summary, setSummary] = useState<DiscoverySummary>(emptySummary);
   const [result, setResult] = useState<PageResponse<JobDiscovery>>(emptyPage);
   const [matchResult, setMatchResult] = useState<MatchPage>(emptyMatchPage);
@@ -81,7 +83,7 @@ export default function SavedJobsPage() {
   }, [notice]);
 
   function selectTab(nextTab: SavedTab) {
-    setTab(nextTab);
+    setParams({ tab: nextTab });
     setPage(0);
   }
 

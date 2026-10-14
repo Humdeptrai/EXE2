@@ -1,3 +1,4 @@
+import MatchDetailPage from "../features/matching/pages/MatchDetailPage";
 import IdentityAppealPage from "../features/identity/pages/IdentityAppealPage";
 import IdentityOnboardingPage from "../features/identity/pages/IdentityOnboardingPage";
 import WalletPage from "../features/payment/pages/WalletPage";
@@ -52,6 +53,7 @@ export const privateRoutes = [
         path: "matches/:matchId/payment",
         element: <ConnectionPaymentPage />,
       },
+      { path: "matches/:matchId", element: <MatchDetailPage /> },
       { path: "matches/:matchId/rating", element: <MatchRatingPage /> },
       { path: "messages", element: <MessagesPage /> },
       {

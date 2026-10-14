@@ -42,6 +42,7 @@ export default function MatchCard({ match, perspective }: MatchCardProps) {
           <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 min-[440px]:flex-row min-[440px]:items-center min-[440px]:justify-between">
             <span className="text-sm font-black text-[#007f95]">{formatVnd(match.budgetAmount)} · {budgetLabel(match.budgetType)}</span>
             <div className="flex flex-wrap gap-2">
+              {match.connectionSucceeded && <Link to={`/matches/${match.id}`} className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#007f95] px-3 text-[11px] font-extrabold text-white">Xem chi tiết</Link>}
               {match.chatUnlocked ? (
                 <Link to={`/messages/match/${match.id}`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-extrabold text-emerald-700"><AppIcon name="chat" className="h-4 w-4" /> Nhắn tin</Link>
               ) : (

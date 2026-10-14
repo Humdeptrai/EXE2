@@ -7,6 +7,7 @@ import com.handsfree.be.dto.response.PageResponse;
 import java.util.UUID;
 
 public interface JobMatchingService {
+    com.handsfree.be.dto.response.MatchDetailResponse getDetail(UUID userId, UUID matchId);
     PageResponse<CandidateResponse> getCandidates(UUID consumerId, UUID jobId, int page, int size);
 
     CandidateResponse getCandidate(UUID consumerId, UUID jobId, UUID interestId);

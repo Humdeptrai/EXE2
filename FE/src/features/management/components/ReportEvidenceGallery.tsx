@@ -1,3 +1,4 @@
+import IdentityImageViewer from "../../../components/feedback/IdentityImageViewer";
 import { useEffect, useState } from "react";
 import api from "../../../config/axios";
 import type { ReportEvidence } from "../../../types/report";
@@ -25,7 +26,7 @@ function PrivateMedia({ file }: { file: ReportEvidence }) {
     <p className="break-words text-sm font-bold text-slate-700">{file.originalName}</p>
     <p className="text-xs text-slate-500">{video ? "Video MP4" : "Hình ảnh"} · {(file.sizeBytes / 1024 / 1024).toFixed(2)} MB</p>
     {url ? video ? <video src={url} controls playsInline preload="metadata" className="max-h-96 w-full rounded-xl bg-slate-950" /> :
-      <a href={url} target="_blank" rel="noopener noreferrer" className="block"><img src={url} alt={file.originalName} className="max-h-72 w-full rounded-xl bg-slate-50 object-contain" /><span className="mt-2 block text-xs font-bold text-[#007f95]">Xem ảnh gốc</span></a>
+      <IdentityImageViewer src={url} alt={file.originalName} className="max-h-72 w-full rounded-xl bg-slate-50 object-contain" />
       : !requested ? <button type="button" onClick={() => setRequested(true)} className="min-h-11 rounded-xl bg-[#007f95] px-4 text-sm font-bold text-white">Tải và xem video</button>
       : !error && <p role="status" className="text-sm text-slate-500">Đang tải bằng chứng… {progress}%</p>}
     {error && <><UserNotice message={error} error /><button type="button" className="min-h-11 text-sm font-bold text-[#007f95]" onClick={() => { setError(""); setProgress(0); setAttempt(v => v + 1); }}>Thử lại</button></>}
