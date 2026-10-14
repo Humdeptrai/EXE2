@@ -26,6 +26,41 @@ import java.util.UUID;
 @Tag(name = "8. Realtime Chat", description = "Conversation history and realtime chat after both participants complete connection fees")
 public class ChatController {
     private final ChatService chatService;
+    private final com.handsfree.be.service.ChatPresenceService presence;
+
+    @GetMapping("/unread-count")
+    public ApiResponse<?> unread(Authentication a) { return ApiResponse.success(200, "Tin chưa đọc", java.util.Map.of("count", chatService.unreadCount(currentUserId(a)))); }
+    @GetMapping("/presence")
+    public ApiResponse<?> online(Authentication a) { return ApiResponse.success(200, "Đang hoạt động", presence.onlineCounterparts(currentUserId(a))); }
+
+    public record HeartRequest(boolean liked) {}
+    @org.springframework.web.bind.annotation.PutMapping("/{conversationId}/messages/{messageId}/heart")
+    public ApiResponse<ChatMessageResponse> heart(Authentication a, @PathVariable UUID conversationId, @PathVariable UUID messageId,
+            @org.springframework.web.bind.annotation.RequestBody HeartRequest body) {
+        return ApiResponse.success(200, "Đã cập nhật cảm xúc", chatService.heart(currentUserId(a), conversationId, messageId, body.liked()));
+    }
+    public record SendRequest(UUID clientMessageId, String content) {}
+    @PostMapping(value="/{conversationId}/messages", consumes="application/json")
+    public ApiResponse<ChatMessageResponse> send(Authentication a, @PathVariable UUID conversationId,
+            @org.springframework.web.bind.annotation.RequestBody SendRequest body) {
+        return ApiResponse.success(200, "Đã gửi tin nhắn", chatService.sendMessage(currentUserId(a),
+            new com.handsfree.be.dto.request.ChatSendMessageRequest(conversationId, body.clientMessageId(), body.content())).message());
+    }
+    @PostMapping(value="/{conversationId}/messages", consumes="multipart/form-data")
+    public ApiResponse<ChatMessageResponse> upload(Authentication a, @PathVariable UUID conversationId,
+            @RequestParam UUID clientMessageId, @RequestParam(defaultValue="") String content,
+            @org.springframework.web.bind.annotation.RequestPart("file") org.springframework.web.multipart.MultipartFile file) {
+        return ApiResponse.success(200, "Đã gửi tệp", chatService.sendAttachment(currentUserId(a), conversationId, clientMessageId, content, file));
+    }
+    @GetMapping("/{conversationId}/messages/{messageId}/attachment")
+    public ResponseEntity<org.springframework.core.io.InputStreamResource> attachment(Authentication a, @PathVariable UUID conversationId, @PathVariable UUID messageId) {
+        var file = chatService.attachment(currentUserId(a), conversationId, messageId);
+        String disposition = file.contentType().startsWith("image/") || file.contentType().startsWith("video/") ? "inline" : "attachment";
+        return ResponseEntity.ok().header("Cache-Control", "no-store").header("X-Content-Type-Options", "nosniff")
+            .header("Content-Disposition", org.springframework.http.ContentDisposition.builder(disposition).filename(file.originalName(), java.nio.charset.StandardCharsets.UTF_8).build().toString())
+            .contentType(org.springframework.http.MediaType.parseMediaType(file.contentType())).contentLength(file.sizeBytes())
+            .body(new org.springframework.core.io.InputStreamResource(file.stream()));
+    }
 
     @GetMapping
     @Operation(summary = "List conversations for the current user")

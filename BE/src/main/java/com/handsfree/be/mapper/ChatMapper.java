@@ -54,7 +54,11 @@ public class ChatMapper {
                 message.getSender().getAvatarUrl(),
                 message.getContent(),
                 message.getSentAt(),
-                message.getReadAt()
+                message.getReadAt(),
+                message.getAttachmentKey() == null ? null : new ChatMessageResponse.Attachment(
+                        message.getAttachmentName(), message.getAttachmentType(), message.getAttachmentSize(),
+                        "/conversations/" + message.getConversation().getId() + "/messages/" + message.getId() + "/attachment"),
+                java.util.Set.copyOf(message.getHearts())
         );
     }
 }

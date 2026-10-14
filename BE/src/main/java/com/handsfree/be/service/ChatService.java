@@ -19,5 +19,11 @@ public interface ChatService {
 
     ChatReadResponse markRead(UUID currentUserId, UUID conversationId);
 
+    long unreadCount(UUID currentUserId);
+    ChatMessageResponse heart(UUID currentUserId, UUID conversationId, UUID messageId, boolean liked);
+    ChatMessageResponse sendAttachment(UUID currentUserId, UUID conversationId, UUID clientMessageId, String content,
+            org.springframework.web.multipart.MultipartFile file);
+    com.handsfree.be.storage.PrivateChatFile attachment(UUID currentUserId, UUID conversationId, UUID messageId);
+
     ChatMessageDelivery sendMessage(UUID currentUserId, ChatSendMessageRequest request);
 }

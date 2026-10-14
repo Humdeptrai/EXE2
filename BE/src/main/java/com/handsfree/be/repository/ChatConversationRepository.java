@@ -14,6 +14,10 @@ import java.util.UUID;
 
 @Repository
 public interface ChatConversationRepository extends JpaRepository<ChatConversation, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ChatConversation c where c.id = :id")
+    Optional<ChatConversation> lockById(@Param("id") UUID id);
+
     @EntityGraph(attributePaths = {"jobMatch", "jobMatch.jobPost", "jobMatch.consumer", "jobMatch.provider"})
     Optional<ChatConversation> findByJobMatch_Id(UUID matchId);
 

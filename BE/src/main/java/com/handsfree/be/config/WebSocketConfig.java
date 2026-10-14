@@ -1,7 +1,6 @@
 package com.handsfree.be.config;
 
 import com.handsfree.be.properties.CorsProperties;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -11,14 +10,20 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 @Configuration
 @EnableWebSocketMessageBroker
-@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+    @org.springframework.beans.factory.annotation.Qualifier("chatHeartbeatScheduler")
+    private final org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler chatHeartbeatScheduler;
     private final CorsProperties corsProperties;
     private final WebSocketAuthChannelInterceptor authChannelInterceptor;
 
+    public WebSocketConfig(CorsProperties corsProperties, WebSocketAuthChannelInterceptor authChannelInterceptor,
+            @org.springframework.beans.factory.annotation.Qualifier("chatHeartbeatScheduler") org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler scheduler) {
+        this.corsProperties = corsProperties; this.authChannelInterceptor = authChannelInterceptor; this.chatHeartbeatScheduler = scheduler;
+    }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/queue");
+        registry.enableSimpleBroker("/queue").setTaskScheduler(chatHeartbeatScheduler).setHeartbeatValue(new long[]{10000,10000});
         registry.setApplicationDestinationPrefixes("/app");
         registry.setUserDestinationPrefix("/user");
     }

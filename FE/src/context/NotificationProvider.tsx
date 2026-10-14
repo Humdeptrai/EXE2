@@ -36,7 +36,7 @@ function UserNotifications({ children, userId }: PropsWithChildren<{ userId: str
       .catch(() => undefined);
     const connection = new NotificationSocketConnection({
       onNotification: (notification) => {
-        if (!active.current) return;
+        if (!active.current || notification.type === "CHAT_MESSAGE_RECEIVED") return;
         setLatestNotification(notification);
         for (const listener of listeners.current) listener(notification);
         void refreshUnreadCount();

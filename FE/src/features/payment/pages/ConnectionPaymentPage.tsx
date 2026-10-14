@@ -1,3 +1,4 @@
+import PaymentCountdown from "../components/PaymentCountdown";
 import CounterpartIdentity from "../../identity/components/CounterpartIdentity";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -42,6 +43,11 @@ export default function ConnectionPaymentPage() {
       }),
     [subscribeNotifications, matchId, load],
   );
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible" && !lock.current) void load(); };
+    const timer = window.setInterval(refresh, 15000); window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [load]);
   async function pay() {
     if (lock.current || !payment) return;
     lock.current = true;
@@ -78,6 +84,7 @@ export default function ConnectionPaymentPage() {
               Phí tính theo matching này. Hai bên cần hoàn tất phí để mở liên
               hệ.
             </p>
+            <PaymentCountdown deadline={payment.paymentDeadlineAt} serverTime={payment.serverTime} completed={payment.connectionSucceeded} inactive={payment.status === "REFUNDED" || payment.matchStatus === "EXPIRED"} onExpire={() => { void load(); }} />
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-[#eef8fa] p-4">
                 <p className="text-sm">Người thuê</p>
@@ -166,7 +173,7 @@ export default function ConnectionPaymentPage() {
                 </Link>
               )}
               <button
-                disabled={busy || balance < payment.currentUserFee}
+                disabled={busy || payment.matchStatus === "EXPIRED" || !!(payment.paymentDeadlineAt && Date.parse(payment.paymentDeadlineAt) <= Date.now()) || balance < payment.currentUserFee}
                 onClick={() => void pay()}
                 className="mt-4 min-h-12 w-full rounded-xl bg-[#007f95] font-bold text-white disabled:opacity-40"
               >

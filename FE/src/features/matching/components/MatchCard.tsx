@@ -1,3 +1,4 @@
+import PaymentCountdown from "../../payment/components/PaymentCountdown";
 import CounterpartIdentity from "../../identity/components/CounterpartIdentity";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -32,6 +33,7 @@ export default function MatchCard({ match, perspective }: MatchCardProps) {
             </div>
             <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${match.connectionSucceeded ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>{label}</span>
           </div>
+          <PaymentCountdown deadline={match.paymentDeadlineAt} serverTime={match.serverTime} completed={match.connectionSucceeded} inactive={match.status !== "ACTIVE"} />
           <h3 className="mt-4 line-clamp-2 text-base font-black">{match.jobTitle}</h3>
           <div className="mt-3 grid gap-2 text-xs font-bold text-slate-500 min-[440px]:grid-cols-2">
             <span className="flex items-start gap-2"><AppIcon name="calendar" className="mt-0.5 h-4 w-4 shrink-0 text-[#007f95]" />{formatJobDate(match.scheduledDate, match.startTime)}</span>

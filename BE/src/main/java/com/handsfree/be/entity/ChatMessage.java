@@ -56,6 +56,22 @@ public class ChatMessage extends BaseEntity {
     @Column(name = "content", nullable = false, length = 2000)
     private String content;
 
+    @Column(name = "attachment_name", length = 255)
+    private String attachmentName;
+    @Column(name = "attachment_type", length = 100)
+    private String attachmentType;
+    @Column(name = "attachment_size")
+    private Long attachmentSize;
+    @Column(name = "attachment_provider", length = 20)
+    private String attachmentProvider;
+    @Column(name = "attachment_key", length = 500)
+    private String attachmentKey;
+    @Builder.Default
+    @jakarta.persistence.ElementCollection
+    @jakarta.persistence.CollectionTable(name = "chat_message_hearts", joinColumns = @JoinColumn(name = "message_id"))
+    @Column(name = "user_id", nullable = false)
+    private java.util.Set<UUID> hearts = new java.util.HashSet<>();
+
     @Column(name = "sent_at", nullable = false)
     private Instant sentAt;
 

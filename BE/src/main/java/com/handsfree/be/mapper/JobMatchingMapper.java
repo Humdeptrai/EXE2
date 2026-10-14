@@ -80,7 +80,7 @@ public class JobMatchingMapper {
                 contactAccess.unlocked(match) && match.getChatUnlockedAt() != null,
                 payment != null && payment.getConsumerPaymentStatus() == com.handsfree.be.constant.PaymentStatus.PAID,
                 payment != null && payment.getProviderPaymentStatus() == com.handsfree.be.constant.PaymentStatus.PAID,
-                match.getExpectedEndAt(), match.getRatingOpensAt(), match.getRatingClosesAt()
+                match.getExpectedEndAt(), match.getRatingOpensAt(), match.getRatingClosesAt(), match.getPaymentDeadlineAt(), java.time.Instant.now()
         );
     }
 }

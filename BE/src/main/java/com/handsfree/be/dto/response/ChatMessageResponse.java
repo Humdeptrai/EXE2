@@ -12,5 +12,9 @@ public record ChatMessageResponse(
         String senderAvatarUrl,
         String content,
         Instant sentAt,
-        Instant readAt
-) {}
+        Instant readAt,
+        Attachment attachment,
+        java.util.Set<UUID> hearts
+) {
+    public record Attachment(String name, String contentType, long sizeBytes, String url) {}
+}

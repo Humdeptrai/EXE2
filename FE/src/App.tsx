@@ -1,3 +1,4 @@
+import { ChatProvider } from "./context/ChatProvider";
 import PwaStatus from "./features/pwa/PwaStatus";
 import { RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./context/AuthProvider";
@@ -7,10 +8,10 @@ import { router } from "./routes";
 export default function App() {
   return (
     <AuthProvider>
-      <NotificationProvider>
+      <NotificationProvider><ChatProvider>
         <RouterProvider router={router} />
         <PwaStatus />
-      </NotificationProvider>
+      </ChatProvider></NotificationProvider>
     </AuthProvider>
   );
 }

@@ -64,6 +64,8 @@ export interface JobMatch {
   requiredWorkers: number;
   status: MatchStatus;
   counterpart: MatchUser;
+  paymentDeadlineAt?: string | null;
+  serverTime?: string;
   matchedAt: string;
   connectionSucceededAt: string | null;
   connectionSucceeded: boolean;

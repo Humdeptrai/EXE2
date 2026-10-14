@@ -15,6 +15,7 @@ public enum ErrorCode {
     IDENTITY_INVALID_MEDIA(40060, HttpStatus.BAD_REQUEST, "Cần ảnh JPEG rõ nét và video MP4 5–6 giây; ảnh tối đa 5 MB, video tối đa 10 MB"),
     IDENTITY_GATEWAY_ERROR(50260, HttpStatus.BAD_GATEWAY, "Dịch vụ xác thực chưa phản hồi hợp lệ; vui lòng thử lại sau"),
     IDENTITY_NOT_FOUND(40460, HttpStatus.NOT_FOUND, "Chưa có hồ sơ xác thực"),
+    CHAT_ATTACHMENT_INVALID(40071, HttpStatus.BAD_REQUEST, "Tệp chat không hợp lệ. Ảnh JPG/PNG/WebP tối đa 10 MB, video MP4 tối đa 50 MB, PDF/TXT tối đa 10 MB."),
     PAYMENT_DEADLINE_EXPIRED(40961, HttpStatus.CONFLICT, "Đã hết hạn thanh toán; phí thực tế đã trả sẽ được hoàn về ví"),
     PAYMENT_NOT_CONFIGURED(50301, HttpStatus.SERVICE_UNAVAILABLE, "Nạp tiền chưa được cấu hình trên máy chủ"),
     PAYMENT_GATEWAY_ERROR(50201, HttpStatus.BAD_GATEWAY, "Cổng thanh toán chưa phản hồi hợp lệ; vui lòng kiểm tra lại đơn nạp"),

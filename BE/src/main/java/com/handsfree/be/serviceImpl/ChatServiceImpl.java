@@ -1,7 +1,6 @@
 package com.handsfree.be.serviceImpl;
 
 import com.handsfree.be.constant.MatchStatus;
-import com.handsfree.be.constant.NotificationType;
 import com.handsfree.be.dto.request.ChatSendMessageRequest;
 import com.handsfree.be.dto.response.ChatConversationResponse;
 import com.handsfree.be.dto.response.ChatMessageResponse;
@@ -19,7 +18,6 @@ import com.handsfree.be.repository.ChatMessageRepository;
 import com.handsfree.be.repository.JobMatchRepository;
 import com.handsfree.be.service.ChatMessageDelivery;
 import com.handsfree.be.service.ChatService;
-import com.handsfree.be.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -42,7 +40,8 @@ public class ChatServiceImpl implements ChatService {
     private final ChatConversationRepository chatConversationRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final ChatMapper chatMapper;
-    private final NotificationService notificationService;
+    private final com.handsfree.be.service.ChatEventService events;
+    private final com.handsfree.be.service.ChatAttachmentStorageService attachmentStorage;
 
     @Override
     @Transactional
@@ -105,8 +104,11 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ChatReadResponse markRead(UUID currentUserId, UUID conversationId) {
-        requireParticipantConversation(currentUserId, conversationId);
+        var conversation = requireParticipantConversation(currentUserId, conversationId);
+        var match = conversation.getJobMatch();
         int marked = chatMessageRepository.markUnreadAsRead(conversationId, currentUserId, Instant.now());
+        if (marked > 0) events.publish(match.getConsumer().getId(), match.getProvider().getId(),
+                com.handsfree.be.dto.response.ChatSocketEventResponse.read(conversationId, currentUserId));
         return new ChatReadResponse(conversationId, marked);
     }
 
@@ -117,7 +119,7 @@ public class ChatServiceImpl implements ChatService {
             throw new AppException(ErrorCode.CHAT_MESSAGE_INVALID);
         }
         String content = normalizeContent(request.content());
-        ChatConversation conversation = requireParticipantConversation(currentUserId, request.conversationId());
+        ChatConversation conversation = lockedConversation(currentUserId, request.conversationId());
         JobMatch match = conversation.getJobMatch();
         requireChatUnlocked(match);
 
@@ -148,18 +150,98 @@ public class ChatServiceImpl implements ChatService {
         conversation.setLastMessagePreview(preview(content));
         chatConversationRepository.save(conversation);
 
-        User recipient = match.getConsumer().getId().equals(currentUserId)
-                ? match.getProvider()
-                : match.getConsumer();
-        notificationService.create(
-                recipient,
-                NotificationType.CHAT_MESSAGE_RECEIVED,
-                "Tin nhắn mới",
-                sender.getFullName() + ": " + preview(content),
-                conversation.getId(),
-                "/messages/" + conversation.getId()
-        );
+        publish(message, match, false);
         return delivery(message, match);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public long unreadCount(UUID user) { accountAccess.active(user); return chatMessageRepository.countAllUnread(user); }
+
+    private ChatConversation lockedConversation(UUID user, UUID id) {
+        requireParticipantConversation(user, id);
+        var conversation = chatConversationRepository.lockById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        requireChatUnlocked(conversation.getJobMatch());
+        return conversation;
+    }
+
+    @Override @Transactional
+    public ChatMessageResponse heart(UUID user, UUID conversationId, UUID messageId, boolean liked) {
+        var conversation = lockedConversation(user, conversationId);
+        var message = chatMessageRepository.findById(messageId)
+                .filter(m -> m.getConversation().getId().equals(conversationId))
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        if (liked) message.getHearts().add(user); else message.getHearts().remove(user);
+        publish(message, conversation.getJobMatch(), true);
+        return chatMapper.toMessageResponse(message);
+    }
+
+    @Override @Transactional
+    public ChatMessageResponse sendAttachment(UUID user, UUID conversationId, UUID clientId, String raw,
+            org.springframework.web.multipart.MultipartFile file) {
+        if (clientId == null) throw new AppException(ErrorCode.CHAT_MESSAGE_INVALID);
+        var conversation = lockedConversation(user, conversationId);
+        var existing = chatMessageRepository.findByConversation_IdAndSender_IdAndClientMessageId(conversationId, user, clientId);
+        if (existing.isPresent()) return chatMapper.toMessageResponse(existing.get());
+        var content = raw == null || raw.isBlank() ? "" : normalizeContent(raw);
+        validateAttachment(file);
+        var stored = attachmentStorage.store(file);
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                public void afterCompletion(int status) { if (status != STATUS_COMMITTED) attachmentStorage.delete(stored); }
+            });
+        var match = conversation.getJobMatch();
+        var message = ChatMessage.builder().conversation(conversation)
+            .sender(match.getConsumer().getId().equals(user) ? match.getConsumer() : match.getProvider())
+            .clientMessageId(clientId).content(content).sentAt(Instant.now())
+            .attachmentName(safeName(file.getOriginalFilename())).attachmentType(file.getContentType())
+            .attachmentSize(file.getSize()).attachmentProvider(stored.provider()).attachmentKey(stored.key()).build();
+        chatMessageRepository.save(message);
+        conversation.setLastMessageAt(message.getSentAt());
+        conversation.setLastMessagePreview(content.isEmpty() ? "Đã gửi " + message.getAttachmentName() : preview(content));
+        publish(message, match, false);
+        return chatMapper.toMessageResponse(message);
+    }
+
+    private String safeName(String original) {
+        String value = java.util.Objects.requireNonNullElse(original, "Tệp đính kèm").replace('\\', '/');
+        value = value.substring(value.lastIndexOf('/') + 1).replaceAll("[\\p{Cntrl}]", "");
+        return value.isBlank() ? "Tệp đính kèm" : value.substring(0, Math.min(255, value.length()));
+    }
+    private void validateAttachment(org.springframework.web.multipart.MultipartFile file) {
+        String type = file == null ? "" : java.util.Objects.requireNonNullElse(file.getContentType(), "");
+        long max = type.equals("video/mp4") ? 50L * 1024 * 1024 : 10L * 1024 * 1024;
+        if (file == null || file.isEmpty() || file.getSize() > max
+                || !java.util.Set.of("image/jpeg", "image/png", "image/webp", "video/mp4", "application/pdf", "text/plain").contains(type))
+            throw new AppException(ErrorCode.CHAT_ATTACHMENT_INVALID);
+        try (var in = file.getInputStream()) {
+            byte[] b = in.readNBytes(32);
+            boolean valid = switch (type) {
+                case "image/jpeg" -> b.length >= 3 && (b[0]&255)==255 && (b[1]&255)==216 && (b[2]&255)==255;
+                case "image/png" -> b.length>=8 && java.util.Arrays.equals(java.util.Arrays.copyOf(b,8), new byte[]{(byte)137,80,78,71,13,10,26,10});
+                case "image/webp" -> b.length>=12 && new String(b,0,4,java.nio.charset.StandardCharsets.US_ASCII).equals("RIFF") && new String(b,8,4,java.nio.charset.StandardCharsets.US_ASCII).equals("WEBP");
+                case "video/mp4" -> b.length>=12 && new String(b,4,4,java.nio.charset.StandardCharsets.US_ASCII).equals("ftyp")
+                    && java.util.Set.of("isom","iso2","mp41","mp42","avc1","M4V ","MSNV","dash","iso5","iso6").contains(new String(b,8,4,java.nio.charset.StandardCharsets.US_ASCII));
+                case "application/pdf" -> b.length>=5 && new String(b,0,5,java.nio.charset.StandardCharsets.US_ASCII).equals("%PDF-");
+                default -> new String(b,java.nio.charset.StandardCharsets.UTF_8).indexOf('\0')<0;
+            };
+            if (!valid) throw new AppException(ErrorCode.CHAT_ATTACHMENT_INVALID);
+        } catch (java.io.IOException error) { throw new AppException(ErrorCode.CHAT_ATTACHMENT_INVALID); }
+    }
+
+    @Override @Transactional(readOnly = true)
+    public com.handsfree.be.storage.PrivateChatFile attachment(UUID user, UUID conversationId, UUID messageId) {
+        requireParticipantConversation(user, conversationId);
+        var message = chatMessageRepository.findById(messageId)
+            .filter(m -> m.getConversation().getId().equals(conversationId) && m.getAttachmentKey() != null)
+            .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        return new com.handsfree.be.storage.PrivateChatFile(attachmentStorage.open(message), message.getAttachmentType(), message.getAttachmentName(), message.getAttachmentSize());
+    }
+    private void publish(ChatMessage message, JobMatch match, boolean update) {
+        var response = chatMapper.toMessageResponse(message);
+        events.publish(match.getConsumer().getId(), match.getProvider().getId(), update
+            ? com.handsfree.be.dto.response.ChatSocketEventResponse.updated(response)
+            : com.handsfree.be.dto.response.ChatSocketEventResponse.message(response));
     }
 
     private void backfillUnlockedConversations(UUID currentUserId) {

@@ -47,6 +47,8 @@ function frame(command: string, headers: Record<string, string>, body = "") {
 
 export class ChatSocketConnection {
   private socket: WebSocket | null = null;
+  private heartbeat: number | null = null;
+  private lastReceived = 0;
   private reconnectTimer: number | null = null;
   private reconnectAttempts = 0;
   private manualClose = false;
@@ -57,11 +59,14 @@ export class ChatSocketConnection {
 
   connect() {
     this.manualClose = false;
+    this.reconnectAttempts = 0;
     this.openSocket();
   }
 
   disconnect() {
     this.manualClose = true;
+    if (this.heartbeat !== null) window.clearInterval(this.heartbeat);
+    this.heartbeat = null;
     if (this.reconnectTimer !== null) {
       window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -119,13 +124,14 @@ export class ChatSocketConnection {
       socket.send(frame("CONNECT", {
         "accept-version": "1.2",
         host,
-        "heart-beat": "0,0",
+        "heart-beat": "10000,10000",
         Authorization: `Bearer ${accessToken}`,
       }));
     };
 
     socket.onmessage = (event) => {
       if (this.socket !== socket || this.manualClose) return;
+      this.lastReceived = Date.now();
       void this.consume(event.data);
     };
 
@@ -137,6 +143,8 @@ export class ChatSocketConnection {
     socket.onclose = () => {
       if (this.socket !== socket) return;
       this.socket = null;
+      if (this.heartbeat !== null) window.clearInterval(this.heartbeat);
+      this.heartbeat = null;
       this.updateStatus("DISCONNECTED");
       if (!this.manualClose) this.scheduleReconnect();
     };
@@ -148,7 +156,7 @@ export class ChatSocketConnection {
         : data instanceof Blob
             ? await data.text()
             : "";
-    if (!text) return;
+    if (!text.trim()) return;
     this.buffer += text;
     const chunks = this.buffer.split("\0");
     this.buffer = chunks.pop() || "";
@@ -161,6 +169,13 @@ export class ChatSocketConnection {
   private handleFrame(parsed: ParsedFrame) {
     if (parsed.command === "CONNECTED") {
       this.reconnectAttempts = 0;
+      this.lastReceived = Date.now();
+      if (this.heartbeat !== null) window.clearInterval(this.heartbeat);
+      this.heartbeat = window.setInterval(() => {
+        if (this.socket?.readyState !== WebSocket.OPEN) return;
+        if (Date.now() - this.lastReceived > 45000) { this.socket.close(); return; }
+        this.socket.send("\n");
+      }, 10000);
       this.updateStatus("CONNECTED");
       this.socket?.send(frame("SUBSCRIBE", {
         id: "handsfree-chat-events",
@@ -199,12 +214,12 @@ export class ChatSocketConnection {
   }
 
   private scheduleReconnect() {
-    if (this.reconnectAttempts >= 5 || this.reconnectTimer !== null) return;
+    if (this.manualClose || this.reconnectTimer !== null) return;
     this.reconnectAttempts += 1;
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       this.openSocket();
-    }, Math.min(2_000 * this.reconnectAttempts, 8_000));
+    }, Math.min(2_000 * this.reconnectAttempts, 30_000));
   }
 
   private updateStatus(status: ChatSocketStatus) {

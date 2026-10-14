@@ -25,6 +25,8 @@ export interface ChatMessage {
   content: string;
   sentAt: string;
   readAt: string | null;
+  attachment?: { name: string; contentType: string; sizeBytes: number; url: string } | null;
+  hearts?: string[];
 }
 
 export interface ChatReadResult {
@@ -32,10 +34,10 @@ export interface ChatReadResult {
   markedRead: number;
 }
 
-export interface ChatSocketEvent {
-  type: "MESSAGE";
-  message: ChatMessage;
-}
+export type ChatSocketEvent =
+  | { type: "MESSAGE" | "MESSAGE_UPDATED"; message: ChatMessage; conversationId: string }
+  | { type: "READ"; conversationId: string; userId: string }
+  | { type: "PRESENCE"; userId: string; online: boolean };
 
 export interface ChatSocketError {
   code: number;

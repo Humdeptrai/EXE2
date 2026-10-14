@@ -16,6 +16,10 @@ import java.util.UUID;
 
 @Repository
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, UUID> {
+    @Query("select count(m) from ChatMessage m where m.sender.id <> :userId and m.readAt is null "
+            + "and m.conversation in (select c from ChatConversation c where c.jobMatch.connectionSucceededAt is not null                       and c.jobMatch.chatUnlockedAt is not null                       and exists (select p.id from ConnectionPayment p where p.jobMatch = c.jobMatch                 and p.consumerPaymentMethod = com.handsfree.be.constant.PaymentMethod.WALLET                 and p.providerPaymentMethod = com.handsfree.be.constant.PaymentMethod.WALLET                 and p.consumerPaymentStatus = com.handsfree.be.constant.PaymentStatus.PAID                 and p.providerPaymentStatus = com.handsfree.be.constant.PaymentStatus.PAID)               and (c.jobMatch.consumer.id = :userId or c.jobMatch.provider.id = :userId))")
+    long countAllUnread(@Param("userId") UUID userId);
+
     @EntityGraph(attributePaths = {"sender"})
     Page<ChatMessage> findAllByConversation_IdOrderBySentAtDesc(UUID conversationId, Pageable pageable);
 

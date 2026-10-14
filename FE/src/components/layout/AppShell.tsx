@@ -1,3 +1,4 @@
+import { useChat } from "../../context/ChatContext";
 import { usePwa } from "../../features/pwa/usePwa";
 import RatingReminder from "../../features/rating/components/RatingReminder";
 import IdentityActionGuard from "../../features/identity/components/IdentityActionGuard";
@@ -47,6 +48,7 @@ function AppShellLayout() {
   useViewportHeight();
   const { user, logout } = useAuth();
   const { unreadCount } = useNotifications();
+  const { unreadCount: chatUnread } = useChat();
   const items = user?.currentMode === "PROVIDER" ? providerItems : consumerItems;
 
   return (
@@ -70,9 +72,9 @@ function AppShellLayout() {
             >
               <span className="relative shrink-0">
                 <AppIcon name={item.icon} className="h-5 w-5" />
-                {item.to === "/notifications" && unreadCount > 0 && (
+                {(item.to === "/notifications" ? unreadCount : item.to === "/messages" ? chatUnread : 0) > 0 && (
                   <span className="absolute -right-2 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[9px] font-extrabold leading-4 text-white">
-                    {unreadCount > 99 ? "99+" : unreadCount}
+                    {(item.to === "/messages" ? chatUnread : unreadCount) > 99 ? "99+" : item.to === "/messages" ? chatUnread : unreadCount}
                   </span>
                 )}
               </span>
@@ -141,9 +143,9 @@ function AppShellLayout() {
             >
               <span className="relative shrink-0">
                 <AppIcon name={item.icon} className="h-5 w-5" />
-                {item.to === "/notifications" && unreadCount > 0 && (
+                {(item.to === "/notifications" ? unreadCount : item.to === "/messages" ? chatUnread : 0) > 0 && (
                   <span className="absolute -right-2.5 -top-2 grid min-h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[8px] font-extrabold leading-4 text-white">
-                    {unreadCount > 99 ? "99+" : unreadCount}
+                    {(item.to === "/messages" ? chatUnread : unreadCount) > 99 ? "99+" : item.to === "/messages" ? chatUnread : unreadCount}
                   </span>
                 )}
               </span>

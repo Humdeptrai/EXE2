@@ -13,9 +13,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
-    Page<Notification> findAllByRecipient_IdOrderByCreatedAtDesc(UUID recipientId, Pageable pageable);
+    @Query("select n from Notification n where n.recipient.id = :recipientId and n.type <> com.handsfree.be.constant.NotificationType.CHAT_MESSAGE_RECEIVED order by n.createdAt desc")
+    Page<Notification> findAllByRecipient_IdOrderByCreatedAtDesc(@Param("recipientId") UUID recipientId, Pageable pageable);
 
-    long countByRecipient_IdAndReadAtIsNull(UUID recipientId);
+    @Query("select count(n) from Notification n where n.recipient.id = :recipientId and n.readAt is null and n.type <> com.handsfree.be.constant.NotificationType.CHAT_MESSAGE_RECEIVED")
+    long countByRecipient_IdAndReadAtIsNull(@Param("recipientId") UUID recipientId);
 
     Optional<Notification> findByIdAndRecipient_Id(UUID notificationId, UUID recipientId);
 

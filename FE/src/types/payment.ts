@@ -4,6 +4,9 @@ export type PaymentStatus = "PENDING" | "PAID" | "REFUNDED";
 export type PaymentMethod = "WALLET" | "MOMO" | "ZALOPAY" | "BANK_TRANSFER";
 
 export interface ConnectionPayment {
+  paymentDeadlineAt?: string | null;
+  matchStatus?: "ACTIVE" | "EXPIRED" | "DISCONNECTED" | "COMPLETED";
+  serverTime?: string;
   id: string;
   matchId: string;
   jobId: string;

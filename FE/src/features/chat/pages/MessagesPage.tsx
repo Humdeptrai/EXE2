@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import { chatService } from "../../../services/chatService";
-import { ChatSocketConnection, type ChatSocketStatus } from "../../../services/chatSocketService";
+import { useChat } from "../../../context/ChatContext";
 import type { ConversationPage } from "../../../types/chat";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
 
@@ -32,7 +32,7 @@ export default function MessagesPage() {
   const [result, setResult] = useState<ConversationPage>(emptyPage);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [socketStatus, setSocketStatus] = useState<ChatSocketStatus>("DISCONNECTED");
+  const { socketStatus, online, subscribe } = useChat();
 
   const load = useCallback(async (selectedPage = page) => {
     setLoading(true);
@@ -52,16 +52,10 @@ export default function MessagesPage() {
     return () => window.clearTimeout(timer);
   }, [load, page]);
 
+  useEffect(() => subscribe(event => { if (event.type === "MESSAGE" || event.type === "READ") void load(page); }), [subscribe, load, page]);
   useEffect(() => {
-    const socket = new ChatSocketConnection({
-      onStatusChange: setSocketStatus,
-      onMessage: () => { void load(page); },
-      onError: (socketError) => {
-        if (socketError.code !== 50000) setError(socketError.message);
-      },
-    });
-    socket.connect();
-    return () => socket.disconnect();
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(page); }, 15000);
+    return () => window.clearInterval(timer);
   }, [load, page]);
 
   const unreadTotal = useMemo(
@@ -102,11 +96,14 @@ export default function MessagesPage() {
               to={`/messages/${conversation.id}`}
               className={`flex min-h-24 items-center gap-3 p-4 transition hover:bg-slate-50 sm:p-5 ${index > 0 ? "border-t border-slate-100" : ""}`}
             >
+              <div className="relative shrink-0">
               {conversation.counterpart.avatarUrl ? (
                 <img src={conversation.counterpart.avatarUrl} alt={conversation.counterpart.fullName} className="h-13 w-13 shrink-0 rounded-full object-cover" />
               ) : (
                 <div className="grid h-13 w-13 shrink-0 place-items-center rounded-full bg-[#dff2f5] text-lg font-black text-[#007f95]">{conversation.counterpart.fullName.charAt(0).toUpperCase()}</div>
               )}
+              {online.has(conversation.counterpart.id) && <span aria-label="Đang hoạt động" className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />}
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-3">
                   <p className="truncate text-sm font-black sm:text-base">{conversation.counterpart.fullName}</p>

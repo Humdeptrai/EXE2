@@ -30,6 +30,8 @@ public record MatchResponse(
         boolean providerPaid,
         Instant expectedEndAt,
         Instant ratingOpensAt,
-        Instant ratingClosesAt
+        Instant ratingClosesAt,
+        Instant paymentDeadlineAt,
+        Instant serverTime
 ) {
 }
