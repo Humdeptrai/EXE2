@@ -5,6 +5,8 @@ import com.handsfree.be.exception.*;
 import com.handsfree.be.repository.WalletTopUpRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import com.handsfree.be.service.TopUpService;
 
 import org.springframework.stereotype.Service;
 
@@ -15,8 +17,9 @@ import java.net.URI;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
-public class TopUpService {
+public class TopUpServiceImpl implements TopUpService {
     private final WalletService wallet;
     private final WalletTopUpRepository orders;
     private final PayosGateway gateway;
@@ -55,7 +58,13 @@ public class TopUpService {
                 orders.findById(code)
                         .filter(t -> t.getOwnerId().equals(owner))
                         .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_MISMATCH));
-        if (order.getCreditedAt() == null) reconcile(order);
+        try {
+            if (order.getCreditedAt() == null) reconcile(order);
+        } catch (RuntimeException error) {
+            log.warn("Top-up reconciliation failed: orderCode={}, error={}", code,
+                    error instanceof AppException app ? app.getErrorCode().name() : error.getClass().getSimpleName());
+            throw error;
+        }
         return orders.findById(code).orElseThrow();
     }
 
@@ -78,9 +87,20 @@ public class TopUpService {
                         || data.path("amountPaid").decimalValue().compareTo(order.getAmount()) < 0))
             throw new AppException(ErrorCode.PAYMENT_MISMATCH);
         wallet.settle(order.getOrderCode(), data.path("id").asText(), order.getAmount(), state);
+        log.info("Top-up reconciled: orderCode={}, gatewayStatus={}", order.getOrderCode(), state);
     }
 
     public void webhook(JsonNode body) {
+        try {
+            handleWebhook(body);
+        } catch (RuntimeException error) {
+            log.warn("payOS webhook processing failed: error={}",
+                    error instanceof AppException app ? app.getErrorCode().name() : error.getClass().getSimpleName());
+            throw error;
+        }
+    }
+
+    private void handleWebhook(JsonNode body) {
         JsonNode data = body.path("data");
         gateway.verify(data, body.path("signature").asText());
         if (!"00".equals(data.path("code").asText())) return;
@@ -89,7 +109,10 @@ public class TopUpService {
             throw new AppException(ErrorCode.PAYMENT_MISMATCH);
         var order = orders.findById(data.path("orderCode").asLong());
         // payOS webhook registration sends a signed sample not belonging to an application order.
-        if (order.isEmpty()) return;
+        if (order.isEmpty()) {
+            log.info("payOS webhook ignored: unknown orderCode={}", data.path("orderCode").asLong());
+            return;
+        }
         if (!data.path("paymentLinkId").isTextual()
                 || (order.get().getPaymentLinkId() != null
                         && !order.get()

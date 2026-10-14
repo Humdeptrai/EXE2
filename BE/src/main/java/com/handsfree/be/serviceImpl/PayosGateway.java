@@ -5,6 +5,7 @@ import com.handsfree.be.exception.*;
 import com.handsfree.be.properties.PayosProperties;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class PayosGateway {
     private final PayosProperties properties;
@@ -125,11 +127,15 @@ public class PayosGateway {
             else b.POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body)));
             HttpResponse<String> response =
                     http.send(b.build(), HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200)
+            if (response.statusCode() != 200) {
+                log.warn("payOS HTTP failure: method={}, path={}, status={}", method, path, response.statusCode());
                 throw new AppException(ErrorCode.PAYMENT_GATEWAY_ERROR);
+            }
             JsonNode result = json.readTree(response.body());
-            if (!"00".equals(result.path("code").asText()))
+            if (!"00".equals(result.path("code").asText())) {
+                log.warn("payOS rejected request: method={}, path={}, code={}", method, path, result.path("code").asText());
                 throw new AppException(ErrorCode.PAYMENT_GATEWAY_ERROR);
+            }
             return result;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -137,6 +143,7 @@ public class PayosGateway {
         } catch (AppException e) {
             throw e;
         } catch (Exception e) {
+            log.warn("payOS request failed: method={}, path={}, exception={}", method, path, e.getClass().getSimpleName());
             throw new AppException(ErrorCode.PAYMENT_GATEWAY_ERROR);
         }
     }

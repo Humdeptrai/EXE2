@@ -20,6 +20,17 @@ export default function WalletPage() {
   const lock = useRef(false);
   const requestId = useRef(crypto.randomUUID());
   const [error, setError] = useState("");
+  const [checking, setChecking] = useState<number | null>(null);
+  const [results, setResults] = useState<Record<number, { message: string; tone: "success" | "info" | "error" }>>({});
+  function showResult(order: TopUp) {
+    const paid = order.status === "PAID" && !!order.creditedAt;
+    const message = paid
+      ? `Đơn #${order.orderCode} đã được cộng ${formatVnd(order.amount)} vào ví. Kiểm tra lại không cộng tiền lần nữa.`
+      : order.status === "CANCELLED" || order.status === "EXPIRED"
+        ? `Đơn #${order.orderCode} đã hủy hoặc hết hạn. Nếu ngân hàng đã trừ tiền, vui lòng gửi mã đơn để được hỗ trợ.`
+        : `Đã kiểm tra đơn #${order.orderCode}: chưa có xác nhận thanh toán đủ từ payOS. Hệ thống sẽ tiếp tục đối soát; nếu đã chuyển tiền, không chuyển lại.`;
+    setResults(previous => ({ ...previous, [order.orderCode]: { message, tone: paid ? "success" : "info" } }));
+  }
   const [page, setPage] = useState(0);
   const [last, setLast] = useState(true);
   const load = useCallback(async () => {
@@ -42,8 +53,10 @@ export default function WalletPage() {
     const code = Number(query.get("orderCode"));
     void (async () => {
       try {
-        if (Number.isSafeInteger(code) && code > 0)
-          await walletService.refresh(code);
+        if (Number.isSafeInteger(code) && code > 0) {
+          const order = await walletService.refresh(code);
+          if (active) showResult(order);
+        }
       } catch (err) {
         if (active)
           setError(getApiErrorMessage(err, "Đang chờ xác nhận tiền nạp."));
@@ -58,7 +71,9 @@ export default function WalletPage() {
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void load();
     }, 15000);
-    return () => window.clearInterval(timer);
+    const onFocus = () => { void load(); };
+    window.addEventListener("focus", onFocus);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", onFocus); };
   }, [load]);
   async function create() {
     if (lock.current || !summary) return;
@@ -96,14 +111,20 @@ export default function WalletPage() {
     lock.current = true;
     setBusy(true);
     setError("");
+    setChecking(code);
+    setResults(previous => ({ ...previous, [code]: { message: "Đang kiểm tra giao dịch với payOS…", tone: "info" } }));
     try {
-      await walletService.refresh(code);
+      const order = await walletService.refresh(code);
+      showResult(order);
       await load();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Không thể đối soát đơn nạp."));
+      setResults(previous => ({ ...previous, [code]: {
+        message: getApiErrorMessage(err, "Chưa thể đối soát đơn nạp. Nếu đã chuyển tiền, không chuyển lại; hãy thử kiểm tra sau hoặc gửi mã đơn để được hỗ trợ."), tone: "error",
+      } }));
     } finally {
       lock.current = false;
       setBusy(false);
+      setChecking(null);
     }
   }
   return (
@@ -193,7 +214,7 @@ export default function WalletPage() {
                   #{o.orderCode} · {formatVnd(o.amount)}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {o.status} · {new Date(o.createdAt).toLocaleString("vi-VN")}
+                  {({ CREATED: "Đang tạo", PENDING: "Chờ xác nhận", PAID: "Đã cộng tiền", CANCELLED: "Đã hủy", EXPIRED: "Đã hết hạn" } as Record<string, string>)[o.status] || o.status} · {new Date(o.createdAt).toLocaleString("vi-VN")}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -210,9 +231,10 @@ export default function WalletPage() {
                   onClick={() => void refresh(o.orderCode)}
                   className="rounded-xl border px-3 py-2 text-sm text-[#007f95] disabled:opacity-40"
                 >
-                  Kiểm tra
+                  {checking === o.orderCode ? "Đang kiểm tra…" : "Kiểm tra"}
                 </button>
               </div>
+              {results[o.orderCode] && <UserNotice className="w-full" message={results[o.orderCode].message} tone={results[o.orderCode].tone} />}
             </article>
           ))}
           {!orders.length && (
