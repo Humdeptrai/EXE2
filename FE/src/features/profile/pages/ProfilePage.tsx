@@ -212,16 +212,16 @@ export default function ProfilePage() {
       <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="h-24 bg-gradient-to-r from-[#007f95] to-[#66bdc6] sm:h-36" />
         <div className="px-4 pb-5 sm:px-8 sm:pb-6">
-          <div className="-mt-11 flex min-w-0 flex-col gap-4 sm:-mt-14 sm:flex-row sm:items-end sm:justify-between">
-            <div className="flex min-w-0 items-end gap-3 sm:gap-4">
+          <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3 sm:gap-4">
               {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt="Ảnh đại diện" className="h-20 w-20 shrink-0 rounded-full border-4 border-white bg-white object-cover shadow-md sm:h-28 sm:w-28" />
+                <img src={user.avatarUrl} alt="Ảnh đại diện" className="-mt-11 h-20 w-20 shrink-0 rounded-full border-4 border-white bg-white object-cover shadow-md sm:-mt-14 sm:h-28 sm:w-28" />
               ) : (
-                <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full border-4 border-white bg-[#dff3f6] text-xl font-extrabold text-[#007f95] shadow-md sm:h-28 sm:w-28 sm:text-2xl">
+                <div className="-mt-11 grid h-20 w-20 shrink-0 place-items-center rounded-full border-4 border-white bg-[#dff3f6] text-xl font-extrabold text-[#007f95] shadow-md sm:-mt-14 sm:h-28 sm:w-28 sm:text-2xl">
                   {initials || "HF"}
                 </div>
               )}
-              <div className="min-w-0 pb-1">
+              <div className="min-w-0 pb-1 pt-3 sm:pt-4">
                 <h1 className="break-words text-xl font-extrabold leading-tight sm:text-3xl">{user?.fullName}</h1>
                 <p className="mt-1 flex min-w-0 items-start gap-1.5 text-xs font-bold leading-5 text-slate-500 sm:text-sm">
                   <AppIcon name="location" className="mt-0.5 h-4 w-4 shrink-0" />
