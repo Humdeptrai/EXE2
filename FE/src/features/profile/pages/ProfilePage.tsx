@@ -232,7 +232,9 @@ export default function ProfilePage() {
                 <h1 className="break-words text-xl font-extrabold leading-tight sm:text-3xl">{user?.fullName}</h1>
                 <p className="mt-1 flex min-w-0 items-start gap-1.5 text-xs font-bold leading-5 text-slate-500 sm:text-sm">
                   <AppIcon name="location" className="mt-0.5 h-4 w-4 shrink-0" />
-                  {user?.location || "Chưa cập nhật khu vực"}
+                  <span className="min-w-0 break-words">{(editing ? form.location.trim() : user?.location) || "Chưa cập nhật khu vực"}
+                    {editing && form.location.trim() !== (user?.location || "") && <span className="ml-2 inline-block rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">Chưa lưu</span>}
+                  </span>
                 </p>
               </div>
             </div>
