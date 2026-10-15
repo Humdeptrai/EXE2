@@ -11,7 +11,7 @@ import PrivateIdentityImage from "../../identity/components/PrivateIdentityImage
 import { getApiErrorMessage } from "../../auth/utils/apiError";
 import { formatVnd, budgetLabel, formatJobDate } from "../../jobs/utils/jobFormat";
 
-type Detail = { match: JobMatch; job: JobPost; profile: MatchUser; reputation: UserReputation; perspective: "CONSUMER" | "PROVIDER" };
+type Detail = { match: JobMatch; job: Pick<JobPost, "id" | "category" | "title" | "description" | "scheduledDate" | "startTime" | "expectedEndAt" | "location" | "budgetAmount" | "budgetType" | "requiredWorkers">; profile: MatchUser; reputation: UserReputation; perspective: "CONSUMER" | "PROVIDER" };
 const date = (value: string | null) => value ? new Date(value).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "Chưa có";
 const button = "inline-flex min-h-11 items-center justify-center rounded-xl bg-[#007f95] px-4 py-2 text-sm font-bold text-white";
 export default function MatchDetailPage() {
@@ -44,7 +44,6 @@ export default function MatchDetailPage() {
           <div><p className="text-xs font-bold text-[#007f95]">{data.job.category.name}</p><h2 className="mt-2 break-words text-xl font-black">{data.job.title}</h2><p className="mt-3 text-lg font-black text-[#007f95]">{formatVnd(data.job.budgetAmount)} · {budgetLabel(data.job.budgetType)}</p></div>
           <dl className="grid gap-4 text-sm sm:grid-cols-2">{[["Bắt đầu", formatJobDate(data.job.scheduledDate, data.job.startTime)], ["Dự kiến kết thúc", data.match.expectedEndAt ? date(data.match.expectedEndAt) : data.job.expectedEndAt?.replace("T", " ") || "Chưa cập nhật"], ["Địa điểm", data.job.location], ["Số người cần", `${data.job.requiredWorkers} người`]].map(([label, value]) => <div key={label} className="min-w-0"><dt className="font-bold text-slate-500">{label}</dt><dd className="mt-1 break-words">{value}</dd></div>)}</dl>
           <div><h3 className="font-bold">Mô tả & yêu cầu</h3><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">{data.job.description}</p></div>
-          {data.job.media.length > 0 && <div className="grid grid-cols-2 gap-3">{data.job.media.filter(m => m.contentType.startsWith("image/")).map(m => <IdentityImageViewer key={m.id} src={m.url} alt={m.originalName} className="aspect-[4/3] w-full rounded-xl object-cover" />)}</div>}
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4"><Link className={button} to={`/messages/match/${matchId}`}>Nhắn tin</Link><Link className={button + " !bg-amber-50 !text-amber-800"} to={`/matches/${matchId}/rating`}>Xem / viết đánh giá</Link><Link className={button + " !bg-slate-100 !text-slate-700"} to={`/reports?targetType=MATCH&targetId=${matchId}`}>Báo cáo đối tác</Link></div>
           <p className="text-xs leading-5 text-slate-500">Đánh giá mở từ {date(data.match.ratingOpensAt)} đến {date(data.match.ratingClosesAt)}. Thời gian hiển thị theo giờ Việt Nam.</p>
         </section>

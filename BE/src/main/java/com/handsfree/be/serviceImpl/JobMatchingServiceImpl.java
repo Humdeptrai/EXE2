@@ -53,7 +53,6 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     private final com.handsfree.be.service.ConnectionPaymentService connectionPaymentService;
     private final ContactAccess contactAccess;
     private final AccountAccess accountAccess;
-    private final com.handsfree.be.mapper.JobPostMapper jobPostMapper;
     private final com.handsfree.be.service.RatingService ratingService;
     private final BusinessProperties businessProperties;
     private final PlatformSettingsService settings;
@@ -84,9 +83,16 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                 user.getAvatarUrl(), user.getLocation(), user.getBio(),
                 user.getProfileTags() == null ? List.of() : List.copyOf(user.getProfileTags()),
                 user.isProfileCompleted(), user.getPhone(), user.getEmail(), visible.verifiedFaceUrl(), visible.identityVerified());
+        var job = match.getJobPost();
+        var category = job.getCategory();
+        var jobDetails = new com.handsfree.be.dto.response.MatchJobDetailResponse(job.getId(),
+                new com.handsfree.be.dto.response.JobCategoryResponse(category.getId(), category.getCode(),
+                        category.getName(), category.getDescription(), category.getIcon()),
+                job.getTitle(), job.getDescription(), job.getScheduledDate(), job.getStartTime(),
+                job.getExpectedEndAt(), job.getLocation(), job.getBudgetAmount(), job.getBudgetType(), job.getRequiredWorkers());
         return new com.handsfree.be.dto.response.MatchDetailResponse(
                 consumer ? jobMatchingMapper.toConsumerMatchResponse(match) : jobMatchingMapper.toProviderMatchResponse(match),
-                jobPostMapper.toResponse(match.getJobPost()), profile, ratingService.getUserReputation(user.getId()),
+                jobDetails, profile, ratingService.getUserReputation(user.getId()),
                 consumer ? "CONSUMER" : "PROVIDER");
     }
 
