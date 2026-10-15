@@ -31,6 +31,7 @@ public record JobPostResponse(
         Instant completedAt,
         Instant cancelledAt,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        com.handsfree.be.dto.request.LocationData place
 ) {
 }

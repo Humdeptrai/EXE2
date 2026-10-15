@@ -71,10 +71,14 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
             String location,
             BigDecimal minBudget,
             BigDecimal maxBudget,
+            Double latitude, Double longitude, Integer radiusKm, String sort,
             int page,
             int size
     ) {
         validateBudgetRange(minBudget, maxBudget);
+        GeocodingServiceImpl.coordinates(latitude,longitude);
+        if(radiusKm!=null && (latitude==null || !List.of(1,3,5,10,20).contains(radiusKm))) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        if(!List.of("NEWEST","NEAREST").contains(sort) || "NEAREST".equals(sort)&&latitude==null) throw new AppException(ErrorCode.VALIDATION_FAILED);
         int normalizedPage = Math.max(page, 0);
         int normalizedSize = Math.min(Math.max(size, 1), 20);
         Page<JobDiscoveryResponse> result = jobPostRepository.findDiscoveryFeed(
@@ -88,12 +92,10 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
                         maxBudget,
                         HIDDEN_FROM_FEED,
                         MatchStatus.ACTIVE,
-                        PageRequest.of(normalizedPage, normalizedSize, Sort.by(
-                                Sort.Order.desc("publishedAt"),
-                                Sort.Order.desc("createdAt")
-                        ))
+                        latitude, longitude, radiusKm, "NEAREST".equals(sort),
+                        PageRequest.of(normalizedPage, normalizedSize)
                 )
-                .map(jobPost -> jobDiscoveryMapper.toResponse(jobPost, getState(userId, jobPost.getId())));
+                .map(jobPost -> jobDiscoveryMapper.toResponse(jobPost, getState(userId, jobPost.getId()), latitude, longitude));
         return PageResponse.from(result);
     }
 

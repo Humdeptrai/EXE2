@@ -184,6 +184,7 @@ public class JobPostServiceImpl implements JobPostService {
                 .startTime(source.getStartTime())
                 .expectedEndAt(source.getExpectedEndAt())
                 .location(source.getLocation())
+                .areaLabel(source.getAreaLabel()).latitude(source.getLatitude()).longitude(source.getLongitude())
                 .budgetAmount(source.getBudgetAmount())
                 .budgetType(source.getBudgetType())
                 .requiredWorkers(source.getRequiredWorkers())
@@ -274,7 +275,11 @@ public class JobPostServiceImpl implements JobPostService {
     }
 
     private boolean hasCoreFieldChanges(JobPost jobPost, JobUpsertRequest request) {
-        return !jobPost.getCategory().getId().equals(request.categoryId())
+        return (request.place()==null ? jobPost.getLatitude()!=null || jobPost.getAreaLabel()!=null
+                : !java.util.Objects.equals(jobPost.getLatitude(),request.place().latitude())
+                  || !java.util.Objects.equals(jobPost.getLongitude(),request.place().longitude())
+                  || !java.util.Objects.equals(jobPost.getAreaLabel(),request.place().area()))
+                || !jobPost.getCategory().getId().equals(request.categoryId())
                 || !jobPost.getTitle().equals(request.title().trim())
                 || !jobPost.getDescription().equals(request.description().trim())
                 || !jobPost.getScheduledDate().equals(request.scheduledDate())
@@ -302,6 +307,12 @@ public class JobPostServiceImpl implements JobPostService {
         jobPost.setStartTime(request.startTime());
         jobPost.setExpectedEndAt(request.expectedEndAt());
         jobPost.setLocation(request.location().trim());
+        if (request.place()!=null) {
+            request.place().validate();
+            ContactPrivacy.validate(request.place().area());
+            if(!request.location().trim().equals(request.place().address().trim())) throw new AppException(ErrorCode.VALIDATION_FAILED);
+            jobPost.setAreaLabel(request.place().area().trim()); jobPost.setLatitude(request.place().latitude()); jobPost.setLongitude(request.place().longitude());
+        } else { jobPost.setAreaLabel(null); jobPost.setLatitude(null); jobPost.setLongitude(null); }
         jobPost.setBudgetAmount(request.budgetAmount());
         jobPost.setBudgetType(request.budgetType());
         jobPost.setRequiredWorkers(request.requiredWorkers());

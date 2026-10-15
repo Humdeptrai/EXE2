@@ -1,0 +1,15 @@
+# Location phase checkpoint
+
+Approved 2026-10-15. Base main: 51e5081. Do not redo completed earlier phases.
+
+Scope: Leaflet + Geoapify, shared address picker (search, device location, draggable pin, manual fallback), job location snapshot, private saved addresses (10, one default), own profile activity center/radius, discovery radius/nearest filtering before pagination, public area-only and rounded distance, paid participants can access exact job pin. Responsive phone/tablet. Controller -> Service interface -> ServiceImpl. No repository test files requested. Push main when complete.
+
+Status: implementation in progress. Existing repo clean at start. No API key provided; document BE GEOAPIFY_API_KEY and FE VITE_GEOAPIFY_MAP_KEY setup, manual/saved address paths must work without keys. Live accuracy/quota validation cannot be claimed until configured.
+
+Remaining: BE data/migration, provider, CRUD, geo filtering/privacy; FE picker/integration; build and targeted runtime checks; commit/push. Update this file as work progresses. Do not publish a partial phase as finished.
+
+Checkpoint (continued 2026-10-15): BE implemented location entities/repositories/interfaces/controller/provider, migration 011, feed radius/nearest, public area masking, paid-match coordinates. FE shared lazy-loaded Leaflet map/picker, saved-address manager, job form/profile/feed integration added. FE build passed once. Pending: runtime JPQL validation, saved address ownership/default/limits and privacy checks, mobile/tablet UI checks, deployment guide, final build/commit/push. Java runtime being prepared under /tmp/hf-location-runtime (temporary/recreatable). Full Java source compiled before the pause; latest profile atomic-save changes still need compile.
+
+Validation checkpoint: compiled all BE Java sources with Java21. Spring Boot/H2 application startup and repository queries passed; temporary runtime check confirmed address ownership, max10, first/replacement default, private activity, 3km radius count before pagination, nearest order, second page and exclusion of legacy jobs only for geo filters. FE production build passed including lazy map chunks. Still pending UI browser/migration verification and deployment docs/publish.
+
+Completion checkpoint: implementation ready for publication. FE production build passed. All Java sources compiled on Java21; full Spring Boot/H2 runtime passed ownership, max10/default address, activity privacy, radius/nearest before pagination, legacy-job fallback, atomic profile rollback, prepayment location masking, paid-only exact pins and outsider denial. PostgreSQL-compatible migration 011 passed repeat execution, unique default, paired-coordinate and cascade checks. Browser UI passed at 320/390/768/1280px: autocomplete debounce, device location, filters, job picker, atomic profile payload. Temporary checks stayed outside the repository. Deployment instructions are in BE/deployment/011_locations_README.md. No live Geoapify key/coverage test and no production data modified. Next required operator steps: migration 011, Geoapify keys in Render/Vercel, deploy BE then FE.

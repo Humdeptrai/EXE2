@@ -51,6 +51,7 @@ public record JobUpsertRequest(
 
         @NotNull(message = "Số người cần không được để trống")
         @Positive(message = "Số người cần phải lớn hơn 0")
-        Integer requiredWorkers
+        Integer requiredWorkers,
+        @jakarta.validation.Valid LocationData place
 ) {
 }

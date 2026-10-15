@@ -15,6 +15,7 @@ import java.util.List;
 @Component
 @lombok.RequiredArgsConstructor
 public class JobMatchingMapper {
+    private final com.handsfree.be.repository.ActivityLocationRepository activities;
     private final com.handsfree.be.serviceImpl.ContactAccess contactAccess;
     private final com.handsfree.be.repository.JobMatchRepository matches;
     private final com.handsfree.be.repository.ConnectionPaymentRepository payments;
@@ -29,7 +30,7 @@ public class JobMatchingMapper {
                 applicant.getId(),
                 name,
                 identityRevealed ? applicant.getAvatarUrl() : null,
-                com.handsfree.be.serviceImpl.ContactPrivacy.redact(applicant.getLocation()),
+                activities.findById(applicant.getId()).map(com.handsfree.be.entity.ActivityLocation::getArea).orElse("Chưa cập nhật khu vực"),
                 com.handsfree.be.serviceImpl.ContactPrivacy.redact(applicant.getBio()),
                 applicant.getProfileTags() == null ? List.of() : applicant.getProfileTags().stream().map(com.handsfree.be.serviceImpl.ContactPrivacy::redact).toList(),
                 applicant.isProfileCompleted(),
@@ -68,7 +69,7 @@ public class JobMatchingMapper {
                 category,
                 match.getJobPost().getScheduledDate(),
                 match.getJobPost().getStartTime(),
-                com.handsfree.be.serviceImpl.ContactPrivacy.redact(match.getJobPost().getLocation()),
+                contactAccess.unlocked(match) ? match.getJobPost().getLocation() : com.handsfree.be.serviceImpl.LocationPrivacy.area(match.getJobPost()),
                 match.getJobPost().getBudgetAmount(),
                 match.getJobPost().getBudgetType(),
                 match.getJobPost().getRequiredWorkers(),

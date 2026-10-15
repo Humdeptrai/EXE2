@@ -1,3 +1,6 @@
+import LocationField from "../../location/LocationField";
+import SavedAddresses from "../../location/SavedAddresses";
+import { locationService, type Activity } from "../../location/locationService";
 import ReputationSummary from "../../rating/components/ReputationSummary";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import IdentityProgressFields from "../../identity/components/IdentityProgressFields";
@@ -47,6 +50,9 @@ export default function ProfilePage() {
     return () => window.clearTimeout(timer);
   }, [onboarding]);
   const [form, setForm] = useState<UpdateProfileRequest>(emptyForm);
+  const [activity, setActivity] = useState<Activity | null>(null);
+  const [activityLoaded, setActivityLoaded] = useState(false);
+  useEffect(() => { const c = new AbortController(); void locationService.activity(c.signal).then(setActivity).catch(() => undefined).finally(() => { if (!c.signal.aborted) setActivityLoaded(true); }); return () => c.abort(); }, []);
   const [saving, setSaving] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -185,6 +191,7 @@ export default function ProfilePage() {
         avatarUrl: form.avatarUrl.trim(),
         bio: form.bio.trim(),
         location: form.location.trim(),
+        activityLocation: activity && activity.place.area === form.location.trim() ? activity : undefined,
       });
       setMessage({ type: "success", text: identity?.identityVerified ? "Đã lưu thông tin hồ sơ." : "Đã lưu thông tin hồ sơ. Bạn cần hoàn tất xác thực danh tính để đăng hoặc nhận việc." });
       if (onboarding && updated.profileCompleted && updated.phone && updated.location) {
@@ -276,9 +283,8 @@ export default function ProfilePage() {
                   <input required={onboarding} pattern="0[0-9]{9}" value={form.phone} onChange={(e) => setField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="0901234567" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
                 </label>
               </div>
-              <label className="block text-sm font-extrabold">Nơi ở / khu vực hoạt động *
-                <input required={onboarding} value={form.location} onChange={(e) => setField("location", e.target.value)} maxLength={120} placeholder="Ví dụ: Quận 9, TP. Hồ Chí Minh" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
-              </label>
+              <div><p className="text-sm font-extrabold">Nơi ở / khu vực hoạt động *</p><LocationField title="Chọn khu vực hoạt động" disabled={!activityLoaded} value={activity?.place} fallback={form.location} onChange={p => { setActivity({ place: { ...p, address: p.area }, radiusKm: p.latitude == null ? null : activity?.radiusKm || null }); setField("location", p.area); }} /><p className="mt-2 text-xs leading-5 text-slate-500">Người khác chỉ thấy tên khu vực. Tâm vị trí dùng để gợi ý tìm việc; địa chỉ nhà riêng nằm trong danh sách riêng tư.</p>
+              <label className="mt-3 block text-xs font-bold">Phạm vi tìm việc mặc định<select className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base" value={activity?.radiusKm || ""} disabled={activity?.place.latitude == null} onChange={e => setActivity(a => a ? { ...a, radiusKm: e.target.value ? Number(e.target.value) : null } : a)}><option value="">Không giới hạn</option>{[1,3,5,10,20].map(km => <option key={km} value={km}>{km} km</option>)}</select></label></div>
               <div className="rounded-2xl border border-slate-200 p-4">
                 <p className="text-sm font-extrabold">Ảnh đại diện</p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">JPEG, PNG hoặc WEBP · tối đa 5 MB. Khi Cloudinary được bật, ảnh sẽ được lưu trên CDN.</p>
@@ -327,6 +333,7 @@ export default function ProfilePage() {
       </section>
 
       <aside className="min-w-0 space-y-4 sm:space-y-5">
+        <SavedAddresses />
         <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between"><h2 className="font-extrabold">Mức độ hoàn thiện</h2><span className="font-extrabold text-[#007f95]">{progress}%</span></div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#007f95] transition-all" style={{ width: `${progress}%` }} /></div>

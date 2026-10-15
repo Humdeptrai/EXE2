@@ -69,7 +69,9 @@ public interface JobPostRepository extends JpaRepository<JobPost, UUID>, org.spr
                    or lower(job.title) like concat('%', :keyword, '%')
                    or lower(job.description) like concat('%', :keyword, '%')
                    or lower(job.location) like concat('%', :keyword, '%'))
-              and (:location = '' or lower(job.location) like concat('%', :location, '%'))
+              and (:location = '' or lower(coalesce(job.areaLabel,job.location)) like concat('%', :location, '%'))
+              and (:radiusKm is null or (job.latitude is not null and (6371.0088 * acos(least(1.0, greatest(-1.0, sin(radians(coalesce(:latitude,0.0))) * sin(radians(job.latitude)) + cos(radians(coalesce(:latitude,0.0))) * cos(radians(job.latitude)) * cos(radians(job.longitude - coalesce(:longitude,0.0))))))) <= :radiusKm))
+              and (:nearest = false or job.latitude is not null)
               and (:minBudget is null or job.budgetAmount >= :minBudget)
               and (:maxBudget is null or job.budgetAmount <= :maxBudget)
               and (select count(jm.id)
@@ -89,6 +91,7 @@ public interface JobPostRepository extends JpaRepository<JobPost, UUID>, org.spr
                       and interest.jobPost.id = job.id
                       and interest.status in :hiddenInterestStatuses
               )
+            order by case when :nearest = true then (6371.0088 * acos(least(1.0, greatest(-1.0, sin(radians(coalesce(:latitude,0.0))) * sin(radians(job.latitude)) + cos(radians(coalesce(:latitude,0.0))) * cos(radians(job.latitude)) * cos(radians(job.longitude - coalesce(:longitude,0.0))))))) else 0.0 end asc, job.publishedAt desc, job.createdAt desc, job.id
             """)
     Page<JobPost> findDiscoveryFeed(
             @Param("userId") UUID userId,
@@ -101,6 +104,10 @@ public interface JobPostRepository extends JpaRepository<JobPost, UUID>, org.spr
             @Param("maxBudget") BigDecimal maxBudget,
             @Param("hiddenInterestStatuses") Collection<InterestStatus> hiddenInterestStatuses,
             @Param("activeMatchStatus") MatchStatus activeMatchStatus,
+            @Param("latitude") Double latitude,
+            @Param("longitude") Double longitude,
+            @Param("radiusKm") Integer radiusKm,
+            @Param("nearest") boolean nearest,
             Pageable pageable
     );
 

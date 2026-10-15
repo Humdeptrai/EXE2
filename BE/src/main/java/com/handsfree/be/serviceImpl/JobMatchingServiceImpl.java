@@ -89,7 +89,7 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                 new com.handsfree.be.dto.response.JobCategoryResponse(category.getId(), category.getCode(),
                         category.getName(), category.getDescription(), category.getIcon()),
                 job.getTitle(), job.getDescription(), job.getScheduledDate(), job.getStartTime(),
-                job.getExpectedEndAt(), job.getLocation(), job.getBudgetAmount(), job.getBudgetType(), job.getRequiredWorkers());
+                job.getExpectedEndAt(), job.getLocation(), job.getBudgetAmount(), job.getBudgetType(), job.getRequiredWorkers(), job.getLatitude(), job.getLongitude());
         return new com.handsfree.be.dto.response.MatchDetailResponse(
                 consumer ? jobMatchingMapper.toConsumerMatchResponse(match) : jobMatchingMapper.toProviderMatchResponse(match),
                 jobDetails, profile, ratingService.getUserReputation(user.getId()),

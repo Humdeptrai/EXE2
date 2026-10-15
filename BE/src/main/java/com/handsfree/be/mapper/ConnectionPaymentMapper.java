@@ -46,7 +46,7 @@ public class ConnectionPaymentMapper {
                 com.handsfree.be.serviceImpl.ContactPrivacy.redact(match.getJobPost().getTitle()),
                 match.getJobPost().getScheduledDate(),
                 match.getJobPost().getStartTime(),
-                com.handsfree.be.serviceImpl.ContactPrivacy.redact(match.getJobPost().getLocation()),
+                contactAccess.unlocked(match) ? match.getJobPost().getLocation() : com.handsfree.be.serviceImpl.LocationPrivacy.area(match.getJobPost()),
                 payment.getConsumerFee(),
                 payment.getProviderFee(),
                 payment.getPlatformFee(),

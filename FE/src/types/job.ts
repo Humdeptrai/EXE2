@@ -22,6 +22,7 @@ export interface JobMedia {
 }
 
 export interface JobPost {
+  place?: import("../features/location/locationService").Place | null;
   id: string;
   ownerId: string;
   category: JobCategory;
@@ -63,6 +64,7 @@ export interface JobInteractionState {
 }
 
 export interface JobDiscovery {
+  distanceKm?: number | null;
   id: string;
   owner: JobOwnerSummary;
   category: JobCategory;
@@ -81,6 +83,10 @@ export interface JobDiscovery {
 }
 
 export interface DiscoveryFilters {
+  latitude?: number;
+  longitude?: number;
+  radiusKm?: number;
+  sort?: "NEWEST" | "NEAREST";
   keyword?: string;
   categoryId?: string;
   location?: string;
@@ -97,6 +103,7 @@ export interface DiscoverySummary {
 }
 
 export interface JobUpsertRequest {
+  place?: import("../features/location/locationService").Place | null;
   title: string;
   categoryId: string;
   description: string;

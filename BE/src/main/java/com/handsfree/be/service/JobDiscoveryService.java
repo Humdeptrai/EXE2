@@ -17,6 +17,7 @@ public interface JobDiscoveryService {
             String location,
             BigDecimal minBudget,
             BigDecimal maxBudget,
+            Double latitude, Double longitude, Integer radiusKm, String sort,
             int page,
             int size
     );

@@ -10,4 +10,4 @@ import java.util.UUID;
 public record MatchJobDetailResponse(UUID id, JobCategoryResponse category, String title,
         String description, LocalDate scheduledDate, LocalTime startTime,
         java.time.LocalDateTime expectedEndAt, String location, BigDecimal budgetAmount,
-        BudgetType budgetType, int requiredWorkers) {}
+        BudgetType budgetType, int requiredWorkers, Double latitude, Double longitude) {}

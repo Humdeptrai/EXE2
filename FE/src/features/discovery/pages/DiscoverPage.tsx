@@ -1,3 +1,5 @@
+import LocationField from "../../location/LocationField";
+import { locationService, hasPoint, type Place } from "../../location/locationService";
 import { isIdentityActionHandled } from "../../../config/axios";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
@@ -24,9 +26,14 @@ function delay(milliseconds: number) {
 
 export default function DiscoverPage() {
   const { user } = useAuth();
+  const feedVersion = useRef(0);
+  const manualFilters = useRef(false);
   const [categories, setCategories] = useState<JobCategory[]>([]);
   const [filterForm, setFilterForm] = useState(emptyFilterForm);
   const [appliedFilters, setAppliedFilters] = useState<DiscoveryFilters>({});
+  const [center, setCenter] = useState<Place | null>(null);
+  const [radius, setRadius] = useState("");
+  const [sort, setSort] = useState<"NEWEST" | "NEAREST">("NEWEST");
   const [showFilters, setShowFilters] = useState(false);
   const [jobs, setJobs] = useState<JobDiscovery[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,10 +61,12 @@ export default function DiscoverPage() {
   const hasFilters = useMemo(() => Object.values(appliedFilters).some((value) => value !== undefined && value !== ""), [appliedFilters]);
 
   const loadFeed = useCallback(async (filters: DiscoveryFilters, replace = true) => {
+    const requestVersion = ++feedVersion.current;
     setError("");
     if (replace) setLoading(true);
     try {
       const result = await jobService.getFeed(filters, 0, 12);
+      if (requestVersion !== feedVersion.current) return;
       if (replace) setSelectedJobId(null);
       setJobs((current) => {
         if (replace) return result.content;
@@ -65,20 +74,25 @@ export default function DiscoverPage() {
         return [...current, ...result.content.filter((item) => !currentIds.has(item.id))];
       });
     } catch (requestError) {
-      if (!isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể tải feed công việc lúc này."));
+      if (requestVersion === feedVersion.current && !isIdentityActionHandled(requestError)) setError(getApiErrorMessage(requestError, "Không thể tải feed công việc lúc này."));
     } finally {
-      if (replace) setLoading(false);
+      if (replace && requestVersion === feedVersion.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    let active = true;
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      void Promise.all([
-        jobService.getCategories().then(setCategories).catch(() => setCategories([])),
-        loadFeed({}, true),
-      ]);
+      void jobService.getCategories().then(setCategories).catch(() => setCategories([]));
+      void locationService.activity(controller.signal).catch(() => null).then(activity => {
+        if (!active || manualFilters.current) return;
+        const filters: DiscoveryFilters = activity && hasPoint(activity.place) ? { latitude: activity.place.latitude!, longitude: activity.place.longitude!, radiusKm: activity.radiusKm || undefined } : activity ? { location: activity.place.area } : {};
+        if (activity) { if (!hasPoint(activity.place)) setFilterForm(f => ({ ...f, location: activity.place.area })); setCenter(activity.place); setRadius(activity.radiusKm ? String(activity.radiusKm) : ""); }
+        setAppliedFilters(filters); void loadFeed(filters, true);
+      });
     }, 0);
-    return () => window.clearTimeout(timer);
+    return () => { active = false; controller.abort(); window.clearTimeout(timer); };
   }, [loadFeed]);
 
   useEffect(() => {
@@ -215,7 +229,12 @@ export default function DiscoverPage() {
 
   function applyFilters(event: FormEvent) {
     event.preventDefault();
+    manualFilters.current = true;
     const filters: DiscoveryFilters = {
+      latitude: hasPoint(center) ? center!.latitude! : undefined,
+      longitude: hasPoint(center) ? center!.longitude! : undefined,
+      radiusKm: hasPoint(center) && radius ? Number(radius) : undefined,
+      sort: hasPoint(center) ? sort : "NEWEST",
       keyword: filterForm.keyword.trim() || undefined,
       categoryId: filterForm.categoryId || undefined,
       location: filterForm.location.trim() || undefined,
@@ -230,7 +249,9 @@ export default function DiscoverPage() {
   }
 
   function clearFilters() {
+    manualFilters.current = true;
     setFilterForm(emptyFilterForm);
+    setCenter(null); setRadius(""); setSort("NEWEST");
     setAppliedFilters({});
     setShowFilters(false);
     void loadFeed({}, true);
@@ -277,9 +298,11 @@ export default function DiscoverPage() {
                 {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
             </label>
-            <label className="text-xs font-extrabold text-slate-600">Khu vực
-              <input value={filterForm.location} onChange={(event) => setFilterForm((current) => ({ ...current, location: event.target.value }))} placeholder="Ví dụ: Thủ Đức" className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-base font-medium outline-none focus:border-[#58aeba] sm:text-sm" />
-            </label>
+            <div className="sm:col-span-2"><p className="text-xs font-extrabold text-slate-600">Tìm quanh địa điểm</p><LocationField value={center} title="Chọn vị trí tìm việc" onChange={p => { setCenter(p); setFilterForm(f => ({ ...f, location: p.latitude == null ? p.area : "" })); }} /></div>
+            <label className="text-xs font-extrabold text-slate-600">Bán kính<select value={radius} disabled={!hasPoint(center)} onChange={e => setRadius(e.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base"><option value="">Không giới hạn</option>{[1,3,5,10,20].map(km => <option key={km} value={km}>{km} km</option>)}</select></label>
+            <label className="text-xs font-extrabold text-slate-600">Sắp xếp<select value={sort} onChange={e => setSort(e.target.value as "NEWEST" | "NEAREST")} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base"><option value="NEWEST">Mới nhất</option><option value="NEAREST" disabled={!hasPoint(center)}>Gần nhất</option></select></label>
+            <label className="text-xs font-extrabold text-slate-600 sm:col-span-2">Tên khu vực (có thể nhập tay)<input value={filterForm.location} onChange={e => setFilterForm(f => ({ ...f, location: e.target.value }))} placeholder="Phường, quận, thành phố" className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-base" /></label>
+            <p className="text-xs leading-5 text-slate-500 sm:col-span-2">Khoảng cách đường thẳng, làm tròn đến 0,5 km. Bài chưa có tọa độ không tham gia lọc bán kính / gần nhất.</p>
             <label className="text-xs font-extrabold text-slate-600">Ngân sách từ
               <input type="number" min="0" value={filterForm.minBudget} onChange={(event) => setFilterForm((current) => ({ ...current, minBudget: event.target.value }))} placeholder="0" className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-base font-medium outline-none focus:border-[#58aeba] sm:text-sm" />
             </label>
@@ -294,6 +317,7 @@ export default function DiscoverPage() {
         )}
       </form>
 
+      {center && <p className="rounded-xl bg-[#e9f6f8] p-3 text-sm text-[#007f95]">Tìm quanh {center.area}{radius && hasPoint(center) ? ` · ${radius} km` : ""} · Địa điểm tìm kiếm không thay đổi hồ sơ.</p>}
       {!user?.profileCompleted && (
         <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-start gap-2"><AppIcon name="info" className="mt-0.5 h-4 w-4 shrink-0" /> Hồ sơ đầy đủ giúp chủ bài hiểu rõ hơn khi xem danh sách ứng viên.</span>
@@ -302,6 +326,7 @@ export default function DiscoverPage() {
       )}
 
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</div>}
+      {currentJob?.distanceKm != null && <p className="text-center text-sm font-bold text-[#007f95]">Cách tâm tìm kiếm khoảng {currentJob.distanceKm.toLocaleString("vi-VN")} km (đường thẳng)</p>}
       {notice && <div className="hf-user-toast"><UserNotice message={notice} onClose={() => setNotice("")} /></div>}
 
       {loading ? (

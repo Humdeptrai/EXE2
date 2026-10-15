@@ -24,6 +24,7 @@ public record JobDiscoveryResponse(
         int requiredWorkers,
         List<JobMediaResponse> media,
         JobInteractionStateResponse interaction,
-        Instant publishedAt
+        Instant publishedAt,
+        Double distanceKm
 ) {
 }

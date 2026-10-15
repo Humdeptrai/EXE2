@@ -13,6 +13,7 @@ import java.util.List;
 @Component
 @lombok.RequiredArgsConstructor
 public class JobDiscoveryMapper {
+    private final com.handsfree.be.repository.ActivityLocationRepository activities;
     private final com.handsfree.be.repository.MatchRatingRepository ratings;
     private final com.handsfree.be.repository.JobMatchRepository matches;
 
@@ -26,6 +27,9 @@ public class JobDiscoveryMapper {
                 count == null ? 0 : count.longValue(), matches.countSuccessfulConnectionsAsConsumer(userId));
     }
     public JobDiscoveryResponse toResponse(JobPost jobPost, JobInteractionStateResponse interaction) {
+        return toResponse(jobPost,interaction,null,null);
+    }
+    public JobDiscoveryResponse toResponse(JobPost jobPost, JobInteractionStateResponse interaction, Double latitude, Double longitude) {
         JobCategoryResponse category = new JobCategoryResponse(
                 jobPost.getCategory().getId(),
                 jobPost.getCategory().getCode(),
@@ -38,7 +42,7 @@ public class JobDiscoveryMapper {
                 jobPost.getOwner().getId(),
                 "Người thuê HandsFree",
                 null,
-                com.handsfree.be.serviceImpl.ContactPrivacy.redact(jobPost.getOwner().getLocation()),
+                activities.findById(jobPost.getOwner().getId()).map(com.handsfree.be.entity.ActivityLocation::getArea).orElse("Chưa cập nhật khu vực"),
                 jobPost.getOwner().isProfileCompleted(),
                 jobPost.getOwner().getProfileTags() == null
                         ? List.of()
@@ -68,13 +72,22 @@ public class JobDiscoveryMapper {
                 jobPost.getScheduledDate(),
                 jobPost.getStartTime(),
                 jobPost.getExpectedEndAt(),
-                com.handsfree.be.serviceImpl.ContactPrivacy.redact(jobPost.getLocation()),
+                com.handsfree.be.serviceImpl.LocationPrivacy.area(jobPost),
                 jobPost.getBudgetAmount(),
                 jobPost.getBudgetType(),
                 jobPost.getRequiredWorkers(),
                 media,
                 interaction,
-                jobPost.getPublishedAt()
+                jobPost.getPublishedAt(),
+                roundedDistance(jobPost,latitude,longitude)
         );
+    }
+
+    private Double roundedDistance(JobPost job,Double lat,Double lon) {
+        if(lat==null || lon==null || job.getLatitude()==null || job.getLongitude()==null)return null;
+        double a=Math.sin(Math.toRadians(lat))*Math.sin(Math.toRadians(job.getLatitude()))
+                +Math.cos(Math.toRadians(lat))*Math.cos(Math.toRadians(job.getLatitude()))*Math.cos(Math.toRadians(job.getLongitude()-lon));
+        double km=6371.0088*Math.acos(Math.max(-1,Math.min(1,a)));
+        return Math.max(0.5,Math.round(km*2)/2.0);
     }
 }

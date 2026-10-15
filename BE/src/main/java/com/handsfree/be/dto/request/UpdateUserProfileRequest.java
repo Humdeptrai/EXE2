@@ -26,6 +26,7 @@ public record UpdateUserProfileRequest(
 
         @Size(max = 8, message = "Chỉ được chọn tối đa 8 đặc điểm")
         List<@NotBlank(message = "Đặc điểm không được để trống")
-                @Size(max = 40, message = "Mỗi đặc điểm tối đa 40 ký tự") String> tags
+                @Size(max = 40, message = "Mỗi đặc điểm tối đa 40 ký tự") String> tags,
+        @jakarta.validation.Valid com.handsfree.be.service.LocationService.Activity activityLocation
 ) {
 }

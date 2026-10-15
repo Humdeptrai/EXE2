@@ -73,6 +73,9 @@ public class JobPost extends BaseEntity {
 
     @Column(name = "location", nullable = false, length = 255)
     private String location;
+    @Column(name="area_label",length=120) private String areaLabel;
+    private Double latitude;
+    private Double longitude;
 
     @Column(name = "budget_amount", nullable = false, precision = 12, scale = 0)
     private BigDecimal budgetAmount;

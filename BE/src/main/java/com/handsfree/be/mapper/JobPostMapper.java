@@ -48,7 +48,8 @@ public class JobPostMapper {
                 jobPost.getCompletedAt(),
                 jobPost.getCancelledAt(),
                 jobPost.getCreatedAt(),
-                jobPost.getUpdatedAt()
+                jobPost.getUpdatedAt(),
+                jobPost.getAreaLabel()==null ? null : new com.handsfree.be.dto.request.LocationData(jobPost.getLocation(),jobPost.getAreaLabel(),jobPost.getLatitude(),jobPost.getLongitude())
         );
     }
 

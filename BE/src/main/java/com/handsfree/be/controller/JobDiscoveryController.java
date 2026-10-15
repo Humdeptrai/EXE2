@@ -42,6 +42,10 @@ public class JobDiscoveryController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) UUID categoryId,
             @RequestParam(required = false) String location,
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(required = false) Integer radiusKm,
+            @RequestParam(defaultValue = "NEWEST") String sort,
             @RequestParam(required = false) BigDecimal minBudget,
             @RequestParam(required = false) BigDecimal maxBudget,
             @RequestParam(defaultValue = "0") int page,
@@ -52,7 +56,7 @@ public class JobDiscoveryController {
                 "Lấy danh sách công việc phù hợp thành công",
                 jobDiscoveryService.getFeed(
                         currentUserId(authentication), keyword, categoryId, location,
-                        minBudget, maxBudget, page, size
+                        minBudget, maxBudget, latitude, longitude, radiusKm, sort, page, size
                 )
         ));
     }

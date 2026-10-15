@@ -48,6 +48,7 @@ export interface GoogleLoginRequest {
 }
 
 export interface UpdateProfileRequest {
+  activityLocation?: import("../features/location/locationService").Activity;
   fullName: string;
   phone: string;
   avatarUrl: string;

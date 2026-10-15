@@ -27,6 +27,8 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final com.handsfree.be.service.LocationService locations;
+    private final com.handsfree.be.repository.ActivityLocationRepository activityLocations;
     private final MediaStorageService mediaStorageService;
 
     @Override
@@ -55,6 +57,12 @@ public class UserServiceImpl implements UserService {
             user.setAvatarUrl(normalizeNullable(request.avatarUrl()));
         }
         user.setBio(normalizeNullable(request.bio()));
+        if(request.activityLocation()!=null) {
+            if(!request.activityLocation().place().area().trim().equals(request.location().trim())) throw new AppException(ErrorCode.VALIDATION_FAILED);
+            locations.saveActivity(userId, request.activityLocation());
+        } else if(!java.util.Objects.equals(user.getLocation(),normalizeNullable(request.location()))) {
+            activityLocations.deleteById(userId);
+        }
         user.setLocation(normalizeNullable(request.location()));
         user.setProfileTags(normalizeTags(request.tags()));
         user.setProfileCompleted(isProfileCompleted(user));

@@ -5,6 +5,9 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
+    ADDRESS_LIMIT(40980, HttpStatus.CONFLICT, "Bạn chỉ có thể lưu tối đa 10 địa chỉ"),
+    MAP_UNAVAILABLE(50380, HttpStatus.SERVICE_UNAVAILABLE, "Tìm địa chỉ đang tạm không khả dụng. Bạn có thể nhập tay hoặc chọn địa chỉ đã lưu."),
+    MAP_RATE_LIMIT(42980, HttpStatus.TOO_MANY_REQUESTS, "Bạn tìm địa chỉ quá nhanh hoặc đã đạt hạn mức. Vui lòng thử lại sau."),
     PROFILE_REQUIRED(40361, HttpStatus.FORBIDDEN, "Vui lòng hoàn thiện họ tên, số điện thoại hợp lệ và nơi ở trước khi đăng hoặc nhận việc"),
     IDENTITY_APPEAL_BUSY(40996, HttpStatus.CONFLICT, "Hồ sơ đang chờ ADMIN xét duyệt. Xem yêu cầu đã gửi trước khi thực hiện lại."),
     IDENTITY_REVIEW_CONFLICT(40961, HttpStatus.CONFLICT, "Hồ sơ đã thay đổi, đã xử lý hoặc chưa được bạn nhận xử lý. Vui lòng tải lại hồ sơ"),

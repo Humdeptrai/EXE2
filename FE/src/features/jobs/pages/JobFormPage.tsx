@@ -1,3 +1,5 @@
+import LocationField from "../../location/LocationField";
+import type { Place } from "../../location/locationService";
 import { identityService } from "../../../services/identityService";
 import { IDENTITY_ACTION_REQUIRED_EVENT, isIdentityActionHandled } from "../../../config/axios";
 import { useFeedback } from "../../../components/feedback/FeedbackContext";
@@ -75,6 +77,7 @@ export default function JobFormPage() {
   const isEditing = Boolean(jobId);
   const [persistedJobId, setPersistedJobId] = useState<string | null>(jobId || null);
   const [categories, setCategories] = useState<JobCategory[]>([]);
+  const [place, setPlace] = useState<Place | null>(null);
   const [job, setJob] = useState<JobPost | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
@@ -106,6 +109,7 @@ export default function JobFormPage() {
         if (loadedJob) {
           setJob(loadedJob);
           setForm(jobToForm(loadedJob));
+          setPlace(loadedJob.place || null);
         }
       } catch (error) {
         if (active) setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể tải biểu mẫu công việc.") });
@@ -165,6 +169,7 @@ export default function JobFormPage() {
       startTime: form.startTime,
       expectedEndAt: form.expectedEndAt || null,
       location: form.location.trim(),
+      place,
       budgetAmount: Number(form.budgetAmount),
       budgetType: form.budgetType,
       requiredWorkers: Number(form.requiredWorkers),
@@ -196,6 +201,7 @@ export default function JobFormPage() {
         await confirm({ title: "Thời gian công việc chưa hợp lệ", message: "Vui lòng nhập thời gian kết thúc dự kiến sau thời gian bắt đầu. Bạn có thể chọn ngày kế tiếp nếu công việc qua đêm.", danger: true, acknowledgeOnly: true, confirmLabel: "Tôi đã hiểu" });
         return;
       }
+      if (!form.location.trim()) throw new Error("Hãy chọn hoặc nhập địa điểm làm việc.");
       const payload = buildPayload();
       let saved = persistedJobId
         ? await jobService.update(persistedJobId, payload)
@@ -335,12 +341,9 @@ export default function JobFormPage() {
             <span className="mt-2 block text-xs font-medium leading-5 text-slate-500">Chọn ngày và giờ sau lúc bắt đầu, kể cả việc qua đêm. Hệ thống dùng mốc này để mở đánh giá sau thời gian chờ do ADMIN cấu hình.</span>
           </label>
 
-          <label className="block text-sm font-extrabold">Địa điểm *
-            <div className="relative mt-2">
-              <AppIcon name="location" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input value={form.location} onChange={(event) => setField("location", event.target.value)} maxLength={255} required disabled={!canEditCore} placeholder="Tòa nhà, đường, phường hoặc khu vực cụ thể" className="min-h-14 w-full rounded-2xl border border-slate-300 bg-white py-3 pl-12 pr-4 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed] disabled:bg-slate-50" />
-            </div>
-          </label>
+          <div><p className="text-sm font-extrabold">Địa điểm làm việc *</p><LocationField title="Địa điểm làm việc" disabled={!canEditCore} value={place} fallback={form.location} onChange={p => { setPlace(p); setField("location", p.address); }} />
+            <p className="mt-2 text-xs leading-5 text-slate-500">Khu vực được hiển thị công khai. Địa chỉ cụ thể và ghim chỉ mở cho hai bên sau khi thanh toán đủ phí kết nối.</p>
+          </div>
 
           <div>
             <p className="text-sm font-extrabold">Ngân sách dự kiến *</p>
