@@ -46,6 +46,7 @@ Gói Free tại thời điểm triển khai: 3.000 credits/ngày, tối đa 5 re
 - Bộ chọn chung: tìm địa chỉ (650ms sau khi ngừng gõ), vị trí hiện tại (chỉ xin quyền khi bấm), ghim kéo/thả/chạm, nhập tay, địa chỉ đã lưu.
 - Người dùng xác nhận ghim và sửa số nhà/tầng/căn hộ trước khi dùng. Sai số thiết bị được hiển thị; không xem GPS hay kết quả tìm kiếm là xác minh nơi cư trú.
 - Địa chỉ đã lưu tối đa 10, chỉ chủ tài khoản đọc/sửa/xóa; khóa user row để tránh vượt giới hạn/đặt nhiều mặc định đồng thời. Xóa địa chỉ không làm đổi bài đăng cũ. Địa chỉ mặc định hiện tại được giữ nếu chưa chọn một địa chỉ khác làm mặc định.
+- Địa chỉ hiển thị trên profile ưu tiên khu vực hoạt động đã lưu từ map; nếu chưa có thì lấy phần khu vực của địa chỉ mặc định, cuối cùng mới dùng giá trị location cũ. Không lấy số nhà/căn hộ làm nhãn công khai. Lưu/sửa địa chỉ mặc định đồng bộ location cũ khi chưa có khu vực hoạt động riêng. Thay đổi Nhà riêng không ghi đè khu vực hoạt động đã chọn rõ ràng.
 - Khu vực hoạt động lưu riêng với địa chỉ nhà riêng. Profile chỉ ghi tên khu vực; tọa độ tâm và bán kính chỉ trả qua API riêng của chủ tài khoản. Lưu cùng transaction với thông tin profile, đổi vị trí tìm kiếm không tự sửa profile.
 - Bài đăng giữ snapshot địa chỉ cụ thể, khu vực, tọa độ. Khi đăng lại bài giữ snapshot. Không cho đổi tọa độ/khu vực để vượt khóa chỉnh sửa bài đã có matching.
 - Feed/saved/interested/skipped/discovery chỉ trả tên khu vực, không trả lat/lon cụ thể của bài. Bài cũ chưa có khu vực hiện “Chưa cập nhật khu vực”; không suy đoán khu vực từ địa chỉ cụ thể.

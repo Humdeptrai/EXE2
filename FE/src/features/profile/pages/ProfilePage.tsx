@@ -51,8 +51,9 @@ export default function ProfilePage() {
   }, [onboarding]);
   const [form, setForm] = useState<UpdateProfileRequest>(emptyForm);
   const [activity, setActivity] = useState<Activity | null>(null);
+  const [savedActivity, setSavedActivity] = useState<Activity | null>(null);
   const [activityLoaded, setActivityLoaded] = useState(false);
-  useEffect(() => { const c = new AbortController(); void locationService.activity(c.signal).then(setActivity).catch(() => undefined).finally(() => { if (!c.signal.aborted) setActivityLoaded(true); }); return () => c.abort(); }, []);
+  useEffect(() => { const c = new AbortController(); void locationService.activity(c.signal).then(a => { if (!c.signal.aborted) { setActivity(a); setSavedActivity(a); if (a) setForm(f => ({ ...f, location: a.place.area })); } }).catch(() => undefined).finally(() => { if (!c.signal.aborted) setActivityLoaded(true); }); return () => c.abort(); }, []);
   const [saving, setSaving] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -66,7 +67,7 @@ export default function ProfilePage() {
         phone: user.phone || "",
         avatarUrl: user.avatarUrl || "",
         bio: user.bio || "",
-        location: user.location || "",
+        location: savedActivity?.place.area || user.location || "",
         tags: user.tags || [],
       });
     }, 0);
@@ -197,6 +198,7 @@ export default function ProfilePage() {
       if (onboarding && updated.profileCompleted && updated.phone && updated.location) {
         navigate(onboardingUrl(next), { replace: true });
       }
+      if (activity && activity.place.area === form.location.trim()) setSavedActivity(activity);
       setEditing(false);
     } catch (error) {
       setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể cập nhật hồ sơ lúc này.") });
@@ -232,8 +234,8 @@ export default function ProfilePage() {
                 <h1 className="break-words text-xl font-extrabold leading-tight sm:text-3xl">{user?.fullName}</h1>
                 <p className="mt-1 flex min-w-0 items-start gap-1.5 text-xs font-bold leading-5 text-slate-500 sm:text-sm">
                   <AppIcon name="location" className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span className="min-w-0 break-words">{(editing ? form.location.trim() : user?.location) || "Chưa cập nhật khu vực"}
-                    {editing && form.location.trim() !== (user?.location || "") && <span className="ml-2 inline-block rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">Chưa lưu</span>}
+                  <span className="min-w-0 break-words">{(editing ? form.location.trim() : savedActivity?.place.area || user?.location) || "Chưa cập nhật khu vực"}
+                    {editing && form.location.trim() !== (savedActivity?.place.area || user?.location || "") && <span className="ml-2 inline-block rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">Chưa lưu</span>}
                   </span>
                 </p>
               </div>
@@ -335,7 +337,12 @@ export default function ProfilePage() {
       </section>
 
       <aside className="min-w-0 space-y-4 sm:space-y-5">
-        <SavedAddresses />
+        <SavedAddresses onChange={() => {
+          void locationService.activity().then(a => {
+            setSavedActivity(a);
+            if (!editing) { setActivity(a); setForm(f => ({ ...f, location: a?.place.area || user?.location || "" })); }
+          }).catch(() => undefined);
+        }} />
         <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between"><h2 className="font-extrabold">Mức độ hoàn thiện</h2><span className="font-extrabold text-[#007f95]">{progress}%</span></div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#007f95] transition-all" style={{ width: `${progress}%` }} /></div>

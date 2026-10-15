@@ -21,21 +21,35 @@ public class LocationServiceImpl implements LocationService {
         access.active(user); return addresses.findByOwnerIdOrderByDefaultAddressDescLabelAsc(user).stream().map(this::view).toList();
     }
     @Transactional public Address save(UUID user,UUID id,AddressRequest request) {
-        lock(user); request.place().validate();
+        lock(user); request.place().validate(); ContactPrivacy.validate(request.place().area());
         if(id==null && addresses.countByOwnerId(user)>=10) throw new AppException(ErrorCode.ADDRESS_LIMIT);
         var a=id==null?new SavedAddress():addresses.findByIdAndOwnerId(id,user).orElseThrow(()->new AppException(ErrorCode.FORBIDDEN));
         a.setOwnerId(user); a.setLabel(request.label().trim()); a.setAddress(request.place().address().trim()); a.setArea(request.place().area().trim());
         a.setLatitude(request.place().latitude()); a.setLongitude(request.place().longitude());
         boolean makeDefault=request.defaultAddress() || addresses.countByOwnerId(user)==0 || a.isDefaultAddress();
         if(makeDefault) { for(var existing:addresses.findByOwnerIdOrderByDefaultAddressDescLabelAsc(user)) existing.setDefaultAddress(false); addresses.flush(); }
-        a.setDefaultAddress(makeDefault); return view(addresses.save(a));
+        a.setDefaultAddress(makeDefault); var saved=addresses.saveAndFlush(a); syncDefaultArea(user); return view(saved);
     }
     @Transactional public void delete(UUID user,UUID id) {
         lock(user); var a=addresses.findByIdAndOwnerId(id,user).orElseThrow(()->new AppException(ErrorCode.FORBIDDEN));
         boolean wasDefault=a.isDefaultAddress(); addresses.delete(a); addresses.flush();
         if(wasDefault) addresses.findByOwnerIdOrderByDefaultAddressDescLabelAsc(user).stream().findFirst().ifPresent(next->next.setDefaultAddress(true));
+        addresses.flush(); syncDefaultArea(user);
     }
-    @Transactional(readOnly=true) public Activity activity(UUID user) { access.active(user); return activities.findById(user).map(a->new Activity(new LocationData(a.getArea(),a.getArea(),a.getLatitude(),a.getLongitude()),a.getRadiusKm())).orElse(null); }
+    @Transactional(readOnly=true) public Activity activity(UUID user) {
+        access.active(user);
+        return activities.findById(user)
+                .map(a->new Activity(new LocationData(a.getArea(),a.getArea(),a.getLatitude(),a.getLongitude()),a.getRadiusKm()))
+                .orElseGet(()->addresses.findByOwnerIdOrderByDefaultAddressDescLabelAsc(user).stream()
+                        .filter(SavedAddress::isDefaultAddress).findFirst()
+                        .map(a->new Activity(new LocationData(a.getArea(),a.getArea(),a.getLatitude(),a.getLongitude()),null))
+                        .orElse(null));
+    }
+    private void syncDefaultArea(UUID user) {
+        if(activities.existsById(user)) return;
+        addresses.findByOwnerIdOrderByDefaultAddressDescLabelAsc(user).stream().filter(SavedAddress::isDefaultAddress)
+                .findFirst().ifPresent(a->users.findById(user).orElseThrow().setLocation(a.getArea()));
+    }
     @Transactional public Activity saveActivity(UUID user,Activity request) {
         lock(user); request.place().validate();
         ContactPrivacy.validate(request.place().area());

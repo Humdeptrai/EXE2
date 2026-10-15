@@ -4,7 +4,7 @@ import { getApiErrorMessage } from "../auth/utils/apiError";
 import { useFeedback } from "../../components/feedback/FeedbackContext";
 import "./location.css";
 const AddressPicker = lazy(() => import("./AddressPicker"));
-export default function SavedAddresses() {
+export default function SavedAddresses({ onChange }: { onChange?: () => void }) {
   const { confirm } = useFeedback();
   const [list, setList] = useState<SavedAddress[]>([]), [error, setError] = useState("");
   const [editing, setEditing] = useState<SavedAddress | "new" | null>(null);
@@ -16,12 +16,12 @@ export default function SavedAddresses() {
   async function save() {
     if (!place || !label.trim()) { setError("Hãy đặt tên và chọn địa chỉ."); return; }
     setBusy(true); setError("");
-    try { await locationService.saveAddress({ label: label.trim(), place, defaultAddress: isDefault }, editing && editing !== "new" ? editing.id : undefined); setRevision(v => v + 1); setEditing(null); }
+    try { await locationService.saveAddress({ label: label.trim(), place, defaultAddress: isDefault }, editing && editing !== "new" ? editing.id : undefined); setRevision(v => v + 1); setEditing(null); onChange?.(); }
     catch (e) { setError(getApiErrorMessage(e, "Không lưu được địa chỉ.")); } finally { setBusy(false); }
   }
   async function remove(a: SavedAddress) {
     if (!await confirm({ title: "Xóa địa chỉ đã lưu", message: `Xóa “${a.label}”? Địa điểm trên bài đăng cũ vẫn được giữ lại.`, confirmLabel: "Xóa địa chỉ", danger: true })) return;
-    setBusy(true); try { await locationService.deleteAddress(a.id); setRevision(v => v + 1); setError(""); } catch (e) { setError(getApiErrorMessage(e, "Không xóa được địa chỉ.")); } finally { setBusy(false); }
+    setBusy(true); try { await locationService.deleteAddress(a.id); setRevision(v => v + 1); setError(""); onChange?.(); } catch (e) { setError(getApiErrorMessage(e, "Không xóa được địa chỉ.")); } finally { setBusy(false); }
   }
   return <section className="hf-address-book"><header><div><h2>Địa chỉ đã lưu</h2><p>Chỉ bạn xem được · Tối đa 10 địa chỉ</p></div><button type="button" disabled={busy || list.length >= 10} onClick={() => edit("new")}>＋ Thêm</button></header>
     {error && <p role="alert" className="hf-location-error">{error}</p>}
