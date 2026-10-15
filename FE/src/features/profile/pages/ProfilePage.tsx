@@ -207,6 +207,13 @@ export default function ProfilePage() {
     }
   }
 
+  const addressBook = <SavedAddresses onChange={() => {
+          void locationService.activity().then(a => {
+            setSavedActivity(a);
+            if (!editing) { setActivity(a); setForm(f => ({ ...f, location: a?.place.area || user?.location || "" })); }
+          }).catch(() => undefined);
+        }} />;
+
   const initials = user?.fullName
     .split(" ")
     .filter(Boolean)
@@ -272,6 +279,7 @@ export default function ProfilePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Email</p><p className="mt-1 break-all font-bold">{user?.email || "Không có"}</p></div>
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Số điện thoại</p><p className="mt-1 font-bold">{user?.phone || "Chưa cập nhật"}</p></div>
+                <div className="min-w-0 sm:col-span-2">{addressBook}</div>
                 <IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} progress={verificationProgress} /><IdentityProgressFields state={verificationProgress} verified={identity?.identityVerified === true} />
               </div>
             </div>
@@ -287,6 +295,7 @@ export default function ProfilePage() {
                   <input required={onboarding} pattern="0[0-9]{9}" value={form.phone} onChange={(e) => setField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="0901234567" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
                 </label>
               </div>
+              {addressBook}
               <div><p className="text-sm font-extrabold">Nơi ở / khu vực hoạt động *</p><LocationField title="Chọn khu vực hoạt động" disabled={!activityLoaded} value={activity?.place} fallback={form.location} onChange={p => { setActivity({ place: { ...p, address: p.area }, radiusKm: p.latitude == null ? null : activity?.radiusKm || null }); setField("location", p.area); }} /><p className="mt-2 text-xs leading-5 text-slate-500">Người khác chỉ thấy tên khu vực. Tâm vị trí dùng để gợi ý tìm việc; địa chỉ nhà riêng nằm trong danh sách riêng tư.</p>
               <label className="mt-3 block text-xs font-bold">Phạm vi tìm việc mặc định<select className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base" value={activity?.radiusKm || ""} disabled={activity?.place.latitude == null} onChange={e => setActivity(a => a ? { ...a, radiusKm: e.target.value ? Number(e.target.value) : null } : a)}><option value="">Không giới hạn</option>{[1,3,5,10,20].map(km => <option key={km} value={km}>{km} km</option>)}</select></label></div>
               <div className="rounded-2xl border border-slate-200 p-4">
@@ -337,12 +346,7 @@ export default function ProfilePage() {
       </section>
 
       <aside className="min-w-0 space-y-4 sm:space-y-5">
-        <SavedAddresses onChange={() => {
-          void locationService.activity().then(a => {
-            setSavedActivity(a);
-            if (!editing) { setActivity(a); setForm(f => ({ ...f, location: a?.place.area || user?.location || "" })); }
-          }).catch(() => undefined);
-        }} />
+
         <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between"><h2 className="font-extrabold">Mức độ hoàn thiện</h2><span className="font-extrabold text-[#007f95]">{progress}%</span></div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#007f95] transition-all" style={{ width: `${progress}%` }} /></div>
