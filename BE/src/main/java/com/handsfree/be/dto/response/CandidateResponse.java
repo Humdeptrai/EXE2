@@ -23,6 +23,10 @@ public record CandidateResponse(
         Instant requestedAt,
         Instant respondedAt,
         CandidateHiringInsightsResponse hiringInsights,
-        UUID matchId
+        UUID matchId,
+        RecommendationResponse recommendation
 ) {
+    public CandidateResponse withRecommendation(RecommendationResponse value) {
+        return new CandidateResponse(interestId, jobId, applicantId, displayName, avatarUrl, location, bio, tags, profileCompleted, identityRevealed, interestLevel, interestStatus, requestedAt, respondedAt, hiringInsights, matchId, value);
+    }
 }

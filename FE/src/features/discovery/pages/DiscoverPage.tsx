@@ -33,7 +33,7 @@ export default function DiscoverPage() {
   const [appliedFilters, setAppliedFilters] = useState<DiscoveryFilters>({});
   const [center, setCenter] = useState<Place | null>(null);
   const [radius, setRadius] = useState("");
-  const [sort, setSort] = useState<"NEWEST" | "NEAREST">("NEWEST");
+  const [sort, setSort] = useState<"NEWEST" | "NEAREST" | "RECOMMENDED">("RECOMMENDED");
   const [showFilters, setShowFilters] = useState(false);
   const [jobs, setJobs] = useState<JobDiscovery[]>([]);
   const [loading, setLoading] = useState(true);
@@ -234,7 +234,7 @@ export default function DiscoverPage() {
       latitude: hasPoint(center) ? center!.latitude! : undefined,
       longitude: hasPoint(center) ? center!.longitude! : undefined,
       radiusKm: hasPoint(center) && radius ? Number(radius) : undefined,
-      sort: hasPoint(center) ? sort : "NEWEST",
+      sort,
       keyword: filterForm.keyword.trim() || undefined,
       categoryId: filterForm.categoryId || undefined,
       location: filterForm.location.trim() || undefined,
@@ -251,7 +251,7 @@ export default function DiscoverPage() {
   function clearFilters() {
     manualFilters.current = true;
     setFilterForm(emptyFilterForm);
-    setCenter(null); setRadius(""); setSort("NEWEST");
+    setCenter(null); setRadius(""); setSort("RECOMMENDED");
     setAppliedFilters({});
     setShowFilters(false);
     void loadFeed({}, true);
@@ -300,7 +300,7 @@ export default function DiscoverPage() {
             </label>
             <div className="sm:col-span-2"><p className="text-xs font-extrabold text-slate-600">Tìm quanh địa điểm</p><LocationField value={center} title="Chọn vị trí tìm việc" onChange={p => { setCenter(p); setFilterForm(f => ({ ...f, location: p.latitude == null ? p.area : "" })); }} /></div>
             <label className="text-xs font-extrabold text-slate-600">Bán kính<select value={radius} disabled={!hasPoint(center)} onChange={e => setRadius(e.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base"><option value="">Không giới hạn</option>{[1,3,5,10,20].map(km => <option key={km} value={km}>{km} km</option>)}</select></label>
-            <label className="text-xs font-extrabold text-slate-600">Sắp xếp<select value={sort} onChange={e => setSort(e.target.value as "NEWEST" | "NEAREST")} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base"><option value="NEWEST">Mới nhất</option><option value="NEAREST" disabled={!hasPoint(center)}>Gần nhất</option></select></label>
+            <label className="text-xs font-extrabold text-slate-600">Sắp xếp<select value={sort} onChange={e => setSort(e.target.value as "NEWEST" | "NEAREST" | "RECOMMENDED")} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base"><option value="RECOMMENDED">Phù hợp nhất</option><option value="NEWEST">Mới nhất</option><option value="NEAREST" disabled={!hasPoint(center)}>Gần nhất</option></select></label>
             <label className="text-xs font-extrabold text-slate-600 sm:col-span-2">Tên khu vực (có thể nhập tay)<input value={filterForm.location} onChange={e => setFilterForm(f => ({ ...f, location: e.target.value }))} placeholder="Phường, quận, thành phố" className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-base" /></label>
             <p className="text-xs leading-5 text-slate-500 sm:col-span-2">Khoảng cách đường thẳng, làm tròn đến 0,5 km. Bài chưa có tọa độ không tham gia lọc bán kính / gần nhất.</p>
             <label className="text-xs font-extrabold text-slate-600">Ngân sách từ
@@ -317,7 +317,7 @@ export default function DiscoverPage() {
         )}
       </form>
 
-      {center && <p className="rounded-xl bg-[#e9f6f8] p-3 text-sm text-[#007f95]">Tìm quanh {center.area}{radius && hasPoint(center) ? ` · ${radius} km` : ""} · Địa điểm tìm kiếm không thay đổi hồ sơ.</p>}
+      {center && <p className="rounded-xl bg-[#e9f6f8] p-3 text-sm text-[#007f95]">Vị trí tham chiếu: {center.area}{radius && hasPoint(center) ? ` · Trong ${radius} km` : " · Không giới hạn khoảng cách"} · Địa điểm tìm kiếm không thay đổi hồ sơ.</p>}
       {!user?.profileCompleted && (
         <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-start gap-2"><AppIcon name="info" className="mt-0.5 h-4 w-4 shrink-0" /> Hồ sơ đầy đủ giúp chủ bài hiểu rõ hơn khi xem danh sách ứng viên.</span>

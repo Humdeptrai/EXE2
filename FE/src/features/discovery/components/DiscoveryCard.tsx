@@ -1,3 +1,4 @@
+import RecommendationBadge from "../../../components/ui/RecommendationBadge";
 import { useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -49,6 +50,7 @@ export default function DiscoveryCard({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
     >
+      <header className="p-3 sm:p-4"><RecommendationBadge value={job.recommendation} role="hiring" /></header>
       <div className="hf-discovery-photo relative flex items-center justify-center overflow-hidden bg-slate-100">
         <JobVisual job={job} imageIndex={imageIndex} fit="original" />
         {job.media.length > 1 && (

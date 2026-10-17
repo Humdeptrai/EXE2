@@ -1,3 +1,4 @@
+import RecommendationBadge from "../../../components/ui/RecommendationBadge";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -59,6 +60,7 @@ export default function CandidateSwipeCard({
           Chấp nhận
         </div>
 
+        <RecommendationBadge value={candidate.recommendation} role="working" />
         <div className="pt-10 text-center">
           <div className="relative mx-auto h-28 w-28 sm:h-32 sm:w-32">
             <div className="grid h-full w-full place-items-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-[#b9d9de] to-[#7caeb7] text-4xl font-black text-white shadow-xl">

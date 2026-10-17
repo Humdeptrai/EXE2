@@ -40,7 +40,8 @@ public class JobMatchingMapper {
                 interest.getCreatedAt(),
                 interest.getRespondedAt(),
                 hiringInsights,
-                matched.map(JobMatch::getId).orElse(null)
+                matched.map(JobMatch::getId).orElse(null),
+                null
         );
     }
 

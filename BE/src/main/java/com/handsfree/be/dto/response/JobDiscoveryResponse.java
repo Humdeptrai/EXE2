@@ -25,6 +25,10 @@ public record JobDiscoveryResponse(
         List<JobMediaResponse> media,
         JobInteractionStateResponse interaction,
         Instant publishedAt,
-        Double distanceKm
+        Double distanceKm,
+        RecommendationResponse recommendation
 ) {
+    public JobDiscoveryResponse withRecommendation(RecommendationResponse value) {
+        return new JobDiscoveryResponse(id, owner, category, title, description, scheduledDate, startTime, expectedEndAt, location, budgetAmount, budgetType, requiredWorkers, media, interaction, publishedAt, distanceKm, value);
+    }
 }

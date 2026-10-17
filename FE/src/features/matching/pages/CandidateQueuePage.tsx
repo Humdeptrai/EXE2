@@ -1,3 +1,4 @@
+import RecommendationBadge from "../../../components/ui/RecommendationBadge";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -16,6 +17,11 @@ function delay(milliseconds: number) {
 
 export default function CandidateQueuePage() {
   const { jobId = "" } = useParams();
+  const [view, setView] = useState<"list" | "swipe">("list");
+  const loadVersion = useRef(0);
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalCandidates, setTotalCandidates] = useState(0);
   const [job, setJob] = useState<JobPost | null>(null);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,21 +37,26 @@ export default function CandidateQueuePage() {
 
   const load = useCallback(async () => {
     if (!jobId) return;
+    const version = ++loadVersion.current;
     setLoading(true);
     setError("");
     try {
       const [jobResult, candidateResult] = await Promise.all([
         jobService.getMineById(jobId),
-        matchingService.getCandidates(jobId, 0, 50),
+        matchingService.getCandidates(jobId, page, 20),
       ]);
+      if (version !== loadVersion.current) return;
+      if (page > 0 && page >= candidateResult.totalPages) { setPage(Math.max(0, candidateResult.totalPages - 1)); return; }
       setJob(jobResult);
       setCandidates(candidateResult.content);
+      setTotalPages(candidateResult.totalPages);
+      setTotalCandidates(candidateResult.totalElements);
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Không thể tải danh sách ứng viên."));
+      if (version === loadVersion.current) setError(getApiErrorMessage(requestError, "Không thể tải danh sách ứng viên."));
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
-  }, [jobId]);
+  }, [jobId, page]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
@@ -60,6 +71,7 @@ export default function CandidateQueuePage() {
 
   const removeCurrent = useCallback((interestId: string) => {
     setCandidates((items) => items.filter((item) => item.interestId !== interestId));
+    setTotalCandidates(count => Math.max(0, count - 1));
     setDragX(0);
     setExiting(null);
     setBusy(false);
@@ -90,6 +102,7 @@ export default function CandidateQueuePage() {
       }
       await delay(180);
       removeCurrent(interestId);
+      void load();
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, "Không thể phản hồi ứng viên lúc này."));
       setExiting(null);
@@ -128,12 +141,13 @@ export default function CandidateQueuePage() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if (view !== "swipe" || (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,button,a,summary"))) return;
       if (event.key === "ArrowLeft") void performDecision("reject");
       if (event.key === "ArrowRight" && !capacityFull) void performDecision("accept");
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [capacityFull, performDecision]);
+  }, [capacityFull, performDecision, view]);
 
   if (loading) {
     return <div className="grid min-h-[55dvh] place-items-center rounded-3xl border border-slate-200 bg-white text-sm font-bold text-slate-500">Đang tải ứng viên...</div>;
@@ -146,7 +160,7 @@ export default function CandidateQueuePage() {
           <Link to="/candidates" className="inline-flex min-h-10 items-center gap-2 text-sm font-extrabold text-[#007f95]"><AppIcon name="arrow-left" className="h-4 w-4" /> Danh sách công việc</Link>
           <p className="mt-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#779198] sm:text-xs">Duyệt ứng viên</p>
           <h1 className="mt-1 break-words text-2xl font-black sm:text-3xl">{job?.title || "Ứng viên"}</h1>
-          <p className="mt-1 text-sm leading-6 text-slate-500">Quét trái để từ chối, quét phải để chấp nhận Matching. Hồ sơ Rất quan tâm được ưu tiên trước.</p>
+          <p className="mt-1 text-sm leading-6 text-slate-500">Xem hồ sơ để lựa chọn hoặc chuyển sang quẹt ứng viên. Ứng viên có điểm đề xuất cao được ưu tiên trước. Điểm không thay thế việc trao đổi và lựa chọn của bạn.</p>
         </div>
         {job && (
           <div className="shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center shadow-sm">
@@ -164,7 +178,43 @@ export default function CandidateQueuePage() {
       {error && <UserNotice message={error} error />}
       {notice && <div className="hf-user-toast"><UserNotice message={notice} onClose={() => setNotice("")} /></div>}
 
-      {currentCandidate ? (
+      <div role="group" aria-label="Cách xem ứng viên" className="flex flex-wrap gap-2">
+        <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")} className={`min-h-11 rounded-xl px-4 text-sm font-extrabold ${view === "list" ? "bg-[#007f95] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Danh sách</button>
+        <button type="button" aria-pressed={view === "swipe"} onClick={() => setView("swipe")} className={`min-h-11 rounded-xl px-4 text-sm font-extrabold ${view === "swipe" ? "bg-[#007f95] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Quẹt ứng viên</button>
+      </div>
+      {view === "list" && <section className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-black">Ứng viên theo điểm đề xuất</h2>
+          <span className="text-xs font-bold text-slate-500">{totalCandidates} đang chờ · Cao đến thấp</span>
+        </div>
+        {candidates.length === 0 && <div className="rounded-2xl border border-dashed border-[#bfe0e5] bg-[#f5fbfc] p-5 text-center">
+          <p className="text-sm font-bold text-slate-600">Chưa có ứng viên đang chờ. Ứng viên mới sẽ xuất hiện khi họ quan tâm bài đăng.</p>
+          <button type="button" onClick={() => void load()} className="mt-3 min-h-11 rounded-xl bg-[#007f95] px-4 text-sm font-extrabold text-white">Tải lại</button>
+        </div>}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {candidates.map((candidate, index) => <article key={candidate.interestId} className="min-w-0 space-y-3 rounded-2xl border border-slate-200 p-3 sm:p-4">
+            <RecommendationBadge value={candidate.recommendation} role="working" />
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0"><p className="break-words text-sm font-extrabold">#{page * 20 + index + 1} · {candidate.displayName}</p><p className="mt-1 break-words text-xs text-slate-500">{candidate.location || "Chưa cập nhật khu vực"}</p></div>
+              {candidate.interestLevel === "VERY_INTERESTED" && <span className="shrink-0 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700">Rất quan tâm</span>}
+            </div>
+            <p className="text-xs leading-5 text-slate-500">{candidate.hiringInsights.averageRating == null ? "Chưa có đánh giá" : `${candidate.hiringInsights.averageRating.toFixed(1)}/5 ★`} · {candidate.hiringInsights.ratingCount} đánh giá · {candidate.hiringInsights.successfulMatchCount} kết nối nhận việc</p>
+            <Link to={`/posts/${jobId}/candidates/${candidate.interestId}`} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#bfe0e5] px-4 text-xs font-extrabold text-[#007f95]">Xem ứng viên</Link>
+          </article>)}
+        </div>
+        {totalPages > 1 && <nav aria-label="Trang ứng viên" className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <button type="button" disabled={page === 0 || busy} onClick={() => setPage(p => p - 1)} className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold disabled:opacity-40">Trước</button>
+          <span className="text-xs text-slate-500">Trang {page + 1}/{totalPages}</span>
+          <button type="button" disabled={page + 1 >= totalPages || busy} onClick={() => setPage(p => p + 1)} className="min-h-11 rounded-xl border border-slate-200 px-4 text-sm font-bold disabled:opacity-40">Sau</button>
+        </nav>}
+      </section>}
+
+      {view === "swipe" && totalPages > 1 && <nav aria-label="Trang quẹt ứng viên" className="flex flex-wrap items-center justify-center gap-3">
+        <button type="button" disabled={page === 0 || busy} onClick={() => setPage(p => p - 1)} className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold disabled:opacity-40">Trước</button>
+        <span className="text-xs text-slate-500">Trang {page + 1}/{totalPages}</span>
+        <button type="button" disabled={page + 1 >= totalPages || busy} onClick={() => setPage(p => p + 1)} className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold disabled:opacity-40">Sau</button>
+      </nav>}
+      {view === "swipe" && (currentCandidate ? (
         <section className="mx-auto w-full max-w-md pb-3">
           <div className="relative">
             {candidates[1] && <div className="absolute inset-x-5 inset-y-3 translate-y-4 rounded-[2rem] bg-[#dcebee] shadow-sm" aria-hidden="true" />}
@@ -201,7 +251,7 @@ export default function CandidateQueuePage() {
             <Link to="/candidates" className="min-h-11 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-extrabold text-slate-600">Xem Matching hiện tại</Link>
           </div>
         </section>
-      )}
+      ))}
     </div>
   );
 }

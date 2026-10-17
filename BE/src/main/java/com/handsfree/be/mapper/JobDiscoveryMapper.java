@@ -79,7 +79,8 @@ public class JobDiscoveryMapper {
                 media,
                 interaction,
                 jobPost.getPublishedAt(),
-                roundedDistance(jobPost,latitude,longitude)
+                roundedDistance(jobPost,latitude,longitude),
+                null
         );
     }
 

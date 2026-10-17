@@ -45,6 +45,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class JobDiscoveryServiceImpl implements JobDiscoveryService {
+    private final com.handsfree.be.repository.RecommendationRepository recommendations;
+    private final com.handsfree.be.service.RecommendationService recommendationService;
     private final BusinessProperties businessProperties;
     private final IdentityService identity;
     private static final List<InterestStatus> HIDDEN_FROM_FEED = List.of(
@@ -78,10 +80,21 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
         validateBudgetRange(minBudget, maxBudget);
         GeocodingServiceImpl.coordinates(latitude,longitude);
         if(radiusKm!=null && (latitude==null || !List.of(1,3,5,10,20).contains(radiusKm))) throw new AppException(ErrorCode.VALIDATION_FAILED);
-        if(!List.of("NEWEST","NEAREST").contains(sort) || "NEAREST".equals(sort)&&latitude==null) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        if(!List.of("NEWEST","NEAREST","RECOMMENDED").contains(sort) || "NEAREST".equals(sort)&&latitude==null) throw new AppException(ErrorCode.VALIDATION_FAILED);
         int normalizedPage = Math.max(page, 0);
         int normalizedSize = Math.min(Math.max(size, 1), 20);
-        Page<JobDiscoveryResponse> result = jobPostRepository.findDiscoveryFeed(
+        Page<JobPost> jobs;
+        if ("RECOMMENDED".equals(sort)) {
+            var filters = new java.util.HashMap<String,Object>();
+            filters.put("userId",userId); filters.put("status",JobStatus.PUBLISHED);
+            filters.put("today",LocalDate.now(businessProperties.zoneId())); filters.put("categoryId",categoryId);
+            filters.put("keyword",normalize(keyword)); filters.put("location",normalize(location));
+            filters.put("minBudget",minBudget); filters.put("maxBudget",maxBudget);
+            filters.put("hiddenInterestStatuses",HIDDEN_FROM_FEED); filters.put("activeMatchStatus",MatchStatus.ACTIVE);
+            filters.put("latitude",latitude); filters.put("longitude",longitude); filters.put("radiusKm",radiusKm);
+            jobs = recommendations.feed(userId,filters,PageRequest.of(normalizedPage,normalizedSize));
+        } else {
+            jobs = jobPostRepository.findDiscoveryFeed(
                         userId,
                         JobStatus.PUBLISHED,
                         LocalDate.now(businessProperties.zoneId()),
@@ -94,16 +107,19 @@ public class JobDiscoveryServiceImpl implements JobDiscoveryService {
                         MatchStatus.ACTIVE,
                         latitude, longitude, radiusKm, "NEAREST".equals(sort),
                         PageRequest.of(normalizedPage, normalizedSize)
-                )
-                .map(jobPost -> jobDiscoveryMapper.toResponse(jobPost, getState(userId, jobPost.getId()), latitude, longitude));
-        return PageResponse.from(result);
+                );
+        }
+        var scores = recommendationService.forJobs(userId,jobs.getContent().stream().map(JobPost::getId).toList());
+        return PageResponse.from(jobs.map(jobPost -> jobDiscoveryMapper.toResponse(jobPost,
+                getState(userId,jobPost.getId()),latitude,longitude).withRecommendation(scores.get(jobPost.getId()))));
     }
 
     @Override
     @Transactional(readOnly = true)
     public JobDiscoveryResponse getDetail(UUID userId, UUID jobId) {
         JobPost jobPost = getDiscoverableJob(userId, jobId);
-        return jobDiscoveryMapper.toResponse(jobPost, getState(userId, jobId));
+        return jobDiscoveryMapper.toResponse(jobPost, getState(userId, jobId)).withRecommendation(
+                recommendationService.forJobs(userId,List.of(jobId)).get(jobId));
     }
 
     @Override

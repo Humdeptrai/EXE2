@@ -50,6 +50,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class JobMatchingServiceImpl implements JobMatchingService {
+    private final com.handsfree.be.repository.RecommendationRepository recommendations;
+    private final com.handsfree.be.service.RecommendationService recommendationService;
     private final com.handsfree.be.service.ConnectionPaymentService connectionPaymentService;
     private final ContactAccess contactAccess;
     private final AccountAccess accountAccess;
@@ -100,20 +102,16 @@ public class JobMatchingServiceImpl implements JobMatchingService {
     @Transactional(readOnly = true)
     public PageResponse<CandidateResponse> getCandidates(UUID consumerId, UUID jobId, int page, int size) {
         requireOwnedActiveJob(consumerId, jobId);
-        Page<JobInterest> interests = jobInterestRepository.findCandidateQueue(
-                consumerId,
-                jobId,
-                InterestStatus.PENDING,
-                InterestLevel.VERY_INTERESTED,
-                pageRequest(page, size)
-        );
+        Page<JobInterest> interests = recommendations.candidates(consumerId, jobId,
+                PageRequest.of(Math.max(0,page),Math.min(50,Math.max(1,size))));
+        var scores = recommendationService.forCandidates(interests.getContent().stream().map(JobInterest::getId).toList());
         Map<UUID, CandidateHiringInsightsResponse> insightsByProvider = buildHiringInsights(
                 interests.getContent().stream().map(interest -> interest.getApplicant().getId()).toList()
         );
         Page<CandidateResponse> result = interests.map(interest -> jobMatchingMapper.toCandidateResponse(
                 interest,
                 insightsByProvider.getOrDefault(interest.getApplicant().getId(), emptyHiringInsights())
-        ));
+        ).withRecommendation(scores.get(interest.getId())));
         return PageResponse.from(result);
     }
 
@@ -125,7 +123,8 @@ public class JobMatchingServiceImpl implements JobMatchingService {
         UUID applicantId = interest.getApplicant().getId();
         CandidateHiringInsightsResponse insights = buildHiringInsights(List.of(applicantId))
                 .getOrDefault(applicantId, emptyHiringInsights());
-        return jobMatchingMapper.toCandidateResponse(interest, insights);
+        return jobMatchingMapper.toCandidateResponse(interest, insights).withRecommendation(
+                recommendationService.forCandidates(List.of(interest.getId())).get(interest.getId()));
     }
 
     @Override
@@ -199,7 +198,8 @@ public class JobMatchingServiceImpl implements JobMatchingService {
         CandidateHiringInsightsResponse insights = buildHiringInsights(List.of(applicantId))
                 .getOrDefault(applicantId, emptyHiringInsights());
         if (interest.getStatus() == InterestStatus.REJECTED) {
-            return jobMatchingMapper.toCandidateResponse(interest, insights);
+            return jobMatchingMapper.toCandidateResponse(interest, insights).withRecommendation(
+                recommendationService.forCandidates(List.of(interest.getId())).get(interest.getId()));
         }
         if (interest.getStatus() != InterestStatus.PENDING) {
             throw new AppException(ErrorCode.CANDIDATE_ALREADY_RESPONDED);
@@ -215,7 +215,8 @@ public class JobMatchingServiceImpl implements JobMatchingService {
                 interest.getJobPost().getId(),
                 "/discover"
         );
-        return jobMatchingMapper.toCandidateResponse(saved, insights);
+        return jobMatchingMapper.toCandidateResponse(saved, insights).withRecommendation(
+                recommendationService.forCandidates(List.of(saved.getId())).get(saved.getId()));
     }
 
     @Override

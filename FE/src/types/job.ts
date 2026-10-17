@@ -64,6 +64,7 @@ export interface JobInteractionState {
 }
 
 export interface JobDiscovery {
+  recommendation?: import("./recommendation").Recommendation | null;
   distanceKm?: number | null;
   id: string;
   owner: JobOwnerSummary;
@@ -86,7 +87,7 @@ export interface DiscoveryFilters {
   latitude?: number;
   longitude?: number;
   radiusKm?: number;
-  sort?: "NEWEST" | "NEAREST";
+  sort?: "NEWEST" | "NEAREST" | "RECOMMENDED";
   keyword?: string;
   categoryId?: string;
   location?: string;

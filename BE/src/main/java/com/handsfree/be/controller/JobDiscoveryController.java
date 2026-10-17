@@ -45,7 +45,7 @@ public class JobDiscoveryController {
             @RequestParam(required = false) Double latitude,
             @RequestParam(required = false) Double longitude,
             @RequestParam(required = false) Integer radiusKm,
-            @RequestParam(defaultValue = "NEWEST") String sort,
+            @RequestParam(defaultValue = "RECOMMENDED") String sort,
             @RequestParam(required = false) BigDecimal minBudget,
             @RequestParam(required = false) BigDecimal maxBudget,
             @RequestParam(defaultValue = "0") int page,

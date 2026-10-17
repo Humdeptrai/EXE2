@@ -1,3 +1,4 @@
+import RecommendationBadge from "../../../components/ui/RecommendationBadge";
 import RelatedMatchActions from "../../rating/components/RelatedMatchActions";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { useFeedback } from "../../../components/feedback/FeedbackContext";
@@ -61,6 +62,7 @@ export default function CandidateProfilePage() {
 
   return (
     <div className="hf-page hf-page-candidate-profile mx-auto max-w-2xl space-y-4 sm:space-y-5">
+      <RecommendationBadge value={candidate.recommendation} role="working" />
       <Link to={`/posts/${jobId}/candidates`} className="inline-flex min-h-10 items-center gap-2 text-sm font-extrabold text-[#007f95]"><AppIcon name="arrow-left" className="h-4 w-4" /> Quay lại danh sách</Link>
       {error && <UserNotice message={error} error />}
 

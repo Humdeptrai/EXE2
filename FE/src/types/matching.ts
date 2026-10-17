@@ -19,6 +19,7 @@ export interface CandidateHiringInsights {
 }
 
 export interface Candidate {
+  recommendation?: import("./recommendation").Recommendation | null;
   interestId: string;
   jobId: string;
   applicantId: string;
