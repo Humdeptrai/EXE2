@@ -16,6 +16,7 @@ const items = [
   { path: "topups", title: "Đơn nạp tiền", icon: "list" as const, admin: true },
   { path: "ledger", title: "Sổ giao dịch ví", icon: "bookmark" as const, admin: true },
   { path: "settings", title: "Phí & thời gian", icon: "filter" as const, admin: true, group: "Cấu hình" },
+  { path: "skills", title: "Kỹ năng & sở thích", icon: "list" as const, admin: true },
   { path: "audit", title: "Nhật ký quản trị", icon: "clock" as const, admin: true },
 ];
 

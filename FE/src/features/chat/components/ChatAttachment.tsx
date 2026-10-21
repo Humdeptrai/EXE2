@@ -3,8 +3,8 @@ import { chatService } from "../../../services/chatService";
 import type { ChatMessage } from "../../../types/chat";
 import IdentityImageViewer from "../../../components/feedback/IdentityImageViewer";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
-export default function ChatAttachment({ attachment }: { attachment: NonNullable<ChatMessage["attachment"]> }) {
-  const [url, setUrl] = useState("");
+export default function ChatAttachment({ attachment, localUrl }: { attachment: NonNullable<ChatMessage["attachment"]>; localUrl?: string }) {
+  const [url, setUrl] = useState(localUrl || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const wrapper = useRef<HTMLDivElement>(null);
@@ -15,7 +15,7 @@ export default function ChatAttachment({ attachment }: { attachment: NonNullable
     if (loading.current) return;
     loading.current = true; setBusy(true); setError("");
     try {
-      let next = objectUrl.current;
+      let next = localUrl || objectUrl.current;
       if (!next) {
         const blob = await chatService.attachment(attachment.url);
         if (!active.current) return;
@@ -31,7 +31,7 @@ export default function ChatAttachment({ attachment }: { attachment: NonNullable
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting) && attachment.contentType.startsWith("image/")) { void load(); observer.disconnect(); }
     });
-    if (wrapper.current) observer.observe(wrapper.current);
+    if (!localUrl && wrapper.current) observer.observe(wrapper.current);
     return () => { active.current = false; observer.disconnect(); if (objectUrl.current) URL.revokeObjectURL(objectUrl.current); objectUrl.current = ""; };
     // Each attachment is mounted with its message ID; immutable files never change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -43,7 +43,7 @@ export default function ChatAttachment({ attachment }: { attachment: NonNullable
         <span aria-hidden="true">{attachment.contentType.startsWith("video/") ? "▶" : attachment.contentType.startsWith("image/") ? "▧" : "↓"}</span>
         <span>{busy ? "Đang tải…" : attachment.name}<small>{(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB · {attachment.contentType.startsWith("video/") ? "Bấm để xem video" : "Bấm để mở / tải"}</small></span>
       </button>}
-    {url && <button type="button" className="hf-chat-download" onClick={() => void load(true)}>Tải {attachment.name}</button>}
+    {url && !attachment.contentType.startsWith("image/") && <button type="button" className="hf-chat-download" onClick={() => void load(true)}>Tải {attachment.name}</button>}
     {error && <p role="alert" className="hf-chat-media-error">{error}</p>}
   </div>;
 }

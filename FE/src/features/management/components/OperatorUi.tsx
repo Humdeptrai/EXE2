@@ -10,7 +10,7 @@ export const operatorLabels: Record<string, string> = {
 };
 export function StatusBadge({ value, label }: { value: string | number | boolean | null | undefined; label?: string }) {
   const state = String(value ?? "");
-  const tone = ["VERIFIED", "RESOLVED", "CONNECTED", "PAID", "CREDITED", "COMPLETED", "true"].includes(state) ? "success"
+  const tone = ["APPROVED", "VERIFIED", "RESOLVED", "CONNECTED", "PAID", "CREDITED", "COMPLETED", "true"].includes(state) ? "success"
     : ["REJECTED", "ERROR", "CANCELLED", "EXPIRED", "DISCONNECTED", "false"].includes(state) ? "danger"
     : ["PROCESSING", "IN_REVIEW", "ACTIVE"].includes(state) ? "info"
     : ["OPEN", "REQUESTED", "WAITING_PAYMENT", "PENDING", "REVIEW_REQUIRED", "NOT_SUBMITTED"].includes(state) ? "warning" : "neutral";

@@ -17,14 +17,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.LinkedHashSet;
-import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
+    private final com.handsfree.be.service.ProfileSkillService profileSkills;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final com.handsfree.be.service.LocationService locations;
@@ -64,7 +62,7 @@ public class UserServiceImpl implements UserService {
             activityLocations.deleteById(userId);
         }
         user.setLocation(normalizeNullable(request.location()));
-        user.setProfileTags(normalizeTags(request.tags()));
+        user.setProfileTags(profileSkills.approvedTags(request.tags(), user.getProfileTags()));
         user.setProfileCompleted(isProfileCompleted(user));
 
         return userMapper.toResponse(userRepository.save(user));
@@ -117,26 +115,6 @@ public class UserServiceImpl implements UserService {
             return null;
         }
         return value.trim();
-    }
-
-    private Set<String> normalizeTags(java.util.List<String> tags) {
-        if (tags == null || tags.isEmpty()) {
-            return new LinkedHashSet<>();
-        }
-
-        LinkedHashSet<String> normalized = new LinkedHashSet<>();
-        for (String tag : tags) {
-            String cleanTag = tag == null ? "" : tag.trim().replaceAll("\\s+", " ");
-            if (StringUtils.hasText(cleanTag)) {
-                String duplicateKey = cleanTag.toLowerCase(Locale.ROOT);
-                boolean duplicated = normalized.stream()
-                        .anyMatch(existing -> existing.toLowerCase(Locale.ROOT).equals(duplicateKey));
-                if (!duplicated) {
-                    normalized.add(cleanTag);
-                }
-            }
-        }
-        return normalized;
     }
 
     private boolean isProfileCompleted(User user) {

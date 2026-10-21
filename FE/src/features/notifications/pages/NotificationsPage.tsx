@@ -26,6 +26,7 @@ function typeLabel(type: NotificationType) {
     case "PAYMENT_RECEIVED": return "Thanh toán";
     case "CONNECTION_SUCCEEDED": return "Kết nối";
     case "CHAT_MESSAGE_RECEIVED": return "Tin nhắn";
+    case "SKILL_REVIEWED": return "Kỹ năng & sở thích";
     case "RATING_RECEIVED": return "Đánh giá";
     case "IDENTITY_REVIEWED": return "Xác minh tài khoản";
     case "REPORT_RESOLVED":

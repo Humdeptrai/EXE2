@@ -10,5 +10,6 @@ public enum NotificationType {
     REPORT_RESOLVED,
     REPORT_REJECTED,
     IDENTITY_REVIEWED,
+    SKILL_REVIEWED,
     RATING_RECEIVED
 }

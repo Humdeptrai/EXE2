@@ -34,6 +34,7 @@ public class ChatServiceImpl implements ChatService {
     private static final int MAX_MESSAGE_LENGTH = 2_000;
     private static final int MAX_PREVIEW_LENGTH = 160;
 
+    private final org.springframework.transaction.PlatformTransactionManager transactionManager;
     private final ContactAccess contactAccess;
     private final AccountAccess accountAccess;
     private final JobMatchRepository jobMatchRepository;
@@ -176,31 +177,50 @@ public class ChatServiceImpl implements ChatService {
         return chatMapper.toMessageResponse(message);
     }
 
-    @Override @Transactional
+    @Override @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public ChatMessageResponse sendAttachment(UUID user, UUID conversationId, UUID clientId, String raw,
             org.springframework.web.multipart.MultipartFile file) {
         if (clientId == null) throw new AppException(ErrorCode.CHAT_MESSAGE_INVALID);
-        var conversation = lockedConversation(user, conversationId);
-        var existing = chatMessageRepository.findByConversation_IdAndSender_IdAndClientMessageId(conversationId, user, clientId);
-        if (existing.isPresent()) return chatMapper.toMessageResponse(existing.get());
         var content = raw == null || raw.isBlank() ? "" : normalizeContent(raw);
         validateAttachment(file);
+        var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        var existing = transaction.execute(status -> {
+            var conversation = requireParticipantConversation(user, conversationId);
+            requireChatUnlocked(conversation.getJobMatch());
+            return chatMessageRepository.findByConversation_IdAndSender_IdAndClientMessageId(conversationId, user, clientId)
+                    .map(chatMapper::toMessageResponse).orElse(null);
+        });
+        if (existing != null) return existing;
+        // Upload outside the database transaction: another message must not wait for storage.
         var stored = attachmentStorage.store(file);
-        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-            new org.springframework.transaction.support.TransactionSynchronization() {
-                public void afterCompletion(int status) { if (status != STATUS_COMMITTED) attachmentStorage.delete(stored); }
+        var retained = new java.util.concurrent.atomic.AtomicBoolean(false);
+        try {
+            return transaction.execute(status -> {
+                // Authorization and idempotency are checked again after the upload.
+                var conversation = lockedConversation(user, conversationId);
+                var duplicate = chatMessageRepository.findByConversation_IdAndSender_IdAndClientMessageId(conversationId, user, clientId);
+                if (duplicate.isPresent()) return chatMapper.toMessageResponse(duplicate.get());
+                var match = conversation.getJobMatch();
+                var message = ChatMessage.builder().conversation(conversation)
+                    .sender(match.getConsumer().getId().equals(user) ? match.getConsumer() : match.getProvider())
+                    .clientMessageId(clientId).content(content).sentAt(Instant.now())
+                    .attachmentName(safeName(file.getOriginalFilename())).attachmentType(file.getContentType())
+                    .attachmentSize(file.getSize()).attachmentProvider(stored.provider()).attachmentKey(stored.key()).build();
+                chatMessageRepository.save(message);
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        public void afterCommit() { retained.set(true); }
+                    });
+                conversation.setLastMessageAt(message.getSentAt());
+                conversation.setLastMessagePreview(content.isEmpty() ?
+                    (file.getContentType().startsWith("image/") ? "Đã gửi ảnh" : file.getContentType().startsWith("video/") ? "Đã gửi video" : "Đã gửi tệp") : preview(content));
+                publish(message, match, false);
+                return chatMapper.toMessageResponse(message);
             });
-        var match = conversation.getJobMatch();
-        var message = ChatMessage.builder().conversation(conversation)
-            .sender(match.getConsumer().getId().equals(user) ? match.getConsumer() : match.getProvider())
-            .clientMessageId(clientId).content(content).sentAt(Instant.now())
-            .attachmentName(safeName(file.getOriginalFilename())).attachmentType(file.getContentType())
-            .attachmentSize(file.getSize()).attachmentProvider(stored.provider()).attachmentKey(stored.key()).build();
-        chatMessageRepository.save(message);
-        conversation.setLastMessageAt(message.getSentAt());
-        conversation.setLastMessagePreview(content.isEmpty() ? "Đã gửi " + message.getAttachmentName() : preview(content));
-        publish(message, match, false);
-        return chatMapper.toMessageResponse(message);
+        } finally {
+            // Also discard an extra upload if a concurrent retry already stored this client ID.
+            if (!retained.get()) attachmentStorage.delete(stored);
+        }
     }
 
     private String safeName(String original) {
@@ -229,12 +249,17 @@ public class ChatServiceImpl implements ChatService {
         } catch (java.io.IOException error) { throw new AppException(ErrorCode.CHAT_ATTACHMENT_INVALID); }
     }
 
-    @Override @Transactional(readOnly = true)
+    @Override @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
     public com.handsfree.be.storage.PrivateChatFile attachment(UUID user, UUID conversationId, UUID messageId) {
-        requireParticipantConversation(user, conversationId);
-        var message = chatMessageRepository.findById(messageId)
-            .filter(m -> m.getConversation().getId().equals(conversationId) && m.getAttachmentKey() != null)
-            .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+        transaction.setReadOnly(true);
+        var message = transaction.execute(status -> {
+            requireParticipantConversation(user, conversationId);
+            return chatMessageRepository.findById(messageId)
+                .filter(m -> m.getConversation().getId().equals(conversationId) && m.getAttachmentKey() != null)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        });
+        // Opening remote storage must not hold a database connection while the user downloads.
         return new com.handsfree.be.storage.PrivateChatFile(attachmentStorage.open(message), message.getAttachmentType(), message.getAttachmentName(), message.getAttachmentSize());
     }
     private void publish(ChatMessage message, JobMatch match, boolean update) {

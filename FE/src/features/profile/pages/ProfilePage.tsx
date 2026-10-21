@@ -1,3 +1,4 @@
+import ProfileSkills from "../components/ProfileSkills";
 import LocationField from "../../location/LocationField";
 import SavedAddresses from "../../location/SavedAddresses";
 import { locationService, type Activity } from "../../location/locationService";
@@ -18,21 +19,6 @@ import { getApiErrorMessage } from "../../auth/utils/apiError";
 import type { UpdateProfileRequest } from "../../../types/auth";
 import type { UserReputation } from "../../../types/rating";
 
-const AVAILABLE_TAGS = [
-  "Dọn dẹp",
-  "Giao hàng",
-  "Chăm thú cưng",
-  "Sửa chữa",
-  "Gia sư",
-  "Thiết kế",
-  "Nấu ăn",
-  "Hỗ trợ sự kiện",
-  "Có phương tiện",
-  "Làm việc nhanh",
-  "Cẩn thận",
-  "Linh hoạt",
-];
-
 function emptyForm(): UpdateProfileRequest {
   return { fullName: "", phone: "", avatarUrl: "", bio: "", location: "", tags: [] };
 }
@@ -43,7 +29,7 @@ export default function ProfilePage() {
   const [params] = useSearchParams();
   const onboarding = params.get("onboarding") === "1";
   const next = safeNext(params.get("next"));
-  const [editing, setEditing] = useState(onboarding || !user?.profileCompleted);
+  const [editing, setEditing] = useState(onboarding || params.get("skills") === "1" || !user?.profileCompleted);
   useEffect(() => {
     if (!onboarding) return;
     const timer = window.setTimeout(() => setEditing(true), 0);
@@ -317,19 +303,7 @@ export default function ProfilePage() {
                 <textarea value={form.bio} onChange={(e) => setField("bio", e.target.value)} maxLength={500} rows={5} placeholder="Chia sẻ ngắn về kinh nghiệm, cách làm việc và thời gian bạn thường rảnh..." className="mt-2 min-h-32 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium leading-6 outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
                 <span className="mt-1 block text-right text-xs font-bold text-slate-400">{form.bio.length}/500</span>
               </label>
-              <fieldset>
-                <legend className="text-sm font-extrabold">Kỹ năng & sở thích (không bắt buộc) <span className="font-medium text-slate-400">(tối đa 8)</span></legend>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {AVAILABLE_TAGS.map((tag) => {
-                    const selected = form.tags.includes(tag);
-                    return (
-                      <button key={tag} type="button" onClick={() => toggleTag(tag)} className={`min-h-11 rounded-full border px-3 py-2 text-sm font-bold transition ${selected ? "border-[#007f95] bg-[#007f95] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-[#87c4ce]"}`}>
-                        {selected ? "✓ " : "+ "}{tag}
-                      </button>
-                    );
-                  })}
-                </div>
-              </fieldset>
+              <ProfileSkills selected={form.tags} toggle={toggleTag} />
 
               <div className="grid gap-3 sm:grid-cols-2"><IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} progress={verificationProgress} /><IdentityProgressFields state={verificationProgress} verified={identity?.identityVerified === true} /></div>
 

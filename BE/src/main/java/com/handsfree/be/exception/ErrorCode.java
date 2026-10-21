@@ -5,6 +5,10 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
+    SKILL_ALREADY_EXISTS(40991, HttpStatus.CONFLICT, "Kỹ năng / sở thích này đã có trong danh mục hoặc đã được đề xuất"),
+    SKILL_NOT_FOUND(40491, HttpStatus.NOT_FOUND, "Không tìm thấy đề xuất"),
+    SKILL_NOT_APPROVED(40091, HttpStatus.BAD_REQUEST, "Vui lòng chọn kỹ năng / sở thích đã được duyệt"),
+
     ADDRESS_LIMIT(40980, HttpStatus.CONFLICT, "Bạn chỉ có thể lưu tối đa 10 địa chỉ"),
     MAP_UNAVAILABLE(50380, HttpStatus.SERVICE_UNAVAILABLE, "Tìm địa chỉ đang tạm không khả dụng. Bạn có thể nhập tay hoặc chọn địa chỉ đã lưu."),
     MAP_RATE_LIMIT(42980, HttpStatus.TOO_MANY_REQUESTS, "Bạn tìm địa chỉ quá nhanh hoặc đã đạt hạn mức. Vui lòng thử lại sau."),

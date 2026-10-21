@@ -8,6 +8,7 @@ export type NotificationType =
   | "RATING_RECEIVED"
   | "REPORT_RESOLVED"
   | "REPORT_REJECTED"
+  | "SKILL_REVIEWED"
   | "IDENTITY_REVIEWED";
 
 export interface NotificationItem {
