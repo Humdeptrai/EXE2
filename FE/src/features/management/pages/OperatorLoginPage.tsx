@@ -1,3 +1,4 @@
+import { HandsFreeLogo } from "../../../components/brand/HandsFreeLogo";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { type FormEvent, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -33,7 +34,7 @@ export default function OperatorLoginPage() {
     finally { setBusy(false); }
   }
   return <div className="op-root op-login">
-    <section className="op-login-visual"><Link to="/" className="op-brand"><span className="op-brand-mark">H↗</span><span>HandsFree<small>OPERATIONS WORKSPACE</small></span></Link>
+    <section className="op-login-visual"><Link to="/" className="op-brand"><div><HandsFreeLogo compact /><small>OPERATIONS WORKSPACE</small></div></Link>
       <div className="op-login-copy"><span className="op-pill">Vận hành HandsFree</span><h1><>Một không gian.<br />Kết nối cả đội ngũ.</></h1><p>Dành cho quản trị viên và nhân viên hỗ trợ. Công cụ làm việc được hiển thị theo quyền của tài khoản.</p>
         <div className="op-login-art" aria-hidden="true"><div className="op-art-card"><AppIcon name="star" className="op-art-icon" /><div className="op-art-line" /><div className="op-art-bars">{[35, 65, 48, 80, 60, 95, 75].map((h, i) => <i key={i} style={{ height: `${h}%` }} />)}</div></div><div className="op-art-float"><AppIcon name="check" className="op-icon" />Sẵn sàng vận hành</div></div>
       </div><small className="op-login-footnote">HandsFree · Kết nối từ những việc nhỏ</small>

@@ -1,3 +1,4 @@
+import { HandsFreeLogo } from "../../../components/brand/HandsFreeLogo";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
@@ -40,7 +41,7 @@ export default function OperatorShell() {
     <a className="op-skip" href="#operator-content">Đến nội dung</a>
     {open && <button className="op-backdrop" aria-label="Đóng điều hướng" onClick={() => setOpen(false)} />}
     <aside className="op-sidebar">
-      <NavLink to={base} end className="op-brand" onClick={() => setOpen(false)}><span className="op-brand-mark">H<span>↗</span></span><span>HandsFree<small>{admin ? "ADMIN WORKSPACE" : "STAFF WORKSPACE"}</small></span></NavLink>
+      <NavLink to={base} end className="op-brand" onClick={() => setOpen(false)}><div><HandsFreeLogo compact /><small>{admin ? "ADMIN WORKSPACE" : "STAFF WORKSPACE"}</small></div></NavLink>
       <div className="op-workspace-label"><span className="op-online-dot" />{admin ? "Trung tâm quản trị" : "Trung tâm kiểm duyệt"}</div>
       <nav aria-label="Điều hướng quản trị">{items.filter((i) => admin || !i.admin).map((i) => <div key={i.path}>
         {i.group && <p className="op-nav-group">{i.group}</p>}

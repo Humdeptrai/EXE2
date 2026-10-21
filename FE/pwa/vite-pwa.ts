@@ -6,7 +6,7 @@ export function handsfreePwa(): Plugin {
   return {
     name: "handsfree-pwa", apply: "build",
     generateBundle(_, bundle) {
-      const staticFiles = ["/offline.html", "/offline.js", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png"];
+      const staticFiles = ["/brand/handsfree-mark.png", "/brand/handsfree-wordmark.png", "/icons/favicon-32.png", "/icons/favicon-16.png", "/offline.html", "/offline.js", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/icon-maskable-512.png", "/icons/apple-touch-icon.png"];
       const entries = Object.entries(bundle).filter(([name]) => name.startsWith("assets/") && /\.(js|css)$/.test(name)).sort(([a], [b]) => a.localeCompare(b));
       const hash = createHash("sha256");
       for (const [name, item] of entries) hash.update(name).update(item.type === "chunk" ? item.code : item.source);

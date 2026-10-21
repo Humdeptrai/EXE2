@@ -28,7 +28,7 @@ Base: main 7c30bad5e50d0e7c0ab03fce208916875f767429.
 
 ## Logo
 
-Original requested PNG is absent from the restored workspace. No replacement logo was invented. Await the original asset to update brand component, favicon and PWA icons.
+The original PNG was supplied again and applied throughout the shared brand component, operator login/workspace, favicon and PWA icons. Pixel artwork and red color are preserved. Horizontal lockup uses the original mark and wordmark; small app icons use the original mark on white, with a maskable safe area. Public brand assets are included in the PWA cache.
 
 ## Validation
 

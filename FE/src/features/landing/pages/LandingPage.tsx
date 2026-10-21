@@ -75,7 +75,7 @@ export default function LandingPage() {
         </div></section>
 
         <section className="hf-section hf-container hf-two-sides">
-          <div className="hf-about"><p className="hf-eyebrow">CÙNG NHAU, NHẸ VIỆC HƠN</p><h2>Bạn có việc cần làm.<br />Ai đó có thể giúp.</h2><p>Từ việc nhà đến việc học, kết nối với người có thể giúp bạn.</p><a className="hf-text-link" href="#faq">Hiểu thêm về HandsFree <Arrow diagonal /></a><div className="hf-about-mark" aria-hidden="true">h<span>f.</span></div></div>
+          <div className="hf-about"><p className="hf-eyebrow">CÙNG NHAU, NHẸ VIỆC HƠN</p><h2>Bạn có việc cần làm.<br />Ai đó có thể giúp.</h2><p>Từ việc nhà đến việc học, kết nối với người có thể giúp bạn.</p><a className="hf-text-link" href="#faq">Hiểu thêm về HandsFree <Arrow diagonal /></a><div className="hf-about-mark" aria-hidden="true"><img src="/brand/handsfree-logo.png" width="170" height="134" alt="" loading="lazy" /></div></div>
           <div className="hf-benefit-stack"><article className="hf-benefit"><div className="hf-benefit-icon"><AppIcon name="users" /></div><div><span>DÀNH CHO NGƯỜI THUÊ</span><h3>Thêm thời gian cho điều quan trọng.</h3><p>Chia sẻ nhu cầu cụ thể, xem hồ sơ và chủ động chọn người bạn muốn kết nối.</p></div></article><article className="hf-benefit hf-benefit-dark"><div className="hf-benefit-icon"><AppIcon name="briefcase" /></div><div><span>DÀNH CHO NGƯỜI NHẬN VIỆC</span><h3>Biến khả năng thành cơ hội.</h3><p>Khám phá việc ngắn hạn, lưu những việc phù hợp và thể hiện sự quan tâm của bạn.</p></div></article></div>
         </section>
 
