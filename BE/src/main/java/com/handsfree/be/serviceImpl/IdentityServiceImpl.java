@@ -1,4 +1,5 @@
 package com.handsfree.be.serviceImpl;
+import static com.handsfree.be.diagnostics.PerformanceTrace.measure;
 
 import com.handsfree.be.service.ManagementService;
 import com.handsfree.be.entity.IdentityVerification;
@@ -36,13 +37,13 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public Eligibility eligibility(UUID user) {
-        var account = access.active(user);
+        var account = measure("identity.account", () -> access.active(user));
         List<String> missing = new ArrayList<>();
         if (!org.springframework.util.StringUtils.hasText(account.getFullName())) missing.add("Họ tên");
         if (account.getPhone() == null || !account.getPhone().trim().matches("0[0-9]{9}")) missing.add("Số điện thoại hợp lệ");
         if (!org.springframework.util.StringUtils.hasText(account.getLocation())) missing.add("Nơi ở / khu vực");
         boolean profileComplete = missing.isEmpty();
-        var record = identities.findStateByUserId(user);
+        var record = measure("identity.state.read", () -> identities.findStateByUserId(user));
         String state = record.map(IdentityRepository.State::getStatus).orElse("NOT_SUBMITTED");
         boolean verified = "VERIFIED".equals(state);
         boolean selfie = verified && record.map(IdentityRepository.State::getSelfieVerifiedAt).isPresent();
@@ -144,9 +145,9 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public MyIdentity mine(UUID user) {
-        access.active(user);
-        var active = identities.findById(user).orElse(null);
-        var draft = submissions.findById(user).orElse(null);
+        measure("identity.account", () -> access.active(user));
+        var active = measure("identity.active.read", () -> identities.findById(user).orElse(null));
+        var draft = measure("identity.submission.read", () -> submissions.findById(user).orElse(null));
         boolean useActive = active != null && "VERIFIED".equals(active.getStatus())
                 && active.getSelfieImage() != null && active.getDocumentNumber() != null;
         boolean replacement = draft != null && active != null && "VERIFIED".equals(active.getStatus());
@@ -171,9 +172,9 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     @Override
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public byte[] ownImage(UUID user, String kind) {
-        access.active(user);
-        var active = identities.findById(user).orElse(null);
-        var draft = submissions.findById(user).orElse(null);
+        measure("identity.account", () -> access.active(user));
+        var active = measure("identity.active.read", () -> identities.findById(user).orElse(null));
+        var draft = measure("identity.submission.read", () -> submissions.findById(user).orElse(null));
         boolean useActive = active != null && "VERIFIED".equals(active.getStatus())
                 && active.getSelfieImage() != null && active.getDocumentNumber() != null;
         byte[] data;
@@ -189,7 +190,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         };
         else throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
         if (data == null) throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
-        return crypto.decrypt(data);
+        return measure("identity.image.decrypt", () -> crypto.decrypt(data));
     }
 
     @Override

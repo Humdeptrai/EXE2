@@ -5,7 +5,8 @@ import IdentityActionGuard from "../../features/identity/components/IdentityActi
 import FeedbackProvider from "../feedback/FeedbackProvider";
 import { useViewportHeight } from "./useViewportHeight";
 import "./app-ui.css";
-import { NavLink, Outlet } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { HandsFreeLogo } from "../brand/HandsFreeLogo";
 import { AppIcon } from "../ui/AppIcon";
 import { useAuth } from "../../context/AuthContext";
@@ -45,6 +46,9 @@ function Avatar() {
 
 function AppShellLayout() {
   const { installed } = usePwa();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const { pathname } = useLocation();
+  useEffect(() => { bodyRef.current?.scrollTo({ top: 0, left: 0 }); }, [pathname]);
   useViewportHeight();
   const { user, logout } = useAuth();
   const { unreadCount } = useNotifications();
@@ -102,7 +106,7 @@ function AppShellLayout() {
         </div>
       </aside>
 
-      <div className="hf-app-body min-h-screen min-h-dvh lg:pl-72">
+      <div ref={bodyRef} className="hf-app-body min-h-screen min-h-dvh lg:pl-72">
         <header className="hf-app-header sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur sm:px-5 lg:px-8">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
             <NavLink to="/home" className="hf-header-brand min-w-0 lg:hidden" aria-label="Trang chủ HandsFree"><HandsFreeLogo compact className="min-w-0 justify-start" /></NavLink>

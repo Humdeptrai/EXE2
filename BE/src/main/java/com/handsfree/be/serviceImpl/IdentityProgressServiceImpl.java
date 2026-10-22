@@ -1,4 +1,5 @@
 package com.handsfree.be.serviceImpl;
+import static com.handsfree.be.diagnostics.PerformanceTrace.measure;
 import com.handsfree.be.entity.IdentityProgress;
 import com.handsfree.be.exception.*;
 import com.handsfree.be.repository.*;
@@ -86,7 +87,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         } catch (Exception e) { throw new AppException(ErrorCode.IDENTITY_SCAN_MEDIA); }
     }
     @Override @Transactional(readOnly=true) public Progress get(UUID user) {
-        user(user);var p=repository.findById(user).orElse(null);var active=identity.mine(user);
+        measure("progress.account", () -> { user(user); return null; });var p=measure("progress.row.read", () -> repository.findById(user).orElse(null));var active=measure("progress.identity.read", () -> identity.mine(user));
         boolean activeComplete="VERIFIED".equals(active.verification().status()) && active.selfieVerified() && active.documentConfirmed();
         boolean newerApproval=p!=null && p.getUpdatedAt()!=null && active.verification().verifiedAt()!=null
             && active.verification().verifiedAt().isAfter(p.getUpdatedAt());
@@ -144,9 +145,9 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         p.setStatus("DRAFT");save(p);return summary(p);
     }
     @Override @Transactional(readOnly=true) public byte[] image(UUID user,String side) {
-        user(user);var p=repository.findById(user).orElseThrow(()->new AppException(ErrorCode.IDENTITY_REQUIRED));
+        user(user);var p=measure("progress.image.read", () -> repository.findById(user).orElseThrow(()->new AppException(ErrorCode.IDENTITY_REQUIRED)));
         byte[] encrypted=switch(side) { case "selfie"->p.getSelfieImage();case "front"->p.getFrontImage();case "back"->p.getBackImage();case "face"->p.getFaceImage();default->throw new AppException(ErrorCode.VALIDATION_FAILED); };
-        if(encrypted==null) throw new AppException(ErrorCode.IDENTITY_REQUIRED);return crypto.decrypt(encrypted);
+        if(encrypted==null) throw new AppException(ErrorCode.IDENTITY_REQUIRED);return measure("progress.image.decrypt", () -> crypto.decrypt(encrypted));
     }
     private String documentRetry(String reason) {
         return switch(reason) {

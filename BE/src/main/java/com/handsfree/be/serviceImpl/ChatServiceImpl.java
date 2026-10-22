@@ -1,4 +1,5 @@
 package com.handsfree.be.serviceImpl;
+import static com.handsfree.be.diagnostics.PerformanceTrace.measure;
 
 import com.handsfree.be.constant.MatchStatus;
 import com.handsfree.be.dto.request.ChatSendMessageRequest;
@@ -182,20 +183,20 @@ public class ChatServiceImpl implements ChatService {
             org.springframework.web.multipart.MultipartFile file) {
         if (clientId == null) throw new AppException(ErrorCode.CHAT_MESSAGE_INVALID);
         var content = raw == null || raw.isBlank() ? "" : normalizeContent(raw);
-        validateAttachment(file);
+        measure("chat.validate", () -> { validateAttachment(file); return null; });
         var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
-        var existing = transaction.execute(status -> {
+        var existing = measure("chat.authorize.transaction", () -> transaction.execute(status -> {
             var conversation = requireParticipantConversation(user, conversationId);
             requireChatUnlocked(conversation.getJobMatch());
             return chatMessageRepository.findByConversation_IdAndSender_IdAndClientMessageId(conversationId, user, clientId)
                     .map(chatMapper::toMessageResponse).orElse(null);
-        });
+        }));
         if (existing != null) return existing;
         // Upload outside the database transaction: another message must not wait for storage.
-        var stored = attachmentStorage.store(file);
+        var stored = measure("chat.storage.upload", () -> attachmentStorage.store(file));
         var retained = new java.util.concurrent.atomic.AtomicBoolean(false);
         try {
-            return transaction.execute(status -> {
+            return measure("chat.persist.transaction", () -> transaction.execute(status -> {
                 // Authorization and idempotency are checked again after the upload.
                 var conversation = lockedConversation(user, conversationId);
                 var duplicate = chatMessageRepository.findByConversation_IdAndSender_IdAndClientMessageId(conversationId, user, clientId);
@@ -216,7 +217,7 @@ public class ChatServiceImpl implements ChatService {
                     (file.getContentType().startsWith("image/") ? "Đã gửi ảnh" : file.getContentType().startsWith("video/") ? "Đã gửi video" : "Đã gửi tệp") : preview(content));
                 publish(message, match, false);
                 return chatMapper.toMessageResponse(message);
-            });
+            }));
         } finally {
             // Also discard an extra upload if a concurrent retry already stored this client ID.
             if (!retained.get()) attachmentStorage.delete(stored);
@@ -253,14 +254,14 @@ public class ChatServiceImpl implements ChatService {
     public com.handsfree.be.storage.PrivateChatFile attachment(UUID user, UUID conversationId, UUID messageId) {
         var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
         transaction.setReadOnly(true);
-        var message = transaction.execute(status -> {
+        var message = measure("chat.download.authorize.transaction", () -> transaction.execute(status -> {
             requireParticipantConversation(user, conversationId);
             return chatMessageRepository.findById(messageId)
                 .filter(m -> m.getConversation().getId().equals(conversationId) && m.getAttachmentKey() != null)
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
-        });
+        }));
         // Opening remote storage must not hold a database connection while the user downloads.
-        return new com.handsfree.be.storage.PrivateChatFile(attachmentStorage.open(message), message.getAttachmentType(), message.getAttachmentName(), message.getAttachmentSize());
+        return new com.handsfree.be.storage.PrivateChatFile(measure("chat.storage.open", () -> attachmentStorage.open(message)), message.getAttachmentType(), message.getAttachmentName(), message.getAttachmentSize());
     }
     private void publish(ChatMessage message, JobMatch match, boolean update) {
         var response = chatMapper.toMessageResponse(message);

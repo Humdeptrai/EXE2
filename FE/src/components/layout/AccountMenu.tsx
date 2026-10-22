@@ -13,9 +13,9 @@ export default function AccountMenu({ avatar }: { avatar: React.ReactNode }) {
   useEffect(() => { setOpen(false); }, [location.pathname, location.search]);
   useEffect(() => {
     if (!open) return;
-    root.current?.querySelector<HTMLAnchorElement>("nav a")?.focus();
+    root.current?.querySelector<HTMLAnchorElement>("nav a")?.focus({ preventScroll: true });
     const outside = (e: PointerEvent) => { if (!root.current?.contains(e.target as Node)) setOpen(false); };
-    const escape = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); trigger.current?.focus(); } };
+    const escape = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); trigger.current?.focus({ preventScroll: true }); } };
     document.addEventListener("pointerdown", outside);
     document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
@@ -25,7 +25,7 @@ export default function AccountMenu({ avatar }: { avatar: React.ReactNode }) {
     { to: "/face-comparison", label: "Xác minh danh tính", icon: "check" as const },
     { to: "/reports", label: "Báo cáo của tôi", icon: "list" as const },
   ];
-  return <div ref={root} className="hf-account-menu" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false); }}>
+  return <div ref={root} className="hf-account-menu" onBlur={e => { if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
     <button ref={trigger} type="button" className="hf-account-menu-trigger" aria-label="Mở menu tài khoản" aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>{avatar}</button>
     {open && <section id={id} className="hf-account-menu-panel" aria-label="Tài khoản của bạn">
       <div className="hf-account-menu-heading"><strong>{user?.fullName || "Tài khoản của bạn"}</strong><span>{user?.email || user?.phone}</span></div>
