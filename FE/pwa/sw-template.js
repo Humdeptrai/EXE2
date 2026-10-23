@@ -27,5 +27,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (url.search || (!PUBLIC_FILES.has(url.pathname) && !/^\/assets\/[^/]+-[\w-]+\.(js|css)$/.test(url.pathname))) return;
-  event.respondWith((async () => (await caches.match(request)) || fetch(request))());
+  event.respondWith((async () => {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    const response = await fetch(request);
+    if (response.ok && response.type === "basic") {
+      // Cache only visited public chunks; do not download every route on install.
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, response.clone()).catch(() => {});
+    }
+    return response;
+  })());
 });

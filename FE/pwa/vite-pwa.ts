@@ -15,7 +15,7 @@ export function handsfreePwa(): Plugin {
       hash.update(template);
       const source = template
         .replace("__BUILD_ID__", JSON.stringify(hash.digest("hex").slice(0, 16)))
-        .replace("__PRECACHE__", JSON.stringify([...staticFiles, ...entries.map(([name]) => `/${name}`)]));
+        .replace("__PRECACHE__", JSON.stringify(staticFiles));
       this.emitFile({ type: "asset", fileName: "sw.js", source });
     },
   };
