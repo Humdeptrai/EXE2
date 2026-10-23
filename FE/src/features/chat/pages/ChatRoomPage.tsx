@@ -96,18 +96,25 @@ function ChatRoom({ conversationId }: { conversationId: string }) {
     }
   }), [subscribe, conversationId, user?.id, markRead]);
   useEffect(() => {
+    let refreshing = false;
+    let cancelled = false;
     const refresh = async () => {
-      if (document.visibilityState !== "visible") return;
+      if (cancelled || refreshing || document.visibilityState !== "visible") return;
+      refreshing = true;
       try {
         const result = await chatService.getMessages(conversationId);
-        if (active.current) { setMessages(current => mergeMessages(current, result.content)); void markRead(); }
+        if (!cancelled && active.current) {
+          setMessages(current => mergeMessages(current, result.content));
+          if (result.content.some(message => message.senderId !== user?.id && !message.readAt)) void markRead();
+        }
       } catch { /* Preserve history while reconnecting. */ }
+      finally { refreshing = false; }
     };
     if (socketStatus === "CONNECTED") void refresh();
-    const timer = window.setInterval(() => void refresh(), 15000);
+    const timer = window.setInterval(() => void refresh(), socketStatus === "CONNECTED" ? 60000 : 15000);
     window.addEventListener("focus", refresh); document.addEventListener("visibilitychange", refresh);
-    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
-  }, [socketStatus, conversationId, markRead]);
+    return () => { cancelled = true; window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+  }, [socketStatus, conversationId, markRead, user?.id]);
   useEffect(() => { if (stickToBottom.current) bottom.current?.scrollIntoView({ behavior: "auto", block: "nearest" }); }, [messages]);
   async function older() {
     if (loadingOlder || !hasOlder) return;

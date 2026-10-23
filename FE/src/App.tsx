@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import RouteLoading from "./components/feedback/RouteLoading";
 import { ChatProvider } from "./context/ChatProvider";
 import PwaStatus from "./features/pwa/PwaStatus";
 import { RouterProvider } from "react-router-dom";
@@ -9,7 +11,7 @@ export default function App() {
   return (
     <AuthProvider>
       <NotificationProvider><ChatProvider>
-        <RouterProvider router={router} />
+        <Suspense fallback={<RouteLoading />}><RouterProvider router={router} /></Suspense>
         <PwaStatus />
       </ChatProvider></NotificationProvider>
     </AuthProvider>

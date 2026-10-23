@@ -24,6 +24,11 @@ function emptyForm(): UpdateProfileRequest {
 }
 
 export default function ProfilePage() {
+  const { user } = useAuth();
+  return <UserProfile key={user?.id || "guest"} />;
+}
+
+function UserProfile() {
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -77,16 +82,31 @@ export default function ProfilePage() {
   const [identity, setIdentity] = useState<Eligibility | null>(null);
   const [privateIdentity, setPrivateIdentity] = useState<MyIdentity | null>(null);
   const [identityError, setIdentityError] = useState("");
+  const [identityLoaded, setIdentityLoaded] = useState(false);
+  const [identityRefresh, setIdentityRefresh] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
-    void Promise.all([identityService.eligibility(controller.signal), identityService.mine(controller.signal), identityService.progress(controller.signal)]).then(([result, personal, progress]) => {
-      if (!controller.signal.aborted) { setPrivateIdentity(personal); setVerificationProgress(progress); }
-      if (!controller.signal.aborted) { setIdentity(result); setIdentityError(""); }
-    }).catch((error) => {
-      if (!controller.signal.aborted) { setIdentity(null); setIdentityError(getApiErrorMessage(error, "Không tải được trạng thái xác minh. Vui lòng tải lại trang.")); }
+    void identityService.profile(controller.signal).then(result => {
+      if (controller.signal.aborted) return;
+      setPrivateIdentity(result.personal); setVerificationProgress(result.progress);
+      setIdentity(result.eligibility); setIdentityError(""); setIdentityLoaded(true);
+    }).catch(error => {
+      if (!controller.signal.aborted) {
+        setIdentityError(getApiErrorMessage(error, "Không tải được trạng thái xác minh. Vui lòng thử lại."));
+      }
     });
     return () => controller.abort();
-  }, [user?.id, user?.updatedAt]);
+  }, [user?.id, user?.updatedAt, identityRefresh]);
+
+  const identityFields = identityLoaded ? <>
+    <IdentityProfileCard state={identity} error={identityError} />
+    <IdentityPrivateFields state={privateIdentity} progress={verificationProgress} onChanged={() => setIdentityRefresh(value => value + 1)} />
+    <IdentityProgressFields state={verificationProgress} verified={identity?.identityVerified === true} />
+  </> : <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2" role="status">
+    <p className="font-bold text-slate-600">{identityError || "Đang tải thông tin xác minh đã lưu…"}</p>
+    {identityError ? <button type="button" className="mt-2 min-h-11 font-bold text-[#007f95]" onClick={() => { setIdentityError(""); setIdentityRefresh(value => value + 1); }}>Thử lại</button>
+      : <div className="mt-3 h-12 animate-pulse rounded-xl bg-slate-200" />}
+  </div>;
 
   // Count saved fields only; editing an unsaved draft must not report 100%.
   const completedItems = [
@@ -266,7 +286,7 @@ export default function ProfilePage() {
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Email</p><p className="mt-1 break-all font-bold">{user?.email || "Không có"}</p></div>
                 <div className="rounded-2xl border border-slate-200 p-4"><p className="text-xs font-bold text-slate-400">Số điện thoại</p><p className="mt-1 font-bold">{user?.phone || "Chưa cập nhật"}</p></div>
                 <div className="min-w-0 sm:col-span-2">{addressBook}</div>
-                <IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} progress={verificationProgress} /><IdentityProgressFields state={verificationProgress} verified={identity?.identityVerified === true} />
+                {identityFields}
               </div>
             </div>
           )}
@@ -305,7 +325,7 @@ export default function ProfilePage() {
               </label>
               <ProfileSkills selected={form.tags} toggle={toggleTag} />
 
-              <div className="grid gap-3 sm:grid-cols-2"><IdentityProfileCard state={identity} error={identityError} /><IdentityPrivateFields state={privateIdentity} progress={verificationProgress} /><IdentityProgressFields state={verificationProgress} verified={identity?.identityVerified === true} /></div>
+              <div className="grid gap-3 sm:grid-cols-2">{identityFields}</div>
 
               {message && <UserNotice message={message.text} tone={message.type} />}
 
@@ -322,8 +342,8 @@ export default function ProfilePage() {
       <aside className="min-w-0 space-y-4 sm:space-y-5">
 
         <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between"><h2 className="font-extrabold">Mức độ hoàn thiện</h2><span className="font-extrabold text-[#007f95]">{progress}%</span></div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#007f95] transition-all" style={{ width: `${progress}%` }} /></div>
+          <div className="flex items-center justify-between"><h2 className="font-extrabold">Mức độ hoàn thiện</h2><span className="font-extrabold text-[#007f95]">{identityLoaded ? `${progress}%` : "Đang tải…"}</span></div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#007f95] transition-all" style={{ width: identityLoaded ? `${progress}%` : "0%" }} /></div>
           <div className="mt-4 space-y-3 text-sm">
             {[
               ["Họ và tên", completedItems[0]],
@@ -335,13 +355,18 @@ export default function ProfilePage() {
               ["Ảnh đại diện", completedItems[6]],
               ["Xác minh danh tính", completedItems[7]],
               ["Selfie đã xác minh", completedItems[8]],
-              ["Số CCCD đã xác nhận", completedItems[9]],
-            ].map(([label, done]) => (
+              ["Quét khuôn mặt", completedItems[9]],
+              ["CCCD mặt trước", completedItems[10]],
+              ["CCCD mặt sau", completedItems[11]],
+              ["Số CCCD đã xác nhận", completedItems[12]],
+            ].map(([label, saved], index) => {
+              const done = index >= 7 && !identityLoaded ? null : saved;
+              return (
               <div key={String(label)} className="flex items-center gap-2">
-                <span className={`grid h-5 w-5 place-items-center rounded-full text-xs font-extrabold ${done ? "bg-emerald-100 text-emerald-700" : "bg-red-50 text-red-600"}`}>{done ? "✓" : "!"}</span>
+                <span className={`grid h-5 w-5 place-items-center rounded-full text-xs font-extrabold ${done == null ? "bg-slate-100 text-slate-500" : done ? "bg-emerald-100 text-emerald-700" : "bg-red-50 text-red-600"}`}>{done == null ? "…" : done ? "✓" : "!"}</span>
                 <span className={done ? "font-bold text-slate-700" : "text-slate-400"}>{String(label)}</span>
               </div>
-            ))}
+            ); })}
           </div>
           <p className="mt-4 rounded-xl bg-[#f0f8fa] p-3 text-xs leading-5 text-[#526b72]">Hoàn thiện tất cả các mục và xác minh danh tính để đạt 100%. Tiến trình chỉ tính thông tin đã lưu. Ảnh đại diện không bắt buộc để đăng hoặc nhận việc.</p>
         </section>

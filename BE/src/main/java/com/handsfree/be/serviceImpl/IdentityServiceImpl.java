@@ -146,23 +146,25 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public MyIdentity mine(UUID user) {
         measure("identity.account", () -> access.active(user));
-        var active = measure("identity.active.read", () -> identities.findById(user).orElse(null));
-        var draft = measure("identity.submission.read", () -> submissions.findById(user).orElse(null));
+        var active = measure("identity.active.read", () -> identities.findReadModel(user).orElse(null));
+        var draft = measure("identity.submission.read", () -> submissions.findReadModel(user).orElse(null));
         boolean useActive = active != null && "VERIFIED".equals(active.getStatus())
-                && active.getSelfieImage() != null && active.getDocumentNumber() != null;
+                && active.getHasSelfie() && active.getDocumentNumber() != null;
         boolean replacement = draft != null && active != null && "VERIFIED".equals(active.getStatus());
-        if (!useActive && draft != null) return new MyIdentity(draftStatus(draft), crypto.text(draft.getDocumentNumber()), false,
-                draft.getSelfieImage() != null, false, draft.getSelfieImage() == null ? null : "/identity/me/selfie", replacement,
-                draft.getFaceImage() == null ? null : "/identity/me/images/face",
-                draft.getFrontImage() == null ? null : "/identity/me/images/front",
-                draft.getBackImage() == null ? null : "/identity/me/images/back", crypto.text(draft.getFullName()));
-        if (active == null) return new MyIdentity(status(user), null, false, false, false, null, false, null, null, null, null);
-        return new MyIdentity(summary(active), crypto.text(active.getDocumentNumber()), useActive && active.getDocumentNumberConfirmedAt() != null,
-                active.getSelfieImage() != null, useActive && active.getSelfieVerifiedAt() != null,
-                active.getSelfieImage() == null ? null : "/identity/me/selfie", replacement,
-                active.getFaceImage() == null ? null : "/identity/me/images/face",
-                active.getFrontImage() == null ? null : "/identity/me/images/front",
-                active.getBackImage() == null ? null : "/identity/me/images/back", crypto.text(active.getFullName()));
+        var selected = !useActive && draft != null ? draft : active;
+        if (selected == null) return new MyIdentity(new Status(user, "NOT_SUBMITTED", null, null, null, properties.isEnabled()),
+                null, false, false, false, null, false, null, null, null, null, "none");
+        boolean pending = selected == draft;
+        var status = new Status(user, selected.getStatus(), selected.getReason(), selected.getSubmittedAt(),
+                pending ? null : selected.getVerifiedAt(), properties.isEnabled());
+        return new MyIdentity(status, crypto.text(selected.getDocumentNumber()),
+                !pending && useActive && selected.getDocumentNumberConfirmedAt() != null,
+                selected.getHasSelfie(), !pending && useActive && selected.getSelfieVerifiedAt() != null,
+                selected.getHasSelfie() ? "/identity/me/selfie" : null, replacement,
+                selected.getHasFace() ? "/identity/me/images/face" : null,
+                selected.getHasFront() ? "/identity/me/images/front" : null,
+                selected.getHasBack() ? "/identity/me/images/back" : null, crypto.text(selected.getFullName()),
+                (pending ? "draft-" : "active-") + selected.getVersion());
     }
 
     @Override
@@ -173,23 +175,15 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public byte[] ownImage(UUID user, String kind) {
         measure("identity.account", () -> access.active(user));
-        var active = measure("identity.active.read", () -> identities.findById(user).orElse(null));
-        var draft = measure("identity.submission.read", () -> submissions.findById(user).orElse(null));
+        if (!Set.of("face", "front", "back", "selfie").contains(kind)) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        var active = measure("identity.active.read", () -> identities.findReadModel(user).orElse(null));
         boolean useActive = active != null && "VERIFIED".equals(active.getStatus())
-                && active.getSelfieImage() != null && active.getDocumentNumber() != null;
-        byte[] data;
-        if (!useActive && draft != null) data = switch (kind) {
-            case "face" -> draft.getFaceImage(); case "front" -> draft.getFrontImage();
-            case "back" -> draft.getBackImage(); case "selfie" -> draft.getSelfieImage();
-            default -> throw new AppException(ErrorCode.VALIDATION_FAILED);
-        };
-        else if (active != null) data = switch (kind) {
-            case "face" -> active.getFaceImage(); case "front" -> active.getFrontImage();
-            case "back" -> active.getBackImage(); case "selfie" -> active.getSelfieImage();
-            default -> throw new AppException(ErrorCode.VALIDATION_FAILED);
-        };
-        else throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
-        if (data == null) throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
+                && active.getHasSelfie() && active.getDocumentNumber() != null;
+        var data = measure("identity.image.read", () -> {
+            if (!useActive && submissions.existsById(user)) return submissions.findImageData(user, kind);
+            return identities.findImageData(user, kind);
+        }).map(com.handsfree.be.repository.IdentityImageData::getData)
+                .orElseThrow(() -> new AppException(ErrorCode.IDENTITY_NOT_FOUND));
         return measure("identity.image.decrypt", () -> crypto.decrypt(data));
     }
 

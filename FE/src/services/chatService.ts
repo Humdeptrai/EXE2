@@ -1,3 +1,4 @@
+import { privateMedia } from "./privateMediaCache";
 import api from "../config/axios";
 import type { ApiResponse } from "../types/api";
 import type {
@@ -28,7 +29,7 @@ export const chatService = {
       onUploadProgress: event => { if (event.total) onProgress?.(Math.round(event.loaded * 100 / event.total)); },
     })).data.result;
   },
-  async attachment(url: string): Promise<Blob> { return (await api.get<Blob>(url, { responseType: "blob", timeout: 300000 })).data; },
+  async attachment(url: string): Promise<Blob> { return privateMedia(url); },
   async getConversations(page = 0, size = 20): Promise<ConversationPage> {
     const response = await api.get<ApiResponse<ConversationPage>>("/conversations", {
       params: { page, size },

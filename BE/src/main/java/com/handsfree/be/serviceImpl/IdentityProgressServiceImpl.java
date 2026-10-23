@@ -86,16 +86,31 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             }
         } catch (Exception e) { throw new AppException(ErrorCode.IDENTITY_SCAN_MEDIA); }
     }
+    @Override @Transactional(readOnly=true) public Profile profile(UUID user) {
+        user(user);
+        var personal = identity.mine(user);
+        return new Profile(identity.eligibility(user), personal, readProgress(user, personal));
+    }
     @Override @Transactional(readOnly=true) public Progress get(UUID user) {
-        measure("progress.account", () -> { user(user); return null; });var p=measure("progress.row.read", () -> repository.findById(user).orElse(null));var active=measure("progress.identity.read", () -> identity.mine(user));
-        boolean activeComplete="VERIFIED".equals(active.verification().status()) && active.selfieVerified() && active.documentConfirmed();
-        boolean newerApproval=p!=null && p.getUpdatedAt()!=null && active.verification().verifiedAt()!=null
-            && active.verification().verifiedAt().isAfter(p.getUpdatedAt());
-        if(activeComplete && (p==null || "VERIFIED".equals(p.getStatus()) || newerApproval))
-            return new Progress(true,true,true,true,null,null,"VERIFIED",active.documentNumber(),active.selfieUrl(),
-                p==null || p.getFrontImage()==null?null:"/identity/progress/images/front",
-                p==null || p.getBackImage()==null?null:"/identity/progress/images/back",active.verification().verifiedAt(),p==null?0:p.getVersion());
-        return summary(p);
+        measure("progress.account", () -> { user(user); return null; });
+        return readProgress(user, measure("progress.identity.read", () -> identity.mine(user)));
+    }
+    private Progress readProgress(UUID user, IdentityService.MyIdentity active) {
+        var p = measure("progress.row.read", () -> repository.findSnapshot(user).orElse(null));
+        boolean activeComplete = "VERIFIED".equals(active.verification().status()) && active.selfieVerified() && active.documentConfirmed();
+        boolean newerApproval = p != null && p.getUpdatedAt() != null && active.verification().verifiedAt() != null
+                && active.verification().verifiedAt().isAfter(p.getUpdatedAt());
+        if (activeComplete && (p == null || "VERIFIED".equals(p.getStatus()) || newerApproval))
+            return new Progress(true, true, true, true, null, null, "VERIFIED", active.documentNumber(), active.selfieUrl(),
+                    p == null || !p.getHasFront() ? null : "/identity/progress/images/front",
+                    p == null || !p.getHasBack() ? null : "/identity/progress/images/back",
+                    active.verification().verifiedAt(), p == null ? 0 : p.getVersion());
+        if (p == null) return summary(null);
+        return new Progress(p.getHasCheckpoint(), p.getSelfiePassed(), p.getFrontPassed(), p.getBackPassed(),
+                p.getFrontReason(), p.getBackReason(), p.getStatus(), crypto.text(p.getDocumentNumber()),
+                p.getHasSelfie() ? "/identity/progress/images/selfie" : null,
+                p.getHasFront() ? "/identity/progress/images/front" : null,
+                p.getHasBack() ? "/identity/progress/images/back" : null, p.getUpdatedAt(), p.getVersion());
     }
     @Override @Transactional public void saveScan(UUID user,String token) {
         var p=locked(user);var data=payload(token);
@@ -144,10 +159,13 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         } else { p.setBackImage(crypto.encrypt(raw));p.setBackPassed(passed);p.setBackReason(passed?null:documentRetry(reason)); }
         p.setStatus("DRAFT");save(p);return summary(p);
     }
-    @Override @Transactional(readOnly=true) public byte[] image(UUID user,String side) {
-        user(user);var p=measure("progress.image.read", () -> repository.findById(user).orElseThrow(()->new AppException(ErrorCode.IDENTITY_REQUIRED)));
-        byte[] encrypted=switch(side) { case "selfie"->p.getSelfieImage();case "front"->p.getFrontImage();case "back"->p.getBackImage();case "face"->p.getFaceImage();default->throw new AppException(ErrorCode.VALIDATION_FAILED); };
-        if(encrypted==null) throw new AppException(ErrorCode.IDENTITY_REQUIRED);return measure("progress.image.decrypt", () -> crypto.decrypt(encrypted));
+    @Override @Transactional(readOnly=true) public byte[] image(UUID user, String side) {
+        user(user);
+        if (!java.util.Set.of("face", "selfie", "front", "back").contains(side)) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        byte[] data = measure("progress.image.read", () -> repository.findImageData(user, side))
+                .map(com.handsfree.be.repository.IdentityImageData::getData)
+                .orElseThrow(() -> new AppException(ErrorCode.IDENTITY_REQUIRED));
+        return measure("progress.image.decrypt", () -> crypto.decrypt(data));
     }
     private String documentRetry(String reason) {
         return switch(reason) {

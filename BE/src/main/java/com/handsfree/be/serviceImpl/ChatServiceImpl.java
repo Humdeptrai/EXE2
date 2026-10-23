@@ -187,7 +187,9 @@ public class ChatServiceImpl implements ChatService {
         var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
         var existing = measure("chat.authorize.transaction", () -> transaction.execute(status -> {
             var conversation = requireParticipantConversation(user, conversationId);
-            requireChatUnlocked(conversation.getJobMatch());
+            // requireParticipantConversation already validates payment + ledger access.
+            if (conversation.getJobMatch().getStatus() != MatchStatus.ACTIVE)
+                throw new AppException(ErrorCode.CHAT_MATCH_NOT_ACTIVE);
             return chatMessageRepository.findByConversation_IdAndSender_IdAndClientMessageId(conversationId, user, clientId)
                     .map(chatMapper::toMessageResponse).orElse(null);
         }));
@@ -254,14 +256,16 @@ public class ChatServiceImpl implements ChatService {
     public com.handsfree.be.storage.PrivateChatFile attachment(UUID user, UUID conversationId, UUID messageId) {
         var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
         transaction.setReadOnly(true);
-        var message = measure("chat.download.authorize.transaction", () -> transaction.execute(status -> {
-            requireParticipantConversation(user, conversationId);
-            return chatMessageRepository.findById(messageId)
-                .filter(m -> m.getConversation().getId().equals(conversationId) && m.getAttachmentKey() != null)
-                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+        var file = measure("chat.download.authorize.transaction", () -> transaction.execute(status -> {
+            accountAccess.active(user);
+            var meta = chatMessageRepository.findAccessibleAttachment(user, conversationId, messageId)
+                    .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+            return new com.handsfree.be.service.ChatAttachmentStorageService.Source(meta.getProvider(), meta.getStorageKey(),
+                    meta.getContentType(), meta.getOriginalName(), meta.getSizeBytes());
         }));
-        // Opening remote storage must not hold a database connection while the user downloads.
-        return new com.handsfree.be.storage.PrivateChatFile(measure("chat.storage.open", () -> attachmentStorage.open(message)), message.getAttachmentType(), message.getAttachmentName(), message.getAttachmentSize());
+        // Opening/streaming remote storage holds no DB transaction or connection.
+        return new com.handsfree.be.storage.PrivateChatFile(measure("chat.storage.open", () -> attachmentStorage.open(file)),
+                file.contentType(), file.originalName(), file.sizeBytes());
     }
     private void publish(ChatMessage message, JobMatch match, boolean update) {
         var response = chatMapper.toMessageResponse(message);

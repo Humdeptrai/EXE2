@@ -1,11 +1,12 @@
-import ProfileSkillManagementPage from "../features/management/pages/ProfileSkillManagementPage";
-import IdentityReviewPage from "../features/management/pages/IdentityReviewPage";
+import { lazy } from "react";
+const ProfileSkillManagementPage = lazy(() => import("../features/management/pages/ProfileSkillManagementPage"));
+const IdentityReviewPage = lazy(() => import("../features/management/pages/IdentityReviewPage"));
 import OperatorGuard from "../features/management/components/OperatorGuard";
 import OperatorShell from "../features/management/components/OperatorShell";
-import OperatorLoginPage from "../features/management/pages/OperatorLoginPage";
-import OperatorDashboard from "../features/management/pages/OperatorDashboard";
-import ReportManagementPage from "../features/management/pages/ReportManagementPage";
-import ManagementPage from "../features/management/pages/ManagementPage";
+const OperatorLoginPage = lazy(() => import("../features/management/pages/OperatorLoginPage"));
+const OperatorDashboard = lazy(() => import("../features/management/pages/OperatorDashboard"));
+const ReportManagementPage = lazy(() => import("../features/management/pages/ReportManagementPage"));
+const ManagementPage = lazy(() => import("../features/management/pages/ManagementPage"));
 
 import LegacyOperatorLogin from "../features/management/components/LegacyOperatorLogin";
 

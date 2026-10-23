@@ -14,10 +14,13 @@ function UserChat({ children, userId }: PropsWithChildren<{ userId: string | nul
   const [socketStatus, setStatus] = useState<ChatSocketStatus>("DISCONNECTED");
   const listeners = useRef(new Set<(event: ChatSocketEvent) => void>());
   const generation = useRef(0);
+  const unreadRequest = useRef(false);
   const refreshUnread = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || unreadRequest.current) return;
+    unreadRequest.current = true;
     const current = generation.current;
     try { const count = await chatService.unreadCount(); if (current === generation.current) setUnread(count); } catch { /* Preserve badge on network failure. */ }
+    finally { unreadRequest.current = false; }
   }, [userId]);
   useEffect(() => {
     const current = ++generation.current;
@@ -41,12 +44,18 @@ function UserChat({ children, userId }: PropsWithChildren<{ userId: string | nul
         else setOnline(new Set());
       },
     });
-    socket.connect(); void refreshUnread();
+    socket.connect();
+    const initialRefresh = window.setTimeout(() => void refreshUnread(), 0);
     const refresh = () => { if (document.visibilityState === "visible") { void refreshUnread(); if (socket.getStatus() === "CONNECTED") void refreshPresence(); } };
-    const timer = window.setInterval(refresh, 15000);
+    let lastRefresh = Date.now();
+    const fallback = () => {
+      const interval = socket.getStatus() === "CONNECTED" ? 60000 : 15000;
+      if (Date.now() - lastRefresh >= interval) { lastRefresh = Date.now(); refresh(); }
+    };
+    const timer = window.setInterval(fallback, 15000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
-    return () => { generation.current++; socket.disconnect(); window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+    return () => { generation.current++; window.clearTimeout(initialRefresh); socket.disconnect(); window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, [userId, refreshUnread]);
   const subscribe = useCallback((listener: (event: ChatSocketEvent) => void) => { listeners.current.add(listener); return () => { listeners.current.delete(listener); }; }, []);
   const value = useMemo(() => ({ unreadCount, online, socketStatus, refreshUnread, subscribe }), [unreadCount, online, socketStatus, refreshUnread, subscribe]);

@@ -39,6 +39,7 @@ export const tokenService = {
     const previousUser = this.getStoredUser();
     if (!this.getSessionId() || previousUser?.id !== user.id) {
       localStorage.setItem(SESSION_KEY, crypto.randomUUID());
+      window.dispatchEvent(new Event("handsfree:session-changed"));
     }
     localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
     localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
@@ -54,5 +55,6 @@ export const tokenService = {
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(SESSION_KEY);
+    window.dispatchEvent(new Event("handsfree:session-changed"));
   },
 };

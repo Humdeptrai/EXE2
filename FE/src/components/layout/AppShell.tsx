@@ -1,3 +1,4 @@
+import RouteLoading from "../feedback/RouteLoading";
 import { useChat } from "../../context/ChatContext";
 import { usePwa } from "../../features/pwa/usePwa";
 import RatingReminder from "../../features/rating/components/RatingReminder";
@@ -5,7 +6,7 @@ import IdentityActionGuard from "../../features/identity/components/IdentityActi
 import FeedbackProvider from "../feedback/FeedbackProvider";
 import { useViewportHeight } from "./useViewportHeight";
 import "./app-ui.css";
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { HandsFreeLogo } from "../brand/HandsFreeLogo";
 import { AppIcon } from "../ui/AppIcon";
@@ -130,7 +131,7 @@ function AppShellLayout() {
         <main className="hf-main mx-auto w-full max-w-6xl px-3 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-5 lg:px-8 lg:pb-10">
           <IdentityActionGuard />
           <RatingReminder />
-          <Outlet />
+          <Suspense fallback={<RouteLoading />}><Outlet /></Suspense>
         </main>
       </div>
 

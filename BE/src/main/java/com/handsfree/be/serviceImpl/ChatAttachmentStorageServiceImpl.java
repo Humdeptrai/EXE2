@@ -2,7 +2,6 @@ package com.handsfree.be.serviceImpl;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import com.handsfree.be.entity.ChatMessage;
 import com.handsfree.be.exception.*;
 import com.handsfree.be.properties.CloudinaryProperties;
 import com.handsfree.be.properties.StorageProperties;
@@ -54,10 +53,15 @@ public class ChatAttachmentStorageServiceImpl implements ChatAttachmentStorageSe
             }
             temporary = Files.createTempFile("handsfree-chat-", extension);
             file.transferTo(temporary);
-            // Originals are authenticated. Chunking avoids loading a 50 MB video into RAM.
-            cloudinary.getObject().uploader().uploadLarge(temporary.toFile(), ObjectUtils.asMap(
-                    "resource_type", resourceType, "type", "authenticated", "public_id", publicId,
-                    "overwrite", false, "chunk_size", 20 * 1024 * 1024, "timeout", 120000));
+            // Use a single upload for photos/files; reserve chunked upload for large videos.
+            // Originals stay authenticated and retain their dimensions and format.
+            var options = ObjectUtils.asMap("resource_type", resourceType, "type", "authenticated",
+                    "public_id", publicId, "overwrite", false, "timeout", 120000);
+            if (file.getSize() <= 20L * 1024 * 1024) cloudinary.getObject().uploader().upload(temporary.toFile(), options);
+            else {
+                options.put("chunk_size", 20 * 1024 * 1024);
+                cloudinary.getObject().uploader().uploadLarge(temporary.toFile(), options);
+            }
             return new Stored("cloudinary", resourceType + ":" + publicId);
         } catch (Exception e) {
             delete(new Stored("cloudinary".equals(storage.provider()) ? "cloudinary" : "local",
@@ -69,13 +73,13 @@ public class ChatAttachmentStorageServiceImpl implements ChatAttachmentStorageSe
         }
     }
     @Override
-    public InputStream open(ChatMessage evidence) {
+    public InputStream open(Source evidence) {
         try {
-            if ("local".equals(evidence.getAttachmentProvider())) return Files.newInputStream(localPath(evidence.getAttachmentKey()));
-            if (!"cloudinary".equals(evidence.getAttachmentProvider())) throw new AppException(ErrorCode.FILE_STORAGE_FAILED);
+            if ("local".equals(evidence.provider())) return Files.newInputStream(localPath(evidence.key()));
+            if (!"cloudinary".equals(evidence.provider())) throw new AppException(ErrorCode.FILE_STORAGE_FAILED);
             // The signed URL stays on the backend. Clients only use the authenticated HandsFree chat API.
-            String[] parts = cloudKey(evidence.getAttachmentKey());
-            String format = switch (evidence.getAttachmentType()) {
+            String[] parts = cloudKey(evidence.key());
+            String format = switch (evidence.contentType()) {
                 case "image/png" -> "png"; case "image/webp" -> "webp"; case "video/mp4" -> "mp4"; default -> "jpg";
             };
             var builder = cloudinary.getObject().url().resourceType(parts[0]).type("authenticated").secure(true).signed(true);

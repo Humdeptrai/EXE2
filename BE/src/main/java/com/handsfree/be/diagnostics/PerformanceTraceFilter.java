@@ -26,6 +26,7 @@ public class PerformanceTraceFilter extends OncePerRequestFilter {
         if ("GET".equals(request.getMethod())) {
             if (path.equals("/api/v1/identity/me")) return "identity.me";
             if (path.equals("/api/v1/identity/eligibility")) return "identity.eligibility";
+            if (path.equals("/api/v1/identity/progress/profile")) return "identity.profile";
             if (path.equals("/api/v1/identity/progress")) return "identity.progress";
             if (path.equals("/api/v1/identity/me/selfie") || path.matches("/api/v1/identity/(me|progress)/images/(face|selfie|front|back)")) return "identity.image";
             if (path.matches("/api/v1/conversations/[^/]+/messages/[^/]+/attachment")) return "chat.download";

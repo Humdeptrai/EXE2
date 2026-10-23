@@ -10,6 +10,7 @@ export type MyIdentity = {
   selfieUrl: string | null;
   pendingReplacement: boolean;
   documentFullName: string | null;
+  imageRevision: string;
   faceUrl: string | null; frontUrl: string | null; backUrl: string | null;
 };
 export type IdentityProgress = {
@@ -17,7 +18,11 @@ export type IdentityProgress = {
   frontReason: string | null; backReason: string | null; status: string; documentNumber: string | null;
   selfieUrl: string | null; frontUrl: string | null; backUrl: string | null; updatedAt: string | null; version: number;
 };
+export type IdentityProfile = { eligibility: Eligibility; personal: MyIdentity; progress: IdentityProgress };
 export const identityService = {
+  async profile(signal?: AbortSignal): Promise<IdentityProfile> {
+    return (await api.get<ApiResponse<IdentityProfile>>("/identity/progress/profile", { signal })).data.result;
+  },
   async progress(signal?: AbortSignal): Promise<IdentityProgress> {
     const r = await api.get<ApiResponse<IdentityProgress>>("/identity/progress", { signal });
     return r.data.result;
