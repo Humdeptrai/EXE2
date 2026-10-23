@@ -253,7 +253,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override @Transactional(propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
-    public com.handsfree.be.storage.PrivateChatFile attachment(UUID user, UUID conversationId, UUID messageId) {
+    public com.handsfree.be.storage.PrivateChatFile attachment(UUID user, UUID conversationId, UUID messageId, String ifNoneMatch) {
         var transaction = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
         transaction.setReadOnly(true);
         var file = measure("chat.download.authorize.transaction", () -> transaction.execute(status -> {
@@ -263,9 +263,16 @@ public class ChatServiceImpl implements ChatService {
             return new com.handsfree.be.service.ChatAttachmentStorageService.Source(meta.getProvider(), meta.getStorageKey(),
                     meta.getContentType(), meta.getOriginalName(), meta.getSizeBytes());
         }));
+        // Recheck account, membership and both payment/ledger gates BEFORE any 304 response.
+        // Chat attachments are immutable; reactions/read receipts never change these bytes.
+        String etag = file.contentType().startsWith("image/") ? "\"chat-" + messageId + "-" + file.sizeBytes() + "\"" : null;
+        boolean unchanged = etag != null && ifNoneMatch != null && java.util.Arrays.stream(ifNoneMatch.split(","))
+                .map(String::trim).map(value -> value.startsWith("W/") ? value.substring(2) : value)
+                .anyMatch(value -> value.equals("*") || value.equals(etag));
+        if (unchanged) return new com.handsfree.be.storage.PrivateChatFile(null, file.contentType(), file.originalName(), file.sizeBytes(), etag);
         // Opening/streaming remote storage holds no DB transaction or connection.
         return new com.handsfree.be.storage.PrivateChatFile(measure("chat.storage.open", () -> attachmentStorage.open(file)),
-                file.contentType(), file.originalName(), file.sizeBytes());
+                file.contentType(), file.originalName(), file.sizeBytes(), etag);
     }
     private void publish(ChatMessage message, JobMatch match, boolean update) {
         var response = chatMapper.toMessageResponse(message);

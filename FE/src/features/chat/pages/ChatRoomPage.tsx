@@ -1,3 +1,4 @@
+import useThreadScroll from "../hooks/useThreadScroll";
 import IdentityImageViewer from "../../../components/feedback/IdentityImageViewer";
 import CounterpartIdentity from "../../identity/components/CounterpartIdentity";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -53,13 +54,12 @@ function ChatRoom({ conversationId }: { conversationId: string }) {
   const [reacting, setReacting] = useState<Set<string>>(new Set());
   const textarea = useRef<HTMLTextAreaElement>(null);
   const input = useRef<HTMLInputElement>(null);
-  const thread = useRef<HTMLDivElement>(null);
-  const bottom = useRef<HTMLDivElement>(null);
+  const scroll = useThreadScroll(messages, !loading);
+  const { thread, content: messageList } = scroll;
   const active = useRef(true);
   const requests = useRef(new Map<string, { id: string; content: string; file?: File }>());
   const inFlight = useRef(new Set<string>());
   const localUrls = useRef(new Set<string>());
-  const stickToBottom = useRef(true);
   const heartLocks = useRef(new Set<string>());
   const reading = useRef(false);
   useEffect(() => { const urls = localUrls.current; active.current = true; return () => { active.current = false; for (const url of urls) URL.revokeObjectURL(url); urls.clear(); }; }, []);
@@ -115,14 +115,12 @@ function ChatRoom({ conversationId }: { conversationId: string }) {
     window.addEventListener("focus", refresh); document.addEventListener("visibilitychange", refresh);
     return () => { cancelled = true; window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, [socketStatus, conversationId, markRead, user?.id]);
-  useEffect(() => { if (stickToBottom.current) bottom.current?.scrollIntoView({ behavior: "auto", block: "nearest" }); }, [messages]);
   async function older() {
     if (loadingOlder || !hasOlder) return;
     setLoadingOlder(true);
-    const height = thread.current?.scrollHeight ?? 0;
     try { const result = await chatService.getMessages(conversationId, page + 1); if (!active.current) return;
+      scroll.holdPosition();
       setMessages(current => mergeMessages(result.content, current)); setPage(page + 1); setHasOlder(!result.last);
-      requestAnimationFrame(() => { if (thread.current) thread.current.scrollTop = thread.current.scrollHeight - height; });
     } catch (requestError) { setActionError(getApiErrorMessage(requestError, "Không thể tải tin nhắn cũ.")); }
     finally { if (active.current) setLoadingOlder(false); }
   }
@@ -160,7 +158,7 @@ function ChatRoom({ conversationId }: { conversationId: string }) {
       sentAt: new Date().toISOString(), readAt: null, hearts: [], localState: "sending", localUrl, uploadPercent: 0,
       attachment: selectedFile ? { name: selectedFile.name, contentType: selectedFile.type, sizeBytes: selectedFile.size, url: "" } : null,
     };
-    stickToBottom.current = true;
+    scroll.followLatest();
     setMessages(current => mergeMessages(current, [optimistic]));
     if (!sticker) { setText(""); setFile(undefined); if (input.current) input.current.value = ""; }
     setPicker(false); setStickerPicker(false); setActionError("");
@@ -211,15 +209,15 @@ function ChatRoom({ conversationId }: { conversationId: string }) {
         </div>
         {conversation.chatUnlocked && <details className="mt-2"><summary className="cursor-pointer text-xs font-bold text-[#007f95]">Xem avatar và selfie đã xác minh</summary><CounterpartIdentity person={conversation.counterpart} /></details>}
       </header>
-      <div ref={thread} onScroll={() => { const el = thread.current; if (el) stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100; }} className="hf-chat-thread h-[min(58dvh,620px)] overflow-y-auto bg-[#f7f9fc] px-3 py-4 sm:px-5" role="log" aria-label="Lịch sử trò chuyện">
+      <div ref={thread} {...scroll.handlers} tabIndex={0} className="hf-chat-thread h-[min(58dvh,620px)] overflow-y-auto bg-[#f7f9fc] px-3 py-4 sm:px-5" role="log" aria-label="Lịch sử trò chuyện">
         {hasOlder && <div className="mb-4 text-center"><button className="hf-chat-control" disabled={loadingOlder} onClick={() => void older()}>{loadingOlder ? "Đang tải…" : "Xem tin nhắn cũ hơn"}</button></div>}
         {!messages.length && <div className="hf-chat-empty"><AppIcon name="chat" className="h-8 w-8 text-[#007f95]" /><p>Bắt đầu trò chuyện</p></div>}
-        <div className="space-y-3">{messages.map(message => {
+        <div ref={messageList} className="space-y-3">{messages.map((message, index) => {
           const mine = message.senderId === user?.id;
           const liked = (message.hearts ?? []).includes(user?.id ?? "");
           return <div key={`${message.senderId}:${message.clientMessageId || message.id}`} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
             <div className={`hf-chat-bubble ${mine ? "hf-chat-bubble-mine" : ""} ${message.attachment?.contentType.startsWith("image/") || message.attachment?.contentType.startsWith("video/") ? "hf-chat-bubble-media" : ""}`}>
-              {message.attachment && (message.localState && message.localUrl ? <div className="hf-chat-attachment">{message.attachment.contentType.startsWith("image/") ? <IdentityImageViewer src={message.localUrl} alt="Ảnh đang gửi" className="hf-chat-image" /> : <video src={message.localUrl} controls playsInline preload="metadata" className="hf-chat-video" />}</div> : message.localState ? <div className="hf-chat-file">{message.attachment.name}</div> : <ChatAttachment attachment={message.attachment} localUrl={message.localUrl} />)}
+              {message.attachment && (message.localState && message.localUrl ? <div className="hf-chat-attachment">{message.attachment.contentType.startsWith("image/") ? <IdentityImageViewer src={message.localUrl} alt="Ảnh đang gửi" className="hf-chat-image" /> : <video src={message.localUrl} controls playsInline preload="metadata" className="hf-chat-video" />}</div> : message.localState ? <div className="hf-chat-file">{message.attachment.name}</div> : <ChatAttachment attachment={message.attachment} localUrl={message.localUrl} eager={index >= messages.length - 3} />)}
               {message.content && <p className="whitespace-pre-wrap break-words text-sm font-semibold leading-5">{message.content}</p>}
               <div className="hf-chat-message-meta"><time dateTime={message.sentAt}>{new Date(message.sentAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</time>
                 <button type="button" aria-label={`${liked ? "Bỏ tim" : "Thả tim"} tin nhắn ${mine ? "của bạn" : "đối phương"}`} aria-pressed={liked} disabled={!!message.localState || !conversation.canSend || reacting.has(message.id)} className={`hf-chat-heart ${liked ? "is-liked" : ""}`} onClick={() => void heart(message)}><AppIcon name="heart" className="h-4 w-4" />{(message.hearts?.length ?? 0) > 0 && <span>{message.hearts?.length}</span>}</button>
@@ -229,7 +227,7 @@ function ChatRoom({ conversationId }: { conversationId: string }) {
               {message.localState === "failed" && <div className="hf-chat-retry" role="alert"><span>{message.sendError}</span><button type="button" disabled={!conversation.canSend} onClick={() => void deliver(message.clientMessageId)}>Gửi lại</button></div>}
             </div>
           </div>;
-        })}</div><div ref={bottom} />
+        })}</div>
       </div>
       <footer className="hf-chat-composer border-t border-slate-100 bg-white p-3 sm:p-4">
         {actionError && <UserNotice error message={actionError} onClose={() => setActionError("")} className="mb-3" />}

@@ -23,7 +23,7 @@ public interface ChatService {
     ChatMessageResponse heart(UUID currentUserId, UUID conversationId, UUID messageId, boolean liked);
     ChatMessageResponse sendAttachment(UUID currentUserId, UUID conversationId, UUID clientMessageId, String content,
             org.springframework.web.multipart.MultipartFile file);
-    com.handsfree.be.storage.PrivateChatFile attachment(UUID currentUserId, UUID conversationId, UUID messageId);
+    com.handsfree.be.storage.PrivateChatFile attachment(UUID currentUserId, UUID conversationId, UUID messageId, String ifNoneMatch);
 
     ChatMessageDelivery sendMessage(UUID currentUserId, ChatSendMessageRequest request);
 }

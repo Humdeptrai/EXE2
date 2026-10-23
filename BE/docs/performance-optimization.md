@@ -26,3 +26,12 @@ Thời gian upload/mở luồng storage còn phụ thuộc Cloudinary, vị trí
 - Chạy kiểm tra tạm trên H2 PostgreSQL mode: khởi tạo repository/JPA, kiểm tra SQL projection, cờ tiến trình và đọc riêng ảnh; hồ sơ active/draft, API hồ sơ tổng hợp, điều kiện truy cập ảnh chat gồm người lạ, sai conversation, chưa trả đủ phí, thiếu ledger, hết hạn, lịch sử đã hoàn thành và chat chưa mở.
 - Chạy kiểm tra cache bằng Node: gộp request trùng, đổi phiên bản, cách ly phiên/đăng xuất, hủy request cũ, hết TTL.
 - Các kiểm tra cục bộ không thay thế số đo Render/Neon/Cloudinary. Chưa kiểm chứng UI bằng thiết bị iPhone thực tế.
+
+## Sửa vị trí chat và ảnh sau refresh
+
+- Chat dùng layout effect sau khi lịch sử thực sự xuất hiện, cuộn đúng viewport chat thay vì scrollIntoView trên toàn trang.
+- ResizeObserver theo dõi vùng tin nhắn/viewport. Khi đang ở cuối, ảnh/video decode hoặc composer đổi chiều cao vẫn giữ tin cuối trong tầm nhìn. Khi người dùng cuộn lên đọc, giữ neo vào tin đang xem; tải lịch sử cũ không nhảy tới cuối. Không cập nhật React state theo từng nhịp scroll.
+- Ưu tiên tải ảnh thuộc 3 tin cuối; ảnh xa vùng xem vẫn lazy-load. Có khung chờ ảnh thay cho nút tên tệp làm chiều cao thay đổi đột ngột.
+- Ảnh chat có ETag và `Cache-Control: private, no-cache`, `Vary: Authorization`. Trình duyệt có thể giữ ảnh qua refresh nhưng phải kiểm tra lại với BE. BE kiểm tra tài khoản/quyền tham gia/thanh toán/ledger trước khi trả 304; nếu trùng phiên bản thì không mở lại luồng Cloudinary. PDF/video/tệp khác vẫn no-store; ảnh xác minh/CCCD ở các API xác minh vẫn no-store. Không cache API trong service worker.
+- Ảnh cũ tải trước bản này chưa có cache HTTP; cần một lần tải thành công bằng bản mới. Browser có thể xóa cache; tải lần đầu vẫn phụ thuộc storage/mạng. Khi kiểm tra cache ấm, tắt tùy chọn Disable cache của DevTools; đo cache lạnh riêng.
+- Kiểm tra tạm: React + DOM giả lập hình học cho refresh, ảnh thay đổi chiều cao, đọc lịch sử, thêm trang cũ, gửi mới và resize; Spring MockMvc với security cache header writer cho 200/304, ETag yếu/danh sách, kiểm tra quyền trên request cache, tài khoản bị khóa và no-store của tệp khác. Chưa xác nhận bằng iPhone thực tế.

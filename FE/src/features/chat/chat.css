@@ -17,3 +17,9 @@
 
 .hf-chat-stickers{grid-template-columns:repeat(4,1fr);left:auto;right:0;width:min(280px,calc(100vw - 48px))}.hf-chat-stickers button:not(.hf-chat-emoji-close){font-size:36px;min-height:55px}.hf-chat-bubble-media img[alt="handsfree-sticker.png"]{max-width:150px;max-height:150px}
 .hf-chat-tools{position:relative}.hf-chat-tools>div.relative{position:static}.hf-chat-tools .hf-chat-emojis{left:0;right:auto;bottom:calc(100% + 8px);width:min(320px,100%)}.hf-chat-tools .hf-chat-stickers{width:min(280px,100%)}
+
+/* Image decode/resizes must not move the reader away from the latest message. */
+.hf-chat-thread{overflow-anchor:none}
+.hf-chat-image-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:min(300px,55vw);aspect-ratio:4/3;border:1px solid #d9e8ee;border-radius:14px;background:linear-gradient(120deg,#e5f1f3,#f3f8f9);color:#617b84;font-size:12px}
+.hf-chat-image-placeholder>span:first-child{font-size:28px;color:#007f95}
+.hf-chat-image-placeholder:disabled{cursor:wait}

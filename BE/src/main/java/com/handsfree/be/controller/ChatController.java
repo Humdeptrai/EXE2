@@ -53,13 +53,20 @@ public class ChatController {
         return ApiResponse.success(200, "Đã gửi tệp", chatService.sendAttachment(currentUserId(a), conversationId, clientMessageId, content, file));
     }
     @GetMapping("/{conversationId}/messages/{messageId}/attachment")
-    public ResponseEntity<org.springframework.core.io.InputStreamResource> attachment(Authentication a, @PathVariable UUID conversationId, @PathVariable UUID messageId) {
-        var file = chatService.attachment(currentUserId(a), conversationId, messageId);
+    public ResponseEntity<org.springframework.core.io.InputStreamResource> attachment(Authentication a,
+            @PathVariable UUID conversationId, @PathVariable UUID messageId,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "If-None-Match", required = false) String ifNoneMatch) {
+        var file = chatService.attachment(currentUserId(a), conversationId, messageId, ifNoneMatch);
+        var response = ResponseEntity.status(file.stream() == null ? 304 : 200)
+                .header("Cache-Control", file.etag() == null ? "no-store" : "private, no-cache")
+                .header("Vary", "Authorization").header("X-Content-Type-Options", "nosniff");
+        if (file.etag() != null) response.eTag(file.etag());
+        if (file.stream() == null) return response.build();
         String disposition = file.contentType().startsWith("image/") || file.contentType().startsWith("video/") ? "inline" : "attachment";
-        return ResponseEntity.ok().header("Cache-Control", "no-store").header("X-Content-Type-Options", "nosniff")
-            .header("Content-Disposition", org.springframework.http.ContentDisposition.builder(disposition).filename(file.originalName(), java.nio.charset.StandardCharsets.UTF_8).build().toString())
-            .contentType(org.springframework.http.MediaType.parseMediaType(file.contentType())).contentLength(file.sizeBytes())
-            .body(new org.springframework.core.io.InputStreamResource(file.stream()));
+        return response.header("Content-Disposition", org.springframework.http.ContentDisposition.builder(disposition)
+                    .filename(file.originalName(), java.nio.charset.StandardCharsets.UTF_8).build().toString())
+                .contentType(org.springframework.http.MediaType.parseMediaType(file.contentType())).contentLength(file.sizeBytes())
+                .body(new org.springframework.core.io.InputStreamResource(file.stream()));
     }
 
     @GetMapping
