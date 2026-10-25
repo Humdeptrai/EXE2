@@ -185,3 +185,13 @@ async def checkpoint_operation(request: Request, operation: str):
     if operation == 'finish':
         return await run_in_threadpool(locked, finish, token, images['front'], images['back'], THRESHOLD)
     return await run_in_threadpool(locked, document, request.app, token, operation, images[operation], decode, feature, THRESHOLD)
+
+@app.post("/features")
+async def identity_features(request: Request):
+    from starlette.concurrency import run_in_threadpool
+    async with request.form(max_files=1, max_fields=0, max_part_size=MAX_IMAGE) as form:
+        if set(form.keys()) != {"face"}: raise HTTPException(422, "Expected face")
+        raw = await form["face"].read(MAX_IMAGE + 1)
+    def extract():
+        return {"faceModel": "sface-2021dec-128", "faceEmbedding": feature(request.app, decode(raw)).tolist()}
+    return await run_in_threadpool(locked, extract)

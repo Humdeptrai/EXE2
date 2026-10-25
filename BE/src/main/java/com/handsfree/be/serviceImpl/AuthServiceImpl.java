@@ -32,6 +32,7 @@ import java.util.Locale;
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
+    @jakarta.persistence.PersistenceContext private jakarta.persistence.EntityManager entityManager;
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -76,6 +77,8 @@ public class AuthServiceImpl implements AuthService {
         User user = findByIdentifier(identifier)
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
 
+        user = userRepository.lockById(user.getId()).orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
+        entityManager.refresh(user);
         if (!user.isActive()) {
             throw new AppException(ErrorCode.USER_DISABLED);
         }
@@ -104,6 +107,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = bySubject != null ? bySubject : byEmail;
+        if(user!=null){userRepository.lockById(user.getId()).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));entityManager.refresh(user);}
         if (user != null && user.getGoogleSubject() != null
                 && !user.getGoogleSubject().equals(profile.subject())) {
             throw new AppException(ErrorCode.GOOGLE_ACCOUNT_CONFLICT);
@@ -138,6 +142,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse refresh(RefreshTokenRequest request) {
+        var owner=refreshTokenRepository.findOwner(TokenHash.sha256(request.refreshToken())).orElseThrow(() -> new AppException(ErrorCode.INVALID_REFRESH_TOKEN));
+        userRepository.lockById(owner).orElseThrow(() -> new AppException(ErrorCode.INVALID_REFRESH_TOKEN));
         RefreshToken storedToken = refreshTokenRepository
                 .findByTokenHashAndRevokedAtIsNull(TokenHash.sha256(request.refreshToken()))
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_REFRESH_TOKEN));

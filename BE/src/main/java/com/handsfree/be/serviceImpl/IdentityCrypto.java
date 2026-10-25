@@ -21,6 +21,14 @@ public class IdentityCrypto {
             return new SecretKeySpec(raw, "AES");
         } catch (Exception e) { throw new AppException(ErrorCode.IDENTITY_NOT_CONFIGURED); }
     }
+    public String fingerprint(String number) {
+        if(number==null || !number.matches("[0-9]{12}")) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        try {
+            javax.crypto.Mac mac=javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key().getEncoded(),"HmacSHA256"));
+            return java.util.HexFormat.of().formatHex(mac.doFinal(("handsfree:identity:number:v1:"+number).getBytes(StandardCharsets.UTF_8)));
+        }catch(AppException e){throw e;}catch(Exception e){throw new AppException(ErrorCode.IDENTITY_NOT_CONFIGURED);}
+    }
     public void validateKey() { key(); }
     public byte[] encrypt(byte[] plain) {
         try {

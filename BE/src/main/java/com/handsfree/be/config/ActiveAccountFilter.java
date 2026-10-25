@@ -24,7 +24,14 @@ public class ActiveAccountFilter extends OncePerRequestFilter {
         var a = SecurityContextHolder.getContext().getAuthentication();
         if (a != null && a.isAuthenticated() && !"anonymousUser".equals(a.getName())) {
             try {
-                if (users.findByIdAndActiveTrue(UUID.fromString(a.getName())).isEmpty()) {
+                var user=users.findByIdAndActiveTrue(UUID.fromString(a.getName())).orElse(null);
+                if (user!=null && a instanceof org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken token) {
+                    Number version=token.getToken().getClaim("tokenVersion");
+                    if((version==null?0:version.intValue())!=user.getTokenVersion()) {
+                        res.setStatus(401);res.setContentType("application/json");res.getWriter().write("{\"code\":40100,\"message\":\"Phiên đăng nhập đã hết hiệu lực. Vui lòng đăng nhập lại.\"}");return;
+                    }
+                }
+                if (user==null) {
                     res.setStatus(403);
                     res.setContentType("application/json");
                     res.getWriter()

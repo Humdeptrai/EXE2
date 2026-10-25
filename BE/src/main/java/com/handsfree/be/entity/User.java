@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @Table(name = "users", uniqueConstraints = {
         @UniqueConstraint(name = "uk_users_email", columnNames = "email"),
         @UniqueConstraint(name = "uk_users_phone", columnNames = "phone"),
@@ -55,6 +56,9 @@ public class User extends BaseEntity {
 
     @Column(name = "password_hash", length = 100)
     private String passwordHash;
+
+    @Builder.Default @Column(nullable=false, columnDefinition="integer default 0")
+    private int tokenVersion = 0;
 
     @Column(name = "google_subject", length = 100)
     private String googleSubject;

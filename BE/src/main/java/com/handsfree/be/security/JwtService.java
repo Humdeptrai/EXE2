@@ -56,6 +56,7 @@ public class JwtService {
                 .expiresAt(expiresAt)
                 .subject(user.getId().toString())
                 .claim("type", "access")
+                .claim("tokenVersion",user.getTokenVersion())
                 .claim("role", user.getRole().name())
                 .claim("fullName", user.getFullName());
         if (user.getEmail() != null) {

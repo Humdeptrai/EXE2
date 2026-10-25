@@ -14,6 +14,9 @@ public interface IdentityRepository extends JpaRepository<IdentityVerification, 
     interface PublicIdentity { String getStatus(); byte[] getFullName(); java.time.Instant getSelfieVerifiedAt(); }
     Optional<State> findStateByUserId(UUID id);
     Optional<PublicIdentity> findPublicByUserId(UUID id);
+    interface RegistryNumber { java.util.UUID getUserId(); byte[] getDocumentNumber(); }
+    @org.springframework.data.jpa.repository.Query("select i.userId as userId, i.documentNumber as documentNumber from IdentityVerification i where i.status='VERIFIED' and i.documentNumber is not null order by i.userId")
+    java.util.List<RegistryNumber> findRegistryNumbers();
     boolean existsByUserIdAndStatus(UUID id, String status);
     org.springframework.data.domain.Page<State> findAllProjectedBy(org.springframework.data.domain.Pageable page);
 

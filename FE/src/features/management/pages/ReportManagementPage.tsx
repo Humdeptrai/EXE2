@@ -1,3 +1,4 @@
+import AdminWalletCreditForm from "../components/AdminWalletCreditForm";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { reportService } from "../../../services/reportService";
@@ -9,6 +10,7 @@ import ReportDetailContent from "../components/ReportDetailContent";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
 export default function ReportManagementPage() {
   const { user } = useAuth();
+  const [creditBusy,setCreditBusy]=useState(false);
   const [items, setItems] = useState<Report[]>([]); const { page, setPage, search, state: filter, apply } = useOperatorFilters(); const [last, setLast] = useState(true);
   const [total, setTotal] = useState(0); const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Report | null>(null); const detailId = detail?.id;
@@ -67,7 +69,7 @@ export default function ReportManagementPage() {
       <div className="op-table-scroll"><table className="op-table op-report-table"><thead><tr><th>Người báo cáo</th><th>Người được báo cáo / liên quan</th><th>Nội dung</th><th>Trạng thái</th><th>Người xử lý</th><th>Ngày gửi</th><th>Thao tác</th></tr></thead><tbody>{filtered.map(r => <tr key={r.id}><td className="op-cell-primary" title={r.reporterId}>{r.reporterName || "Chưa có tên"}</td><td title={r.targetId}>{r.targetName || "—"}</td><td><span className="op-cell" title={r.reason}>{r.reason}</span><small className="op-cell-secondary">{reportTargets[r.targetType]}</small></td><td><StatusBadge value={r.status} /></td><td>{r.assignedName || "Chưa nhận"}</td><td>{new Date(r.createdAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}</td><td><div className="op-row-actions"><button type="button" className="op-row-button" onClick={() => void view(r)}>Chi tiết & bằng chứng</button>{actions(r)}</div></td></tr>)}</tbody></table>{loading ? <p className="op-empty" role="status">Đang tải báo cáo…</p> : !filtered.length && <p className="op-empty">Không có báo cáo phù hợp.</p>}</div>
       <Pagination page={page} last={last} total={total} loading={busy || loading} onPage={setPage} />
     </section>
-    {detail && <OperatorModal variant="drawer" title="Chi tiết báo cáo" onClose={() => setDetail(null)}><ReportDetailContent report={detail} /><div className="op-modal-actions">{actions(detail)}</div></OperatorModal>}
+    {detail && <OperatorModal variant="drawer" title="Chi tiết báo cáo" onClose={() => {if(!creditBusy)setDetail(null);}}><ReportDetailContent report={detail} />{user?.role === "ADMIN" && detail.targetType === "SUPPORT" && detail.status === "IN_REVIEW" && detail.assignedTo === user.id && <details className="op-card" style={{padding:16,marginTop:16}}><summary>Cộng tiền sau khi đối soát (ADMIN)</summary><AdminWalletCreditForm userId={detail.reporterId} name={detail.reporterName || "Người gửi yêu cầu"} reportId={detail.id} onBusyChange={setCreditBusy} /></details>}<div className="op-modal-actions">{actions(detail)}</div></OperatorModal>}
     {action && <OperatorModal title={reportStatuses[action.status]} onClose={() => { if (!busy) setAction(null); }}><form noValidate onSubmit={e => { e.preventDefault(); void change(action.report, "resolve"); }}><p className="op-muted">{action.report.reason}</p><label>Phản hồi / lý do đầy đủ<textarea disabled={busy} value={resolution} onChange={e => setResolution(e.target.value)} maxLength={2000} rows={7} placeholder="Người gửi sẽ xem toàn bộ nội dung này khi bấm vào thông báo." /></label><p className="op-muted">{resolution.length}/2.000 ký tự</p>{error && <UserNotice message={error} error />}<div className="op-modal-actions"><button type="button" className="op-button secondary" disabled={busy} onClick={() => setAction(null)}>Quay lại</button><button className={`op-button ${action.status === "REJECTED" ? "danger" : ""}`} disabled={busy}>{busy ? "Đang lưu…" : "Lưu và thông báo"}</button></div></form></OperatorModal>}
   </div>;
 }

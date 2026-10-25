@@ -9,5 +9,5 @@ export const identityAppealService = {
   async get(id: string, signal?: AbortSignal) { return (await api.get<ApiResponse<IdentityAppeal>>(`/identity/requests/${id}`, { signal })).data.result; },
   async list(page: number, state: string, search: string, signal?: AbortSignal) { return (await api.get<ApiResponse<PageResponse<IdentityAppeal>>>("/admin/identity-appeals", { params: { page, state, search }, signal })).data.result; },
   async claim(id: string, release = false) { return (await api.post<ApiResponse<IdentityAppeal>>(`/admin/identity-appeals/${id}/${release ? "release" : "claim"}`)).data.result; },
-  async review(id: string, approved: boolean, fullName: string, reason: string) { return (await api.post<ApiResponse<IdentityAppeal>>(`/admin/identity-appeals/${id}/review`, { approved, fullName, reason })).data.result; },
+  async review(id: string, approved: boolean, fullName: string, reason: string, transferIdentity = false, claim: {documentOwner:string|null;claimVersion:number|null}|null = null) { return (await api.post<ApiResponse<IdentityAppeal>>(`/admin/identity-appeals/${id}/review`, { approved, fullName, reason, transferIdentity, expectedIdentityOwner:claim?.documentOwner, claimVersion:claim?.claimVersion })).data.result; },
 };

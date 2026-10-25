@@ -154,7 +154,7 @@ public class ReportServiceImpl implements ReportService {
         if (request.status().equals("IN_REVIEW")) return claim(actor, id); // Existing client compatibility.
         User user = access.operator(actor, false); ModerationReport r = locked(id); requireOpen(r);
         if (!Set.of("RESOLVED", "REJECTED").contains(request.status()) || request.resolution().trim().isEmpty()) throw new AppException(ErrorCode.VALIDATION_FAILED);
-        if (user.getRole() != UserRole.ADMIN && !actor.equals(r.getAssignedTo())) {
+        if (!actor.equals(r.getAssignedTo())) {
             throw new AppException(r.getAssignedTo() == null ? ErrorCode.REPORT_CLAIM_REQUIRED : ErrorCode.REPORT_ALREADY_ASSIGNED);
         }
         r.setStatus(request.status()); r.setResolution(request.resolution().trim()); r.setResolvedBy(actor); r.setResolvedAt(Instant.now());
@@ -193,7 +193,7 @@ public class ReportServiceImpl implements ReportService {
                 r.getAssignedTo() == null ? null : users.findById(r.getAssignedTo()).map(User::getFullName).orElse("Nhân viên hỗ trợ"), r.getAssignedAt(),
                 operator && !closed && r.getAssignedTo() == null,
                 operator && !closed && r.getAssignedTo() != null && (owns || user.getRole() == UserRole.ADMIN),
-                operator && !closed && (owns || user.getRole() == UserRole.ADMIN),
+                operator && !closed && owns,
                 detailed ? List.copyOf(r.getLinks()) : List.of(),
                 detailed ? evidence.findByReport_IdOrderByCreatedAtAsc(r.getId()).stream().map(e -> new ReportResponse.Evidence(e.getId(), e.getOriginalName(), e.getContentType(), e.getSizeBytes(), "/reports/" + r.getId() + "/evidence/" + e.getId())).toList() : List.of(),
                 users.findNameById(r.getReporterId()).map(UserRepository.Name::getFullName).orElse(""),

@@ -5,6 +5,11 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
+    PASSWORD_RESET_INVALID(40098,HttpStatus.BAD_REQUEST,"Liên kết không hợp lệ, đã dùng hoặc hết hạn. Vui lòng yêu cầu liên kết mới."),
+    PASSWORD_RESET_UNAVAILABLE(50398,HttpStatus.SERVICE_UNAVAILABLE,"Dịch vụ gửi email chưa sẵn sàng. Vui lòng thử lại sau."),
+    PASSWORD_RESET_RATE_LIMIT(42998,HttpStatus.TOO_MANY_REQUESTS,"Bạn gửi yêu cầu quá nhanh. Vui lòng thử lại sau."),
+    IDENTITY_DUPLICATE(40997, HttpStatus.CONFLICT, "Thông tin định danh đã được sử dụng hoặc cần kiểm tra thêm. Vui lòng khôi phục tài khoản hoặc gửi yêu cầu kiểm tra danh tính."),
+    IDENTITY_REGISTRY_NOT_READY(50397, HttpStatus.SERVICE_UNAVAILABLE, "Bộ kiểm tra danh tính chưa sẵn sàng. Vui lòng thử lại sau."),
     SKILL_ALREADY_EXISTS(40991, HttpStatus.CONFLICT, "Kỹ năng / sở thích này đã có trong danh mục hoặc đã được đề xuất"),
     SKILL_NOT_FOUND(40491, HttpStatus.NOT_FOUND, "Không tìm thấy đề xuất"),
     SKILL_NOT_APPROVED(40091, HttpStatus.BAD_REQUEST, "Vui lòng chọn kỹ năng / sở thích đã được duyệt"),

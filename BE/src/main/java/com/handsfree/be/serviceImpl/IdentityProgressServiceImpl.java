@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 
 @Service @RequiredArgsConstructor
 public class IdentityProgressServiceImpl implements IdentityProgressService {
+    private final com.handsfree.be.service.IdentityRegistryService registry;
     private final IdentityProgressRepository repository;
     private final UserRepository users;
     private final IdentityRepository identities;
@@ -174,6 +175,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             case "FRONT_QUALITY_BLUR", "BACK_QUALITY_BLUR" -> "Chi tiết trên CCCD chưa đủ nét để đọc. Chọn ảnh gốc rõ chữ hoặc lấy nét lại vào thẻ.";
             case "FRONT_QUALITY_LIGHTING", "BACK_QUALITY_LIGHTING" -> "Ánh sáng trên CCCD chưa phù hợp. Tránh bóng đổ, vùng tối hoặc phản sáng che chữ.";
             case "FRONT_OCR" -> "Chưa đọc rõ mặt trước CCCD. Chụp lại mặt trước, giữ đủ bốn góc và chữ rõ nét.";
+            case "DOCUMENT_NUMBER_MISMATCH" -> "Thông tin hai mặt CCCD chưa khớp. Kiểm tra và chụp lại mặt sau đúng giấy tờ.";
             case "BACK_OCR" -> "Chưa đọc rõ mặt sau CCCD. Chỉ cần chụp lại mặt sau; các bước đã đạt được giữ lại.";
             case "FRONT_FACE" -> "Chưa nhận rõ khuôn mặt trên CCCD. Chụp lại mặt trước.";
             case "BACK_QUALITY" -> "Mặt sau chưa rõ hoặc thiếu góc. Chụp lại mặt sau.";
@@ -181,6 +183,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         };
     }
     @Override @Transactional public FaceComparisonService.Completion finish(UUID user) {
+        registry.lock();
         var p=locked(user);
         if(!p.isSelfiePassed() || !p.isFrontPassed() || !p.isBackPassed()) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
         byte[] f=crypto.decrypt(p.getFrontImage()),b=crypto.decrypt(p.getBackImage());
@@ -189,7 +192,10 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         var response=worker.send("POST","/checkpoints/finish",new String[]{"checkpoint","front","back"},new byte[][]{crypto.decrypt(p.getCheckpoint()),f,b});
         var result=complete(user,response,f,b);
         p.setStatus(result.status());
-        if("REJECTED".equals(result.status()) && !result.documentReadable()) { p.setFrontPassed(false);p.setFrontReason(result.message()); }
+        if("REJECTED".equals(result.status()) && !result.documentReadable()) {
+            if(!response.path("backReadable").asBoolean(true)){p.setBackPassed(false);p.setBackReason(result.message());}
+            else {p.setFrontPassed(false);p.setFrontReason(result.message());}
+        }
         save(p);return result;
     }
     private FaceComparisonService.Completion complete(UUID user,JsonNode r,byte[] f,byte[] b) {
@@ -232,8 +238,9 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         String reason=approved?"Đã xác minh tự động: động tác, selfie trực tiếp, PAD RGB, CCCD và so khớp"
             : !match?"Điểm so khớp CCCD chưa đủ để tự xác minh; có thể thử lại hoặc nhờ ADMIN kiểm tra"
             : "Họ tên OCR chưa đủ rõ; có thể thử lại hoặc nhờ ADMIN kiểm tra";
-        identity.storeScan(user,new com.handsfree.be.service.IdentityService.ScanSubmission(
+        var stored=identity.storeScan(user,new com.handsfree.be.service.IdentityService.ScanSubmission(
             f,b,portrait,selfie,name,r.path("documentNumber").asString(""),evidence,score,approved,reason));
+        if(approved && !"VERIFIED".equals(stored.status())) return new FaceComparisonService.Completion(stored.status(),match?"MATCH":"NO_MATCH",score,threshold,true,true,true,false,stored.reason());
         return new FaceComparisonService.Completion(approved?"VERIFIED":score<.30?"REJECTED":"REVIEW_REQUIRED",match?"MATCH":"NO_MATCH",score,threshold,true,true,true,approved,
             approved?"Xác minh tự động thành công. Bạn có thể đăng hoặc nhận việc khi thông tin hồ sơ đã đầy đủ."
             : !match ? "Khuôn mặt chưa đủ khớp với ảnh CCCD. Các bước đã lưu được giữ lại; bạn có thể thử lại hoặc gửi yêu cầu ADMIN xét duyệt."

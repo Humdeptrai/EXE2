@@ -19,6 +19,7 @@ import java.util.*;
 @Service @RequiredArgsConstructor
 public class IdentityServiceImpl implements com.handsfree.be.service.IdentityService {
     private final IdentityRepository identities;
+    private final com.handsfree.be.service.IdentityRegistryService registry;
     private final IdentitySubmissionRepository submissions;
     private final IdentityAppealRepository appeals;
     private final com.handsfree.be.service.NotificationService notifications;
@@ -57,7 +58,8 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public void storeScan(UUID user, ScanSubmission data) {
+    public Status storeScan(UUID user, ScanSubmission data) {
+        registry.lock();
         var account = users.lockById(user).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         if (!account.isActive()) throw new AppException(ErrorCode.USER_DISABLED);
         requireNoOpenAppeal(user);
@@ -74,7 +76,10 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         draft.setBackImage(crypto.encrypt(data.back())); draft.setFaceImage(crypto.encrypt(data.face()));
         draft.setSelfieImage(crypto.encrypt(data.selfie())); draft.setSelfieVerifiedAt(now);
         draft.setDocumentNumberConfirmedAt(null); draft.setSimilarity(data.similarity()); draft.setLive(true);
-        if (data.approved()) {
+        var assessment=data.approved()?registry.assess(user,data.documentNumber(),data.evidence()):new com.handsfree.be.service.IdentityRegistryService.Assessment(false,"",List.of());
+        if(data.approved() && !assessment.allowed()) {draft.setStatus("REVIEW_REQUIRED");draft.setReason(assessment.message());}
+        if (data.approved() && assessment.allowed()) {
+            registry.claim(user,data.documentNumber(),data.evidence(),false,false);
             publish(active, draft, data.fullName(), data.reason());
             identities.saveAndFlush(active);
             if (submissions.existsById(user)) submissions.deleteById(user);
@@ -86,6 +91,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
                 identities.saveAndFlush(active);
             }
         }
+        return data.approved() && assessment.allowed() ? summary(active) : draftStatus(draft);
     }
 
     private void publish(IdentityVerification active, IdentitySubmission draft, String name, String reason) {
@@ -103,6 +109,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Status review(UUID actor, UUID user, Review request) {
+        registry.lock();
         access.operator(actor, true);
         users.lockById(user).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         var active = get(user);
@@ -122,6 +129,9 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
             if (draft.getSelfieImage() == null || draft.getSelfieVerifiedAt() == null || draft.getFaceImage() == null
                     || draft.getFrontImage() == null || draft.getBackImage() == null || !Boolean.TRUE.equals(draft.getLive())
                     || !validNumber(crypto.text(draft.getDocumentNumber()))) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+            if(request.transferIdentity() && openAppeal==null) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+            registry.claim(user,crypto.text(draft.getDocumentNumber()),crypto.text(draft.getDocumentData()),true,request.transferIdentity(),request.expectedIdentityOwner(),request.claimVersion());
+            management.log(actor,request.transferIdentity()?"IDENTITY_OWNERSHIP_TRANSFER":"IDENTITY_MANUAL_APPROVAL",user+" previousOwner="+request.expectedIdentityOwner()+" claimVersion="+request.claimVersion()+" | "+reason);
             publish(active, draft, name, "ADMIN đã duyệt: " + reason.substring(0, Math.min(reason.length(),480)));
             identities.saveAndFlush(active); submissions.delete(draft);
         } else {
@@ -190,6 +200,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Dossier correctDocument(UUID actor, UUID user, DocumentCorrection request) {
+        registry.lock();
         access.operator(actor, true);
         if (request == null || !validNumber(request.documentNumber()) || request.version() == null
                 || request.reason() == null || request.reason().isBlank() || request.reason().length() > 300)
@@ -209,6 +220,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
             var active = get(user);
             if (active.getVersion() != request.version() || !"VERIFIED".equals(active.getStatus()))
                 throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+            registry.claim(user,request.documentNumber(),crypto.text(active.getDocumentData()),true,false);
             previous = crypto.text(active.getDocumentNumber()); active.setDocumentNumber(crypto.encrypt(request.documentNumber()));
             active.setDocumentNumberConfirmedAt(Instant.now()); identities.saveAndFlush(active);
         }
@@ -394,6 +406,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
             org.springframework.data.domain.PageRequest.of(Math.max(0,page),20)).map(a -> new Appeal(a.getId(),a.getUserId(),a.getStatus(),a.getNote(),a.getReason(),a.getCreatedAt(),a.getResolvedAt(),a.getClaimedBy(),a.getClaimedAt(),null,null,a.getSimilarity(),null,accountName(a.getUserId()),accountName(a.getClaimedBy()))));
     }
     private com.handsfree.be.entity.IdentityAppeal lockedAppeal(UUID actor,UUID id) {
+        registry.lock();
         access.operator(actor,true);
         UUID owner=appeals.findOwner(id).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_NOT_FOUND));
         users.lockById(owner).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
@@ -418,7 +431,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         if(!"PROCESSING".equals(a.getStatus()) || !actor.equals(a.getClaimedBy())) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
         var d=submissions.lockById(a.getUserId()).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT));
         if(!Objects.equals(a.getSubmissionAt(),d.getSubmittedAt()) || request==null) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
-        review(actor,a.getUserId(),new Review(request.approved(),d.getSubmittedAt(),request.fullName(),request.reason(),d.getVersion()));
+        review(actor,a.getUserId(),new Review(request.approved(),d.getSubmittedAt(),request.fullName(),request.reason(),d.getVersion(),request.transferIdentity(),request.expectedIdentityOwner(),request.claimVersion()));
         return appealSummary(a);
     }
     private IdentityVerification get(UUID user) { return identities.findById(user).orElseThrow(() -> new AppException(ErrorCode.IDENTITY_NOT_FOUND)); }

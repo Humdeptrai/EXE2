@@ -98,6 +98,12 @@ def document(app, token, side, raw, decode, feature, threshold):
                 except HTTPException as error:
                     if error.status_code != 422: raise
                     data.update(passed=False, reasonCode='FRONT_FACE')
+    if side == 'back' and data.get('passed'):
+        import re
+        hints = set(re.sub(r'\s', '', n) for n in re.findall(r'(?<!\d)(?:\d[ \t]*){12}(?![ \t]*\d)', data.get('text','')))
+        front_number = state['documents'].get('front', {}).get('documentNumber')
+        if hints and front_number and front_number not in hints:
+            data.update(passed=False, reasonCode='DOCUMENT_NUMBER_MISMATCH')
     logger.info('Document check: side=%s passed=%s reason=%s quality=%s confidence=%.1f nameExtracted=%s elapsedMs=%d',
                 side, data['passed'], data['reasonCode'], quality.get('reason'), data.get('confidence', 0), bool(data.get('fullName')), round((time.monotonic()-started)*1000))
     data['digest'] = hashlib.sha256(raw).hexdigest()
@@ -137,11 +143,19 @@ def finish(token, front, back, threshold):
                         logger.warning('Saved front OCR unavailable: exception=%s', type(error).__name__)
                         raise HTTPException(503, 'OCR unavailable')
         logger.info('Saved front name refresh: nameExtracted=%s', bool(f['fullName']))
+    import re
+    back_numbers = set(re.sub(r'\s', '', n) for n in re.findall(r'(?<!\d)(?:\d[ \t]*){12}(?![ \t]*\d)', b.get('text','')))
     score = min(f['scanScore'], f['selfieScore'])
-    return dict(policyVersion=4, motionPassed=True, antiSpoofPassed=True, padScore=float(np.mean(state['pad'])),
+    response = dict(policyVersion=4, motionPassed=True, antiSpoofPassed=True, padScore=float(np.mean(state['pad'])),
                 selfiePassed=True, selfieScanScore=state['selfieScore'], selfiePadScore=state['selfiePad'],
                 documentQualityPassed=True, frontQuality=f['quality'], backQuality=b['quality'],
                 documentReadable=True, frontReadable=True, backReadable=True, documentNumber=f['documentNumber'],
                 fullName=f['fullName'], frontText=f['text'], backText=b['text'],
+                faceEmbedding=state['reference'], faceModel='sface-2021dec-128',
+                frontDigest=f['digest'], backDigest=b['digest'],
                 cosineScore=score, threshold=threshold, decision='MATCH' if score>=threshold else 'NO_MATCH',
                 faceJpeg=state['portrait'], selfieJpeg=state['selfie'], reasonCode='OK' if score>=threshold else 'FACE_MISMATCH')
+
+    if back_numbers and f['documentNumber'] not in back_numbers:
+        response.update(documentReadable=False, backReadable=False, reasonCode='DOCUMENT_NUMBER_MISMATCH')
+    return response

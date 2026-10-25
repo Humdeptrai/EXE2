@@ -22,6 +22,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     private static final Set<String> ALLOWED_SUBSCRIPTIONS = Set.of(
             "/user/queue/chat", "/user/queue/chat-errors", "/user/queue/notifications"
     );
+    private final java.util.concurrent.ConcurrentHashMap<String,Jwt> connected = new java.util.concurrent.ConcurrentHashMap<>();
     private final JwtDecoder jwtDecoder;
     private final com.handsfree.be.serviceImpl.AccountAccess accountAccess;
 
@@ -36,6 +37,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         // Spring also generates DISCONNECT during session cleanup, without a Principal.
         // It carries no application data and must be allowed even after CONNECT fails.
         if (accessor != null && StompCommand.DISCONNECT.equals(accessor.getCommand())) {
+            if(accessor.getSessionId()!=null)connected.remove(accessor.getSessionId());
             return message;
         }
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
@@ -46,10 +48,11 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             String token = bearerToken(authorization);
             try {
                 Jwt jwt = jwtDecoder.decode(token);
-                accountAccess.active(java.util.UUID.fromString(jwt.getSubject()));
+                checkVersion(jwt);
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(jwt.getSubject(), token, List.of());
                 accessor.setUser(authentication);
+                if(accessor.getSessionId()!=null)connected.put(accessor.getSessionId(),jwt);
             } catch (JwtException exception) {
                 throw new IllegalArgumentException("Invalid WebSocket access token", exception);
             }
@@ -60,7 +63,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
                     || !authentication.isAuthenticated()) {
                 throw new IllegalArgumentException("Unauthenticated WebSocket frame");
             }
-            accountAccess.active(java.util.UUID.fromString(authentication.getName()));
+            checkVersion(jwtDecoder.decode((String)authentication.getCredentials()));
             StompCommand command = accessor.getCommand();
             if (StompCommand.SUBSCRIBE.equals(command)) {
                 if (accessor.getDestination() == null
@@ -79,6 +82,17 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         return message;
     }
 
+    public Message<?> outbound(Message<?> message) {
+        var headers=org.springframework.messaging.support.MessageHeaderAccessor.getAccessor(message, org.springframework.messaging.simp.SimpMessageHeaderAccessor.class);
+        if(headers==null || headers.getSessionId()==null || headers.getMessageType()!=org.springframework.messaging.simp.SimpMessageType.MESSAGE)return message;
+        Jwt jwt=connected.get(headers.getSessionId());if(jwt==null)return message;
+        try {if(jwt.getExpiresAt()==null || !jwt.getExpiresAt().isAfter(java.time.Instant.now()))return null;checkVersion(jwt);return message;}
+        catch(RuntimeException e){return null;}
+    }
+    private void checkVersion(Jwt jwt) {
+        var user=accountAccess.active(java.util.UUID.fromString(jwt.getSubject()));Number version=jwt.getClaim("tokenVersion");
+        if((version==null?0:version.intValue())!=user.getTokenVersion())throw new IllegalArgumentException("Session revoked");
+    }
     private String bearerToken(String authorization) {
         if (!StringUtils.hasText(authorization) || !authorization.startsWith("Bearer ")) {
             throw new IllegalArgumentException("Missing WebSocket Bearer token");

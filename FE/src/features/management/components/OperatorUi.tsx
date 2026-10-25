@@ -6,6 +6,8 @@ export const operatorLabels: Record<string, string> = {
   REVIEW_REQUIRED: "Cần kiểm tra", NOT_SUBMITTED: "Chưa gửi", VERIFIED: "Đã xác minh", ERROR: "Lỗi dịch vụ",
   RESOLVED: "Đã giải quyết", REJECTED: "Từ chối", PENDING: "Chờ thanh toán", PAID: "Đã thanh toán", CREDITED: "Đã cộng ví", REFUNDED: "Đã hoàn phí",
   DRAFT: "Bản nháp", PUBLISHED: "Đang hiển thị", COMPLETED: "Hoàn thành", CANCELLED: "Đã hủy", EXPIRED: "Hết hạn", DISCONNECTED: "Đã ngắt", ACTIVE: "Đang hoạt động",
+  IDENTITY_OWNERSHIP_TRANSFER: "Chuyển quyền định danh", IDENTITY_MANUAL_APPROVAL: "Duyệt danh tính thủ công", IDENTITY_REGISTRY_BACKFILL: "Lập chỉ mục danh tính",
+  ADMIN_CREDIT: "ADMIN cộng bổ sung", ADMIN_WALLET_CREDIT: "ADMIN cộng tiền ví",
   USER: "Người dùng", STAFF: "Nhân viên", ADMIN: "Quản trị viên", TOPUP: "Nạp tiền", REFUND: "Hoàn phí", CONNECTION_FEE: "Phí kết nối",
 };
 export function StatusBadge({ value, label }: { value: string | number | boolean | null | undefined; label?: string }) {

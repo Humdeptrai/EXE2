@@ -28,7 +28,7 @@ public interface IdentityService {
     Appeal claimAppeal(UUID actor, UUID id, boolean release);
     Appeal resolveAppeal(UUID actor, UUID id, Review request);
     void requireNoOpenAppeal(UUID user);
-    void storeScan(UUID user, ScanSubmission data);
+    Status storeScan(UUID user, ScanSubmission data);
     MyIdentity mine(UUID user);
     byte[] ownSelfie(UUID user);
     byte[] ownImage(UUID user, String kind);
@@ -36,7 +36,9 @@ public interface IdentityService {
     record Eligibility(boolean eligible, boolean profileComplete, boolean identityVerified,
                        String identityStatus, java.util.List<String> missingRequirements, boolean selfieVerified, boolean documentConfirmed) {}
     Eligibility eligibility(UUID user);
-    record Review(boolean approved, Instant submittedAt, String fullName, String reason, Long version) {}
+    record Review(boolean approved, Instant submittedAt, String fullName, String reason, Long version, boolean transferIdentity, UUID expectedIdentityOwner, Long claimVersion) {
+        public Review(boolean approved,Instant submittedAt,String fullName,String reason,Long version){this(approved,submittedAt,fullName,reason,version,false,null,null);}
+    }
     Status review(UUID actor, UUID user, Review request);
     Status status(UUID user);
     Status summary(IdentityVerification identity);

@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import GuestRoute from "../components/guards/GuestRoute";
 import ProtectedRoute from "../components/guards/ProtectedRoute";
 import { privateRoutes } from "./privateRoutes";
-import { publicRoutes } from "./publicRoutes";
+import { publicRoutes, passwordRecoveryRoutes } from "./publicRoutes";
 
 import { operatorRoutes } from "./operatorRoutes";
 import LegacyManagementRoute from "../features/management/components/LegacyManagementRoute";
@@ -13,6 +13,7 @@ import LandingPageRoute from "../features/landing/pages/LandingPageRoute";
 export const router = createBrowserRouter([
   { path: "/install", element: <InstallPage /> },
   ...operatorRoutes,
+  ...passwordRecoveryRoutes,
   { path: "/management", element: <LegacyManagementRoute /> },
   {
     path: "/",

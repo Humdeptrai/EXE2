@@ -102,7 +102,7 @@ export default function LoginPage() {
           />
 
           <div className="flex justify-end">
-            <button type="button" className="font-bold text-[#006b82] hover:underline" onClick={() => setMessage({ kind: "info", text: "Khôi phục mật khẩu sẽ được bổ sung sau luồng MVP chính." })}>Quên mật khẩu?</button>
+            <Link to="/forgot-password" className="font-bold text-[#006b82] hover:underline">Quên mật khẩu?</Link>
           </div>
 
           {message && <FormMessage {...message} />}
