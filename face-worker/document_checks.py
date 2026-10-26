@@ -411,20 +411,52 @@ def read_front_name(image):
     return plain(selected) if len(variants)>1 else selected
 
 
+def _valid_back_mrz(text):
+    """Accept a complete TD1 block only when its independent check digits agree.
+
+    Do not repair OCR characters or fabricate missing fields. This checks read
+    consistency, not authenticity; the normal front/back number check still runs.
+    """
+    rows = [re.sub(r'[^A-Z0-9<]', '', line.upper()) for line in text.splitlines()]
+
+    def check(value, digit):
+        if not digit.isdigit():
+            return False
+        values = [0 if c == '<' else int(c) if c.isdigit() else ord(c) - 55 for c in value]
+        return sum(v * (7, 3, 1)[i % 3] for i, v in enumerate(values)) % 10 == int(digit)
+
+    for first, second, third in zip(rows, rows[1:], rows[2:]):
+        if len(first) != 30 or len(second) != 30 or len(third) != 30:
+            continue
+        if not first.startswith('IDVNM') or second[15:18] != 'VNM':
+            continue
+        if not second[:6].isdigit() or not second[8:14].isdigit():
+            continue
+        if second[7] not in 'MFX<' or not re.fullmatch(r'[A-Z]+<<[A-Z<]+', third):
+            continue
+        if (check(first[5:14], first[14])
+                and check(second[:6], second[6])
+                and check(second[8:14], second[14])
+                and check(first[5:30] + second[:7] + second[8:15] + second[18:29], second[29])):
+            return True
+    return False
+
+
 def document_fields(front_text, back_text, front_confidence, back_confidence):
     numbers = set(re.sub(r'\s', '', x) for x in re.findall(r'(?<!\d)(?:\d[ \t]*){12}(?![ \t]*\d)', front_text))
     front = plain(front_text)
-    back = plain(back_text)
+    back = plain(re.sub(r'[,/:.-]+', ' ', back_text))
     front_ok = (len(numbers) == 1 and len(front_text) >= 60 and front_confidence >= 45
                 and any(marker in front for marker in ('CAN CUOC', 'CONG DAN', 'IDENTITY')))
     # Count distinct semantic fields, not overlapping synonyms of one heading.
     back_groups = (('DAN TOC',), ('TON GIAO',), ('DAC DIEM', 'PERSONAL IDENTIFICATION'),
-                   ('NGAY CAP', 'DATE OF ISSUE'),
+                   ('NGAY CAP', 'DATE OF ISSUE', 'NGAY THANG NAM', 'DATE MONTH YEAR'),
                    ('CO QUAN', 'BO CONG AN', 'MINISTRY', 'CUC CANH SAT', 'CUC TRUONG',
                     'CANH SAT QUAN LY', 'ISSUING AUTHORITY'),
                    ('NOI CU TRU', 'PLACE OF RESIDENCE'), ('NOI SINH',),
                    ('DATE OF EXPIRY', 'CO GIA TRI DEN'))
     back_ok = (len(back_text) >= 50 and back_confidence >= 45
-               and sum(any(marker in back for marker in group) for group in back_groups) >= 2)
+               and (sum(any(marker in back for marker in group) for group in back_groups) >= 2
+                    or _valid_back_mrz(back_text)))
     return dict(frontReadable=front_ok, backReadable=back_ok,
                 documentNumber=next(iter(numbers)) if len(numbers) == 1 else '', fullName=extract_name(front_text))
