@@ -11,6 +11,7 @@ import mediapipe as mp
 import numpy as np
 import torch
 from fastapi import HTTPException
+from processing import face_section
 from vendor.MiniFASNet import MiniFASNetV2, MiniFASNetV1SE
 
 TTL = 300
@@ -250,25 +251,31 @@ def capture_selfie(app, sid, raw, decode, feature, threshold):
 
 
 def finish(app,sid,front,back,decode,feature,threshold):
-    cleanup()
-    session = SESSIONS.get(sid)
-    if session is None:
-        raise HTTPException(410, 'Phiên quét đã hết hạn.')
-    digest = hashlib.sha256(front + back).digest()
-    if session.get('finish_response') is not None:
-        if session['finish_digest'] != digest:
-            raise HTTPException(422, 'Hồ sơ phiên này đã được đối chiếu. Hãy bắt đầu phiên mới.')
-        return session['finish_response']
-    response = finish_documents(app,sid,front,back,decode,feature,threshold)
-    session['finish_digest'] = digest
-    session['finish_response'] = response
+    # Snapshot session evidence under the face lock, then release it for OCR.
+    with face_section(wait=True):
+        cleanup()
+        session = SESSIONS.get(sid)
+        if session is None:
+            raise HTTPException(410, 'Phiên quét đã hết hạn.')
+        digest = hashlib.sha256(front + back).digest()
+        if session.get('finish_response') is not None:
+            if session['finish_digest'] != digest:
+                raise HTTPException(422, 'Hồ sơ phiên này đã được đối chiếu. Hãy bắt đầu phiên mới.')
+            return session['finish_response']
+        snapshot = dict(session, pad=list(session['pad']))
+    response = finish_documents(app,snapshot,front,back,decode,feature,threshold)
+    with face_section(wait=True):
+        if SESSIONS.get(sid) is not session:
+            raise HTTPException(410, 'Phiên quét đã hết hạn hoặc đã đóng.')
+        if session['selfie'] != snapshot['selfie'] or session['portrait'] != snapshot['portrait']:
+            raise HTTPException(422, 'Ảnh phiên quét đã thay đổi. Vui lòng đối chiếu lại.')
+        session['finish_digest'] = digest
+        session['finish_response'] = response
     return response
 
 
-def finish_documents(app,sid,front,back,decode,feature,threshold):
+def finish_documents(app,s,front,back,decode,feature,threshold):
     from document_checks import card_image, read_card, document_fields
-    cleanup()
-    s=SESSIONS.get(sid)
     if s is None or s['index']!=len(s['steps']) or not s['portrait'] or len(s['pad'])<6 or not s.get('selfie'):
         raise HTTPException(422,'Chưa hoàn tất phiên quét khuôn mặt.')
     response=dict(policyVersion=4,selfiePassed=True,selfieScanScore=s['selfie_score'],selfiePadScore=s['selfie_pad'],decision='NO_MATCH',cosineScore=0.0,threshold=threshold,
@@ -296,10 +303,11 @@ def finish_documents(app,sid,front,back,decode,feature,threshold):
         response['reasonCode']='BACK_OCR'; return response
     response['documentReadable']=True
     try:
-        card_vector=feature(app,card)
-        scan_score=float(app.state.recognizer.match(card_vector,feature(app,decode(s['portrait'])),cv2.FaceRecognizerSF_FR_COSINE))
-        selfie_score=float(app.state.recognizer.match(card_vector,feature(app,decode(s['selfie'])),cv2.FaceRecognizerSF_FR_COSINE))
-        score=min(scan_score,selfie_score)
+        with face_section(wait=True):
+            card_vector=feature(app,card)
+            scan_score=float(app.state.recognizer.match(card_vector,feature(app,decode(s['portrait'])),cv2.FaceRecognizerSF_FR_COSINE))
+            selfie_score=float(app.state.recognizer.match(card_vector,feature(app,decode(s['selfie'])),cv2.FaceRecognizerSF_FR_COSINE))
+            score=min(scan_score,selfie_score)
     except HTTPException as error:
         if error.status_code != 422: raise
         response['documentReadable']=False; response['reasonCode']='FRONT_FACE'; return response

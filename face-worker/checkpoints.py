@@ -13,6 +13,7 @@ import time
 import cv2
 import numpy as np
 from fastapi import HTTPException
+from processing import face_section
 
 MAX_CHECKPOINT = 20 * 1024 * 1024
 logger = logging.getLogger("uvicorn.error")
@@ -92,9 +93,10 @@ def document(app, token, side, raw, decode, feature, threshold):
             data.update(documentNumber=fields['documentNumber'], fullName=name)
             if data['passed']:
                 try:
-                    vector = feature(app, card)
-                    data['scanScore'] = float(app.state.recognizer.match(vector, feature(app, decode(base64.b64decode(state['portrait']))), cv2.FaceRecognizerSF_FR_COSINE))
-                    data['selfieScore'] = float(app.state.recognizer.match(vector, feature(app, decode(base64.b64decode(state['selfie']))), cv2.FaceRecognizerSF_FR_COSINE))
+                    with face_section(wait=True):
+                        vector = feature(app, card)
+                        data['scanScore'] = float(app.state.recognizer.match(vector, feature(app, decode(base64.b64decode(state['portrait']))), cv2.FaceRecognizerSF_FR_COSINE))
+                        data['selfieScore'] = float(app.state.recognizer.match(vector, feature(app, decode(base64.b64decode(state['selfie']))), cv2.FaceRecognizerSF_FR_COSINE))
                 except HTTPException as error:
                     if error.status_code != 422: raise
                     data.update(passed=False, reasonCode='FRONT_FACE')

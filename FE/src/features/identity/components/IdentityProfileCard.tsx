@@ -12,7 +12,7 @@ export default function IdentityProfileCard({ state, error }: { state: Eligibili
       <div className="min-w-0">
         <p className={`font-bold ${verified ? "text-emerald-700" : loading ? "text-slate-500" : "text-red-600"}`}>{loading ? "Đang kiểm tra trạng thái…" : error ? "Chưa tải được trạng thái xác minh" : verified ? "Đã xác minh" : pending ? "Chưa hoàn tất xác minh" : "Bạn chưa xác minh danh tính"}</p>
         {!loading && !verified && <p className="mt-1 text-sm leading-6 text-red-600">{error || (pending ? "Hồ sơ chưa hoàn tất xác minh. Bạn có thể thực hiện lại hoặc nhờ ADMIN kiểm tra bổ sung; hiện chưa thể đăng hoặc nhận việc." : "Vui lòng quét khuôn mặt, chụp selfie và cung cấp CCCD hai mặt để xác minh trước khi đăng bài hoặc nhận việc.")}</p>}
-        {!loading && !verified && <Link to="/onboarding?next=%2Fprofile" className="mt-2 inline-flex min-h-11 items-center font-bold text-[#007f95] underline underline-offset-4">{pending ? "Xem hồ sơ xác minh" : "Xác minh ngay"}</Link>}
+        {!loading && !verified && pending && <Link to="/onboarding?next=%2Fprofile" className="mt-2 inline-flex min-h-11 items-center font-bold text-[#007f95] underline underline-offset-4">Xem hồ sơ xác minh</Link>}
       </div>
     </div>
   </div>;

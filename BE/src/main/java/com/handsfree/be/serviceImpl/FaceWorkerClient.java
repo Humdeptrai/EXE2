@@ -15,7 +15,8 @@ import java.util.concurrent.Semaphore;
 @Component @Slf4j @RequiredArgsConstructor
 public class FaceWorkerClient {
     private final ObjectMapper json;
-    private final Semaphore slots=new Semaphore(2);
+    private final Semaphore faceSlots=new Semaphore(2);
+    private final Semaphore documentSlots=new Semaphore(1);
     private final HttpClient http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     @Value("${FACE_COMPARE_ENABLED:false}") private boolean enabled;
     @Value("${FACE_COMPARE_URL:http://localhost:8091/compare}") private String url;
@@ -45,6 +46,9 @@ public class FaceWorkerClient {
         return new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
     }
     public tools.jackson.databind.JsonNode send(String method, String suffix, String[] names, byte[][] images) {
+        boolean document = suffix.equals("/checkpoints/front") || suffix.equals("/checkpoints/back")
+                || suffix.equals("/checkpoints/finish") || suffix.matches("/sessions/[^/]+/finish");
+        Semaphore slots = document ? documentSlots : faceSlots;
         if (!slots.tryAcquire()) throw new AppException(ErrorCode.IDENTITY_SCAN_BUSY);
         long started = System.nanoTime();
         String operation = suffix.replaceAll("/sessions/[^/]+", "/sessions/{session}");

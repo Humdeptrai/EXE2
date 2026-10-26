@@ -4,7 +4,6 @@ import io
 import logging
 import math
 import os
-import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -12,11 +11,11 @@ import cv2
 import numpy as np
 from fastapi import FastAPI, Header, HTTPException, Request
 from PIL import Image, UnidentifiedImageError
+from processing import face_work, document_work
 
 KEY = os.environ.get("FACE_COMPARE_SHARED_KEY", "")
 THRESHOLD = float(os.environ.get("FACE_COMPARE_THRESHOLD", "0.32"))
 MODELS = Path(os.environ.get("FACE_MODELS_DIR", "models"))
-LOCK = threading.Lock()
 MAX_IMAGE = 5 * 1024 * 1024
 MAX_BODY = 30 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 16_000_000
@@ -111,22 +110,17 @@ def feature(app, image, faces=_UNSET_FACES):
     return recognizer.feature(aligned)
 
 # The worker is private: browser traffic always goes through authenticated BE.
-def locked(operation, *args):
-    if not LOCK.acquire(blocking=False): raise HTTPException(429, "Busy")
-    try: return operation(*args)
-    finally: LOCK.release()
-
 @app.post("/sessions")
 async def begin():
     from liveness import start
     from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(locked, start)
+    return await run_in_threadpool(face_work, start)
 
 @app.delete("/sessions/{sid}")
 async def cancel(sid: str):
     from liveness import SESSIONS
     from starlette.concurrency import run_in_threadpool
-    await run_in_threadpool(locked, lambda: SESSIONS.pop(sid, None))
+    await run_in_threadpool(face_work, lambda: SESSIONS.pop(sid, None))
     return {"cancelled": True}
 
 @app.post("/sessions/{sid}/frame")
@@ -138,7 +132,7 @@ async def scan(request: Request, sid: str):
         upload = form["face"]
         if getattr(upload, "content_type", None) != "image/jpeg": raise HTTPException(422, "JPEG required")
         raw = await upload.read(MAX_IMAGE + 1)
-    return await run_in_threadpool(locked, frame, request.app, sid, raw, decode, feature)
+    return await run_in_threadpool(face_work, frame, request.app, sid, raw, decode, feature)
 
 @app.post("/sessions/{sid}/selfie")
 async def take_selfie(request: Request, sid: str):
@@ -149,7 +143,7 @@ async def take_selfie(request: Request, sid: str):
         upload = form["selfie"]
         if getattr(upload, "content_type", None) != "image/jpeg": raise HTTPException(422, "JPEG required")
         raw = await upload.read(MAX_IMAGE + 1)
-    return await run_in_threadpool(locked, capture_selfie, request.app, sid, raw, decode, feature, THRESHOLD)
+    return await run_in_threadpool(face_work, capture_selfie, request.app, sid, raw, decode, feature, THRESHOLD)
 
 @app.post("/sessions/{sid}/finish")
 async def finalize(request: Request, sid: str):
@@ -162,7 +156,7 @@ async def finalize(request: Request, sid: str):
             upload=form[name]
             if getattr(upload, "content_type", None) != "image/jpeg": raise HTTPException(422, "JPEG required")
             data.append(await upload.read(MAX_IMAGE + 1))
-    return await run_in_threadpool(locked, finish, request.app, sid, *data, decode, feature, THRESHOLD)
+    return await run_in_threadpool(document_work, finish, request.app, sid, *data, decode, feature, THRESHOLD)
 
 @app.post("/checkpoints/{operation}")
 async def checkpoint_operation(request: Request, operation: str):
@@ -181,10 +175,10 @@ async def checkpoint_operation(request: Request, operation: str):
             images[name] = await upload.read(MAX_IMAGE+1)
             if len(images[name]) > MAX_IMAGE: raise HTTPException(413, 'Image too large')
     if operation == 'selfie':
-        return await run_in_threadpool(locked, selfie, request.app, token, images['selfie'], decode, feature, THRESHOLD)
+        return await run_in_threadpool(face_work, selfie, request.app, token, images['selfie'], decode, feature, THRESHOLD)
     if operation == 'finish':
-        return await run_in_threadpool(locked, finish, token, images['front'], images['back'], THRESHOLD)
-    return await run_in_threadpool(locked, document, request.app, token, operation, images[operation], decode, feature, THRESHOLD)
+        return await run_in_threadpool(document_work, finish, token, images['front'], images['back'], THRESHOLD)
+    return await run_in_threadpool(document_work, document, request.app, token, operation, images[operation], decode, feature, THRESHOLD)
 
 @app.post("/features")
 async def identity_features(request: Request):
@@ -194,4 +188,4 @@ async def identity_features(request: Request):
         raw = await form["face"].read(MAX_IMAGE + 1)
     def extract():
         return {"faceModel": "sface-2021dec-128", "faceEmbedding": feature(request.app, decode(raw)).tolist()}
-    return await run_in_threadpool(locked, extract)
+    return await run_in_threadpool(face_work, extract)
