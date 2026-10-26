@@ -13,6 +13,8 @@ public interface IdentityProgressService {
     Progress selfie(UUID user,MultipartFile image);
     Progress replaceSelfie(UUID user,MultipartFile image);
     Progress document(UUID user,String side,MultipartFile image);
+    record ManualReview(String fullName, String documentNumber, String note) {}
+    IdentityService.Appeal requestReview(UUID user, ManualReview request);
     FaceComparisonService.Completion finish(UUID user);
     byte[] image(UUID user,String side);
 }

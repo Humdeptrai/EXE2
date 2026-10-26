@@ -19,6 +19,10 @@ public class IdentityProgressController {
     public ApiResponse<?> replaceSelfie(Authentication a,@RequestPart MultipartFile selfie) { return ApiResponse.success(200,"Đã cập nhật selfie",progress.replaceSelfie(user(a),selfie)); }
     @PostMapping(value="/documents/{side}",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> document(Authentication a,@PathVariable String side,@RequestPart MultipartFile document) { return ApiResponse.success(200,"Đã lưu bước CCCD",progress.document(user(a),side,document)); }
+    @PostMapping("/review")
+    public ApiResponse<?> review(Authentication a,@RequestBody IdentityProgressService.ManualReview request) {
+        return ApiResponse.success(200,"Đã gửi yêu cầu xét duyệt",progress.requestReview(user(a),request));
+    }
     @PostMapping("/finish") public ApiResponse<?> finish(Authentication a) { return ApiResponse.success(200,"Kết quả xác minh",progress.finish(user(a))); }
     @GetMapping("/images/{side}") public ResponseEntity<byte[]> image(Authentication a,@PathVariable String side) {
         return ResponseEntity.ok().contentType(MediaType.IMAGE_JPEG).cacheControl(CacheControl.noStore())

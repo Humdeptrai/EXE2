@@ -17,7 +17,7 @@
 2. Deploy face-worker bản mới trước (thêm private `/features`, vector và digest trong checkpoint finish).
 3. Deploy BE và FE cùng phiên bản.
 4. ADMIN mở `/admin/identities`, bấm **Lập chỉ mục danh tính cũ**, mỗi lượt tối đa 5 hồ sơ; lặp đến khi còn 0. Hồ sơ cũ không bị tự xóa/thu hồi. Nếu một ảnh cũ không đọc được, kiểm tra log và hồ sơ; luồng tự xác minh mới chuyển kiểm tra bổ sung khi chỉ mục chưa đầy đủ.
-5. Kiểm tra số CCCD trùng trên hồ sơ cũ bằng công cụ đối chiếu. Trùng cũ không tự chọn người là chủ thật; ADMIN phải xử lý yêu cầu và xác nhận chuyển quyền.
+5. Kiểm tra số CCCD trùng trên hồ sơ cũ bằng công cụ đối chiếu. Trùng cũ không tự chọn người là chủ thật. Theo chính sách duyệt thủ công cập nhật bên dưới, ADMIN có thể duyệt thêm tài khoản mà không thu hồi tài khoản cũ.
 
 PowerShell tại thư mục BE, DB Docker:
 
@@ -55,7 +55,7 @@ Không có key mới bắt buộc cho face-worker; giữ FACE_COMPARE_SHARED_KEY
 - Trùng khuôn mặt là tín hiệu nghi vấn, không kết luận gian lận, sinh đôi hay Photoshop.
 - Hash ảnh chỉ bắt file đã chuẩn hóa giống hệt; crop/nén/chụp lại có thể đổi hash. Chặn chính dựa trên số CCCD và đối chiếu mặt.
 - Tra cứu mặt hiện quét vector gọn trong DB dưới một khóa đăng ký; phù hợp quy mô nhỏ, chưa có benchmark hay vector index cho quy mô lớn. Không có cam kết số người đồng thời.
-- Claim cũ được giữ khi thu hồi, khóa tài khoản hoặc đổi giấy tờ; không tự giải phóng để tạo tài khoản khác. Chuyển quyền cần ADMIN và yêu cầu đang được ADMIN đó xử lý; phải khớp chủ sở hữu/phiên bản claim ADMIN vừa xem. Nếu dữ liệu thay đổi, tải lại và kiểm tra trước khi xác nhận.
+- Claim cũ được giữ khi thu hồi, khóa tài khoản hoặc đổi giấy tờ; không tự giải phóng để tạo tài khoản khác. Duyệt thủ công không còn chuyển quyền hoặc thu hồi tài khoản cũ; thông tin trùng chỉ mang tính tham khảo.
 - Các matching đã trả phí và lịch sử giao dịch không bị thay đổi. Thu hồi danh tính chỉ ảnh hưởng điều kiện đăng/nhận việc mới và các quyền yêu cầu VERIFIED hiện có.
 
 ## Kiểm chứng triển khai
@@ -65,3 +65,19 @@ Không có key mới bắt buộc cho face-worker; giữ FACE_COMPARE_SHARED_KEY
 - Worker: kiểm tra HMAC chống sửa checkpoint, ràng buộc hash bằng chứng, xuất vector đúng phiên bản, giữ nguyên phép lấy điểm thấp hơn và từ chối số hai mặt mâu thuẫn.
 - Không có thử nghiệm sinh trắc học trên người thật/điện thoại hay benchmark tải Render ở bước này. Gửi email thật cần key/người gửi của môi trường deploy. H2 không thay thế kiểm tra migration trên bản sao PostgreSQL.
 - Test kiểm chứng tạm thời không nằm trong gói source, theo yêu cầu không bổ sung file test.
+
+## Manual review policy update
+
+Users with a saved scan, accepted selfie and both document images can request
+ADMIN review from `/face-comparison`, even when OCR, image quality or document
+face comparison fails. The request includes a declared name and document number;
+these values are recorded as user declarations, not OCR results. Image type and
+size limits still apply. An unavailable document worker no longer discards valid
+image uploads.
+
+ADMIN approval overrides automatic face, name, document and duplicate findings.
+It does not transfer identity ownership or revoke an existing verified account.
+Multiple manually approved accounts may therefore have the same document number
+or face. Automatic verification still uses its existing checks. ADMIN permission,
+exclusive appeal claim, submission version, audit reason and notifications remain.
+Deploy BE and FE together for this update; no additional SQL migration is needed.

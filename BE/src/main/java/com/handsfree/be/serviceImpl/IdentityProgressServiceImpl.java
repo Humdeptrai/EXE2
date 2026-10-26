@@ -151,8 +151,21 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
     @Override @Transactional public Progress document(UUID user,String side,MultipartFile image) {
         if(!java.util.Set.of("front","back").contains(side)) throw new AppException(ErrorCode.VALIDATION_FAILED);
         var p=locked(user);if(!p.isSelfiePassed()) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
-        byte[] raw=jpeg(image);var response=worker.send("POST","/checkpoints/"+side,new String[]{"checkpoint",side},new byte[][]{crypto.decrypt(p.getCheckpoint()),raw});
-        checkpoint(p,response);boolean passed=response.path("passed").asBoolean(false);String reason=response.path("reasonCode").asString("");
+        byte[] raw=jpeg(image);
+        // Retain valid image uploads even when the automated worker cannot read
+        // them or is unavailable, so the user can request manual review.
+        if (side.equals("front")) { p.setFrontImage(crypto.encrypt(raw)); p.setFrontPassed(false); p.setDocumentNumber(null); }
+        else { p.setBackImage(crypto.encrypt(raw)); p.setBackPassed(false); }
+        JsonNode response;
+        try {
+            response=worker.send("POST","/checkpoints/"+side,new String[]{"checkpoint",side},new byte[][]{crypto.decrypt(p.getCheckpoint()),raw});
+            checkpoint(p,response);
+        } catch (AppException error) {
+            String message="Ảnh đã được lưu nhưng chưa kiểm tra tự động được. Bạn có thể thử lại hoặc gửi ADMIN xét duyệt khi đủ hồ sơ.";
+            if(side.equals("front")) p.setFrontReason(message); else p.setBackReason(message);
+            p.setStatus("DRAFT");save(p);return summary(p);
+        }
+        boolean passed=response.path("passed").asBoolean(false);String reason=response.path("reasonCode").asString("");
         if(side.equals("front")) {
             p.setFrontImage(crypto.encrypt(raw));p.setFrontPassed(passed);p.setFrontReason(passed?null:documentRetry(reason));
             var info=payload(crypto.text(p.getCheckpoint())).path("documents").path("front");
@@ -181,6 +194,36 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             case "BACK_QUALITY" -> "Mặt sau chưa rõ hoặc thiếu góc. Chụp lại mặt sau.";
             default -> "Mặt trước chưa rõ hoặc thiếu góc. Chụp lại mặt trước.";
         };
+    }
+    @Override @Transactional public IdentityService.Appeal requestReview(UUID user, ManualReview request) {
+        registry.lock();
+        user(user);
+        var existing=identity.latestAppeal(user);
+        if(existing!=null && java.util.Set.of("REQUESTED","PROCESSING").contains(existing.status())) return existing;
+        var p=locked(user);
+        String name=request==null || request.fullName()==null ? "" : request.fullName().trim();
+        String number=request==null || request.documentNumber()==null ? "" : request.documentNumber().trim();
+        String note=request==null || request.note()==null ? "" : request.note().trim();
+        if(name.length()<2 || name.length()>100 || number.isEmpty() || number.length()>100 || note.length()>500)
+            throw new AppException(ErrorCode.VALIDATION_FAILED);
+        if(p.getCheckpoint()==null || p.getFaceImage()==null || !p.isSelfiePassed()
+                || p.getSelfieImage()==null || p.getFrontImage()==null || p.getBackImage()==null)
+            throw new AppException(ErrorCode.IDENTITY_REQUIRED);
+        var checkpoint=payload(crypto.text(p.getCheckpoint()));
+        var evidence=json.createObjectNode();
+        evidence.put("verificationSource","USER_REQUESTED_MANUAL_REVIEW");
+        evidence.put("declaredFullName",name);evidence.put("declaredDocumentNumber",number);
+        evidence.put("frontPassed",p.isFrontPassed());evidence.put("backPassed",p.isBackPassed());
+        evidence.put("frontReason",p.getFrontReason());evidence.put("backReason",p.getBackReason());
+        evidence.set("documents",checkpoint.path("documents").deepCopy());
+        evidence.put("faceModel","sface-2021dec-128");
+        evidence.set("faceEmbedding",checkpoint.path("reference").deepCopy());
+        double score=checkpoint.path("documents").path("front").path("scanScore").asDouble(0);
+        var submission=new IdentityService.ScanSubmission(crypto.decrypt(p.getFrontImage()),crypto.decrypt(p.getBackImage()),
+                crypto.decrypt(p.getFaceImage()),crypto.decrypt(p.getSelfieImage()),name,number,json.writeValueAsString(evidence),
+                score,false,"Người dùng yêu cầu ADMIN xét duyệt hồ sơ đã lưu.");
+        var appeal=identity.submitManualReview(user,submission,note);
+        p.setStatus("REVIEW_REQUIRED");save(p);return appeal;
     }
     @Override @Transactional public FaceComparisonService.Completion finish(UUID user) {
         registry.lock();

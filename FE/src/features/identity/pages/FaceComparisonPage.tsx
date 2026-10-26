@@ -169,8 +169,7 @@ export default function FaceComparisonPage() {
     if (!await select(target, draft)) return;
     closeCamera();
     requestAnimationFrame(() => {
-      const passed = lastDocument.current?.[target === "front" ? "frontPassed" : "backPassed"];
-      const nextStep = passed ? target === "front" ? backStep.current : submitStep.current : target === "front" ? frontStep.current : backStep.current;
+      const nextStep = target === "front" ? backStep.current : submitStep.current;
       nextStep?.scrollIntoView({ behavior: "smooth", block: "center" });
       if (nextStep === submitStep.current) submitStep.current?.focus({ preventScroll: true });
       else nextStep?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
@@ -269,7 +268,7 @@ export default function FaceComparisonPage() {
     </section>}
     {phase === "selfie" && <section className="hf-face-scan"><h2>2. Chụp selfie trực tiếp</h2><p>Nhìn thẳng, giữ trọn khuôn mặt trong khung rồi bấm chụp. Selfie phải khớp người vừa quét.</p>{!camera && <button disabled={expired || appealPending} onClick={() => void open("face")}>Mở lại camera selfie</button>}</section>}
     {phase === "documents" && <><section className="hf-face-scan"><h2>Selfie đã khớp phiên quét</h2><div className="hf-face-preview">{selfie ? <Preview file={selfie} label="Selfie vừa chụp" /> : saved?.selfieUrl ? <PrivateIdentityImage path={`${saved.selfieUrl}?v=${saved.version}`} alt="Selfie đã lưu" /> : null}</div></section>
-      <p>Chụp rõ cả hai mặt CCCD, đủ bốn góc và chừa một khoảng viền trên nền tương phản. Số CCCD sẽ được đọc tự động; bạn không nhập hoặc sửa số trực tiếp.</p>
+      <p>Chụp rõ cả hai mặt CCCD, đủ bốn góc và chừa một khoảng viền trên nền tương phản. Số CCCD được đọc tự động. Nếu ảnh chưa đạt, bạn vẫn có thể điền thông tin và gửi ADMIN xét duyệt sau khi lưu đủ hai mặt.</p>
       <div className="hf-face-grid">{(["front", "back"] as const).map(target => <section key={target} ref={target === "back" ? backStep : frontStep}><h2>{target === "front" ? "Mặt trước CCCD" : "Mặt sau CCCD"} {saved?.[target === "front" ? "frontPassed" : "backPassed"] && <span className="hf-step-check" aria-label="Đã đạt">✓</span>}</h2>
         <div className="hf-face-preview">{files[target] ? <Preview file={files[target]} label={target === "front" ? "Mặt trước CCCD" : "Mặt sau CCCD"} /> : saved?.[target === "front" ? "frontUrl" : "backUrl"] ? <PrivateIdentityImage path={saved[target === "front" ? "frontUrl" : "backUrl"]! + `?v=${saved.version}`} alt={target === "front" ? "Mặt trước đã lưu" : "Mặt sau đã lưu"} /> : <p>Chưa có ảnh</p>}</div>
         {saved?.[target === "front" ? "frontReason" : "backReason"] && <p className="hf-face-error" role="alert">{saved[target === "front" ? "frontReason" : "backReason"]}</p>}
@@ -291,7 +290,7 @@ export default function FaceComparisonPage() {
     </DocumentCamera>}
     {(camera || expiresAt > 0 || busy) && <button className="hf-face-back" onClick={reset}>{saved?.scanPassed ? "Đóng camera / giữ tiến trình đã lưu" : "Dừng phiên quét"}</button>}
     {!loading && saved?.scanPassed && <p className="hf-face-note">Các bước đã đạt được lưu riêng tư. Bạn có thể về hồ sơ hoặc quay lại sau để tiếp tục; không cần quét lại khi chỉ một mặt CCCD chưa đạt.</p>}
-    {!result && <IdentityAppealRequest status={saved?.status || "DRAFT"} onPending={setAppealPending} />}
-    {result && <section className={`hf-face-result ${result.status === "REJECTED" ? "hf-no-match" : "hf-match"}`} aria-live="polite"><h2>{result.identityVerified ? "Xác minh thành công" : result.status === "REJECTED" ? "Cần thực hiện lại" : "Cần kiểm tra bổ sung"}</h2><p>{result.message}</p><div className="hf-onboarding-actions"><Link className="hf-onboarding-secondary" to="/profile">Xem hồ sơ, selfie và số CCCD</Link>{result.identityVerified ? <Link className="hf-onboarding-primary" to={next}>Tiếp tục sử dụng HandsFree</Link> : <button disabled={appealPending} onClick={() => { setResult(null); setPhase("documents"); }}>Chụp lại CCCD cần bổ sung</button>}</div>{!result.identityVerified && <IdentityAppealRequest status={result.status} onPending={setAppealPending} />}</section>}
+    {!result && <IdentityAppealRequest status={saved?.status || "DRAFT"} onPending={setAppealPending} manual={saved?.scanPassed && saved.selfiePassed && saved.frontUrl && saved.backUrl ? { documentNumber: saved.documentNumber } : undefined} />}
+    {result && <section className={`hf-face-result ${result.status === "REJECTED" ? "hf-no-match" : "hf-match"}`} aria-live="polite"><h2>{result.identityVerified ? "Xác minh thành công" : result.status === "REJECTED" ? "Cần thực hiện lại" : "Cần kiểm tra bổ sung"}</h2><p>{result.message}</p><div className="hf-onboarding-actions"><Link className="hf-onboarding-secondary" to="/profile">Xem hồ sơ, selfie và số CCCD</Link>{result.identityVerified ? <Link className="hf-onboarding-primary" to={next}>Tiếp tục sử dụng HandsFree</Link> : <button disabled={appealPending} onClick={() => { setResult(null); setPhase("documents"); }}>Chụp lại CCCD cần bổ sung</button>}</div>{!result.identityVerified && <IdentityAppealRequest status={result.status} onPending={setAppealPending} manual={saved?.scanPassed && saved.selfiePassed && saved.frontUrl && saved.backUrl ? { documentNumber: saved.documentNumber } : undefined} />}</section>}
   </main>;
 }

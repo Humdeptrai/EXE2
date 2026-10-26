@@ -59,18 +59,29 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     @Override
     @org.springframework.transaction.annotation.Transactional
     public Status storeScan(UUID user, ScanSubmission data) {
+        return storeSubmission(user, data, false);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public Appeal submitManualReview(UUID user, ScanSubmission data, String note) {
+        storeSubmission(user, data, true);
+        return requestReview(user, new AppealRequest(note));
+    }
+
+    private Status storeSubmission(UUID user, ScanSubmission data, boolean manual) {
         registry.lock();
         var account = users.lockById(user).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         if (!account.isActive()) throw new AppException(ErrorCode.USER_DISABLED);
         requireNoOpenAppeal(user);
-        if (data.selfie() == null || data.selfie().length == 0 || !validNumber(data.documentNumber()))
+        if (data.selfie() == null || data.selfie().length == 0 || (!manual && !validNumber(data.documentNumber())))
             throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
         var active = identities.findById(user).orElseGet(() -> { var n = new IdentityVerification(); n.setUserId(user); return n; });
         if ("PROCESSING".equals(active.getStatus()) && active.getSubmittedAt() != null
                 && active.getSubmittedAt().isAfter(Instant.now().minusSeconds(300))) throw new AppException(ErrorCode.IDENTITY_BUSY);
         var draft = submissions.findById(user).orElseGet(() -> { var n = new IdentitySubmission(); n.setUserId(user); return n; });
         Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS);
-        draft.setStatus(data.similarity()<.30 ? "REJECTED" : "REVIEW_REQUIRED"); draft.setReason(data.reason()); draft.setSubmittedAt(now); draft.setConsentAt(now);
+        draft.setStatus(!manual && data.similarity()<.30 ? "REJECTED" : "REVIEW_REQUIRED"); draft.setReason(data.reason()); draft.setSubmittedAt(now); draft.setConsentAt(now);
         draft.setFullName(crypto.encrypt(data.fullName())); draft.setDocumentNumber(crypto.encrypt(data.documentNumber()));
         draft.setDocumentData(crypto.encrypt(data.evidence())); draft.setFrontImage(crypto.encrypt(data.front()));
         draft.setBackImage(crypto.encrypt(data.back())); draft.setFaceImage(crypto.encrypt(data.face()));
@@ -126,12 +137,14 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         if (reason.isEmpty() || reason.length() > 500 || (request.approved() && (name.length() < 2 || name.length() > 100))
                 || (!request.approved() && reason.isEmpty())) throw new AppException(ErrorCode.VALIDATION_FAILED);
         if (request.approved()) {
-            if (draft.getSelfieImage() == null || draft.getSelfieVerifiedAt() == null || draft.getFaceImage() == null
-                    || draft.getFrontImage() == null || draft.getBackImage() == null || !Boolean.TRUE.equals(draft.getLive())
-                    || !validNumber(crypto.text(draft.getDocumentNumber()))) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
-            if(request.transferIdentity() && openAppeal==null) throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
-            registry.claim(user,crypto.text(draft.getDocumentNumber()),crypto.text(draft.getDocumentData()),true,request.transferIdentity(),request.expectedIdentityOwner(),request.claimVersion());
-            management.log(actor,request.transferIdentity()?"IDENTITY_OWNERSHIP_TRANSFER":"IDENTITY_MANUAL_APPROVAL",user+" previousOwner="+request.expectedIdentityOwner()+" claimVersion="+request.claimVersion()+" | "+reason);
+            // ADMIN is the final decision maker. Automated face/OCR/duplicate
+            // findings are advisory and never revoke another account on approval.
+            if (draft.getSelfieImage() == null || draft.getFaceImage() == null
+                    || draft.getFrontImage() == null || draft.getBackImage() == null
+                    || crypto.text(draft.getDocumentNumber()) == null
+                    || crypto.text(draft.getDocumentNumber()).isBlank())
+                throw new AppException(ErrorCode.IDENTITY_REVIEW_CONFLICT);
+            management.log(actor,"IDENTITY_MANUAL_APPROVAL",user+" | Automated findings overridden; existing identity owners retained | "+reason);
             publish(active, draft, name, "ADMIN đã duyệt: " + reason.substring(0, Math.min(reason.length(),480)));
             identities.saveAndFlush(active); submissions.delete(draft);
         } else {

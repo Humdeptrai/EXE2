@@ -42,7 +42,7 @@ public class IdentityRegistryServiceImpl implements IdentityRegistryService {
   if(draft==null && active==null)throw new AppException(ErrorCode.IDENTITY_NOT_FOUND);
   String number=crypto.text(draft!=null?draft.getDocumentNumber():active.getDocumentNumber());
   String evidence=crypto.text(draft!=null?draft.getDocumentData():active.getDocumentData());
-  if(number==null)return new Assessment(false,"Chưa có số CCCD để kiểm tra.",List.of());
+  if(number==null || !number.matches("[0-9]{12}"))return new Assessment(false,"Số giấy tờ khai báo chưa có định dạng 12 chữ số. ADMIN vẫn có thể duyệt thủ công.",List.of());
   management.log(actor,"IDENTITY_CONFLICT_VIEW",user.toString());return assess(user,number,evidence);
  }
  @Transactional(propagation=org.springframework.transaction.annotation.Propagation.MANDATORY) public void lock() { mutex.lock().orElseThrow(() -> new AppException(ErrorCode.IDENTITY_REGISTRY_NOT_READY)); }

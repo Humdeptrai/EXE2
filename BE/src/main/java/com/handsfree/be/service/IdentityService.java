@@ -29,6 +29,7 @@ public interface IdentityService {
     Appeal resolveAppeal(UUID actor, UUID id, Review request);
     void requireNoOpenAppeal(UUID user);
     Status storeScan(UUID user, ScanSubmission data);
+    Appeal submitManualReview(UUID user, ScanSubmission data, String note);
     MyIdentity mine(UUID user);
     byte[] ownSelfie(UUID user);
     byte[] ownImage(UUID user, String kind);
