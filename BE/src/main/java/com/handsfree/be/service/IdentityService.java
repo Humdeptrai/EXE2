@@ -37,7 +37,11 @@ public interface IdentityService {
     record Eligibility(boolean eligible, boolean profileComplete, boolean identityVerified,
                        String identityStatus, java.util.List<String> missingRequirements, boolean selfieVerified, boolean documentConfirmed) {}
     Eligibility eligibility(UUID user);
-    record Review(boolean approved, Instant submittedAt, String fullName, String reason, Long version, boolean transferIdentity, UUID expectedIdentityOwner, Long claimVersion) {
+    record Review(boolean approved, Instant submittedAt, String fullName, String reason, Long version, Boolean transferIdentity, UUID expectedIdentityOwner, Long claimVersion) {
+        public Review {
+            // Optional legacy field: manual ADMIN decisions never transfer ownership.
+            if (transferIdentity == null) transferIdentity = false;
+        }
         public Review(boolean approved,Instant submittedAt,String fullName,String reason,Long version){this(approved,submittedAt,fullName,reason,version,false,null,null);}
     }
     Status review(UUID actor, UUID user, Review request);
