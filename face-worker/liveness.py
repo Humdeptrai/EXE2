@@ -285,7 +285,7 @@ def finish_documents(app,s,front,back,decode,feature,threshold):
         identityVerified=False,reasonCode='FRONT_QUALITY')
     card,quality=card_image(decode(front)); response['frontQuality']=quality
     if card is None: return response
-    reverse,quality=card_image(decode(back)); response['backQuality']=quality
+    reverse,quality=card_image(decode(back), side='back'); response['backQuality']=quality
     if reverse is None:
         response['reasonCode']='BACK_QUALITY'; return response
     response['documentQualityPassed']=True

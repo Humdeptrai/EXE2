@@ -161,29 +161,50 @@ def _card_candidates(image):
         yield points, card_width, card_height
 
 
-def card_image(image):
-    """Rectify a visible card, then enforce original resolution and quality."""
+def _image_quality(image, side=None):
+    detail = cv2.cvtColor(cv2.resize(image, (850, 540)), cv2.COLOR_BGR2GRAY)
+    sharpness = float(cv2.Laplacian(detail, cv2.CV_64F).var())
+    brightness = float(detail.mean())
+    white = float(np.mean(detail >= 250))
+    if sharpness < (35 if side == 'back' else 55):
+        return dict(passed=False, reason='BLUR', sharpness=sharpness)
+    if brightness < 55 or brightness > 240 or white > .60:
+        return dict(passed=False, reason='LIGHTING', brightness=brightness)
+    return dict(passed=True, reason='OK', sharpness=sharpness, brightness=brightness)
+
+
+def card_image(image, side=None):
+    """Rectify cards; the back may use full-photo OCR if its border is missed.
+
+    Full-photo quality is only permission to try OCR, not a successful document
+    verification. Back-specific text evidence and front/back number checks still
+    run. The front always requires the existing card boundary and quality policy.
+    """
     too_small = False
     quality_failure = None
     for points, card_width, card_height in _card_candidates(image):
-        if card_width < 550 or card_height < 320:
+        min_width, min_height = (500, 300) if side == 'back' else (550, 320)
+        if card_width < min_width or card_height < min_height:
             too_small = True
             continue
         target = np.array([[0, 0], [int(card_width)-1, 0], [int(card_width)-1, int(card_height)-1],
                            [0, int(card_height)-1]], np.float32)
         card = cv2.warpPerspective(image, cv2.getPerspectiveTransform(points, target),
                                    (int(card_width), int(card_height)))
-        detail = cv2.cvtColor(cv2.resize(card, (850, 540)), cv2.COLOR_BGR2GRAY)
-        sharpness = float(cv2.Laplacian(detail, cv2.CV_64F).var())
-        brightness = float(detail.mean())
-        white = float(np.mean(detail >= 250))
-        if sharpness < 55:
-            quality_failure = dict(passed=False, reason='BLUR', sharpness=sharpness)
+        quality = _image_quality(card, side)
+        if not quality['passed']:
+            quality_failure = quality
             continue
-        if brightness < 55 or brightness > 240 or white > .60:
-            quality_failure = dict(passed=False, reason='LIGHTING', brightness=brightness)
-            continue
-        return card, dict(passed=True, reason='OK', sharpness=sharpness, brightness=brightness)
+        return card, quality
+    if side == 'back' and not too_small and quality_failure is None:
+        # No reliable boundary: OCR the original pixels instead of rejecting a
+        # readable back on a similar-coloured surface. Never synthesize a card.
+        height, width = image.shape[:2]
+        if max(width, height) < 500 or min(width, height) < 300:
+            return None, dict(passed=False, reason='TOO_SMALL')
+        quality = _image_quality(image, side)
+        quality['frameDetected'] = False
+        return (image.copy() if quality['passed'] else None), quality
     return None, quality_failure or dict(passed=False, reason='TOO_SMALL' if too_small else 'CARD_FRAME')
 
 
@@ -460,8 +481,9 @@ def document_fields(front_text, back_text, front_confidence, back_confidence):
                    ('CO QUAN', 'BO CONG AN', 'MINISTRY', 'CUC CANH SAT', 'CUC TRUONG',
                     'CANH SAT QUAN LY', 'ISSUING AUTHORITY'),
                    ('NOI CU TRU', 'PLACE OF RESIDENCE'), ('NOI SINH',),
-                   ('DATE OF EXPIRY', 'CO GIA TRI DEN'))
-    back_ok = (len(back_text) >= 50 and back_confidence >= 45
+                   ('DATE OF EXPIRY', 'CO GIA TRI DEN'),
+                   ('NGON TRO', 'INDEX FINGER'))
+    back_ok = (len(back_text) >= 40 and back_confidence >= 35
                and (sum(any(marker in back for marker in group) for group in back_groups) >= 2
                     or _valid_back_mrz(back_text)))
     return dict(frontReadable=front_ok, backReadable=back_ok,

@@ -83,10 +83,10 @@ class CardFramingTests(unittest.TestCase):
         self.assertFalse(fields['backReadable'])
         self.assertFalse(fields['frontReadable'])
 
-    def test_back_ocr_confidence_is_unchanged(self):
+    def test_back_ocr_confidence_threshold(self):
         text = 'Dac diem nhan dang / Personal identification: synthetic\nNgay cap / Date of issue: 01/01/2021'
-        self.assertFalse(document_fields('', text, 0, 44)['backReadable'])
-        self.assertTrue(document_fields('', text, 0, 45)['backReadable'])
+        self.assertFalse(document_fields('', text, 0, 34)['backReadable'])
+        self.assertTrue(document_fields('', text, 0, 35)['backReadable'])
 
 
 if __name__ == '__main__':
