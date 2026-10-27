@@ -16,6 +16,12 @@ def plain(text):
                            if unicodedata.category(c) != 'Mn').split())
 
 
+# Phone portrait photos can contain a readable 640x405 card in a 1000x1600
+# frame (16% area). Relative framing must not reject that before the absolute
+# resolution, sharpness, lighting and OCR checks have a chance to run.
+MIN_CARD_AREA_RATIO = .12
+
+
 def _line_quadrilaterals(gray):
     """Join visible sides, allowing rounded corners to meet just outside the image."""
     height, width = gray.shape
@@ -61,7 +67,7 @@ def _line_quadrilaterals(gray):
             points = np.asarray(corners, np.float32)
             if (points[:, 0].min() < -width * .02 or points[:, 1].min() < -height * .02
                     or points[:, 0].max() > width * 1.02 or points[:, 1].max() > height * 1.02
-                    or not cv2.isContourConvex(points) or cv2.contourArea(points) < width * height * .2):
+                    or not cv2.isContourConvex(points) or cv2.contourArea(points) < width * height * MIN_CARD_AREA_RATIO):
                 continue
             supported = True
             for start, end in zip(points, np.roll(points, -1, axis=0)):
@@ -117,7 +123,7 @@ def _card_candidates(image):
             contours.extend(contour.astype(np.float32) / scale for contour in found)
     contours.extend(points / scale for points in _line_quadrilaterals(detection))
     for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:120]:
-        if cv2.contourArea(contour) < width * height * .20:
+        if cv2.contourArea(contour) < width * height * MIN_CARD_AREA_RATIO:
             continue
         points = None
         hull = cv2.convexHull(contour)
