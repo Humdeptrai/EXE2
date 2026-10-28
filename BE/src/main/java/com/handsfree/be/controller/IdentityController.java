@@ -24,8 +24,8 @@ public class IdentityController {
     public ResponseEntity<byte[]> appealImage(Authentication a,@PathVariable UUID request,@PathVariable String kind) { return image(identity.appealImage(id(a),request,kind)); }
     @GetMapping("/admin/identity-appeals")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<?> appeals(Authentication a,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="") String state,@RequestParam(defaultValue="") String search) {
-        return ApiResponse.success(200,"Yêu cầu xét duyệt",identity.appeals(id(a),page,state,search));
+    public ApiResponse<?> appeals(Authentication a,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="") String state,@RequestParam(defaultValue="") String search,@RequestParam(defaultValue="20") int size) {
+        return ApiResponse.success(200,"Yêu cầu xét duyệt",identity.appeals(id(a),page,state,search,size));
     }
     @PostMapping("/admin/identity-appeals/{request}/claim")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
@@ -61,8 +61,8 @@ public class IdentityController {
         return ApiResponse.success(200, "Đã đối chiếu hồ sơ", identity.submit(id(a), front, back, face, video, consent));
     }
     @GetMapping("/staff/identities")
-    public ApiResponse<?> list(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state) {
-        return ApiResponse.success(200, "Trạng thái xác thực", identity.list(id(a),page,search,state));
+    public ApiResponse<?> list(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state,@RequestParam(defaultValue="20") int size) {
+        return ApiResponse.success(200, "Trạng thái xác thực", identity.list(id(a),page,search,state,size));
     }
     @PostMapping("/admin/identities/{user}/review")
     @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")

@@ -111,13 +111,19 @@ public class ReportServiceImpl implements ReportService {
     }
     @Override @Transactional(readOnly=true)
     public PageResponse<ReportResponse> list(UUID actor,int page,String search,String state) {
+        return list(actor,page,search,state,20);
+    }
+    @Override @Transactional(readOnly=true)
+    public PageResponse<ReportResponse> list(UUID actor,int page,String search,String state,int size) {
+        OperatorPageSize.require(size);
         User user=access.operator(actor,false);
         if(search==null || search.length()>100 || !Set.of("","OPEN","IN_REVIEW","RESOLVED","REJECTED").contains(state)) throw new AppException(ErrorCode.VALIDATION_FAILED);
         String q=search.trim().toLowerCase(Locale.ROOT);
         if(!q.isEmpty()) q="%"+q.replace("!","!!").replace("%","!%").replace("_","!_")+"%";
-        return PageResponse.from(reports.search(q,state,page(page)).map(r -> response(r,user,false)));
+        return PageResponse.from(reports.search(q,state,page(page,size)).map(r -> response(r,user,false)));
     }
-    private Pageable page(int page) { return PageRequest.of(Math.max(0, page), 20, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))); }
+    private Pageable page(int page) { return page(page,20); }
+    private Pageable page(int page,int size) { return PageRequest.of(Math.max(0, page), size, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))); }
     private ModerationReport readable(User user, UUID id) {
         ModerationReport r = reports.findById(id).orElseThrow(() -> new AppException(ErrorCode.REPORT_NOT_FOUND));
         if (!r.getReporterId().equals(user.getId()) && user.getRole() != UserRole.ADMIN && user.getRole() != UserRole.STAFF)

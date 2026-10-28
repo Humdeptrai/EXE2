@@ -31,16 +31,23 @@ export function FilterBar({ search, state, options, onApply, total, placeholder 
     {total !== undefined && <span className="op-result-count"><strong>{total.toLocaleString("vi-VN")}</strong> kết quả</span>}
   </form>;
 }
-export function Pagination({ page, last, total, loading, onPage }: { page: number; last: boolean; total?: number; loading?: boolean; onPage: (page: number) => void }) {
-  return <footer className="op-pagination"><span>Trang <strong>{page + 1}</strong>{total !== undefined && ` · ${total.toLocaleString("vi-VN")} kết quả`}</span><div><button type="button" className="op-button secondary" disabled={!page || loading} onClick={() => onPage(page - 1)}>← Trước</button><button type="button" className="op-button secondary" disabled={last || loading} onClick={() => onPage(page + 1)}>Tiếp →</button></div></footer>;
+export const OPERATOR_PAGE_SIZES = [5, 10, 15, 30, 50] as const;
+export function Pagination({ page, last, total, loading, onPage, size = 10, onSize }: { page: number; last: boolean; total?: number; loading?: boolean; onPage: (page: number) => void; size?: number; onSize?: (size: number) => void }) {
+  return <footer className="op-pagination"><span>Trang <strong>{page + 1}</strong>{total !== undefined && ` · ${total.toLocaleString("vi-VN")} kết quả`}</span><div>{onSize && <label className="op-filter-label">Mục / trang <select aria-label="Số mục mỗi trang" value={size} disabled={loading} onChange={e => onSize(Number(e.target.value))}>{OPERATOR_PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}</select></label>}<button type="button" className="op-button secondary" disabled={!page || loading} onClick={() => onPage(page - 1)}>← Trước</button><button type="button" className="op-button secondary" disabled={last || loading} onClick={() => onPage(page + 1)}>Tiếp →</button></div></footer>;
 }
 export function useOperatorFilters(prefix = "") {
   const [params, setParams] = useSearchParams();
   const search = params.get(prefix + "search") || "";
   const state = params.get(prefix + "state") || "";
+  const rawSize = Number(params.get(prefix + "size") || 10);
+  const size = OPERATOR_PAGE_SIZES.some(n => n === rawSize) ? rawSize : 10;
   const n = Number(params.get(prefix + "page") || 0);
   const page = Number.isSafeInteger(n) && n >= 0 ? n : 0;
   function apply(search: string, state: string) { setParams(previous => { const next = new URLSearchParams(previous); for (const [key,value] of [["search",search],["state",state]]) { if(value) next.set(prefix+key,value); else next.delete(prefix+key); } next.delete(prefix+"page"); return next; }); }
   function setPage(page: number) { setParams(previous => { const next = new URLSearchParams(previous); if(page) next.set(prefix+"page",String(page)); else next.delete(prefix+"page"); return next; }); }
-  return { search, state, page, apply, setPage };
+  function setSize(value: number) {
+    if (!OPERATOR_PAGE_SIZES.some(n => n === value)) return;
+    setParams(previous => { const next = new URLSearchParams(previous); next.set(prefix+"size",String(value)); next.delete(prefix+"page"); return next; });
+  }
+  return { search, state, page, size, apply, setPage, setSize };
 }

@@ -95,7 +95,7 @@ export default function LandingPage() {
             <div className="hf-hero-actions"><Link className="hf-button" to={startTo}>{isAuthenticated ? "Đến không gian của bạn" : provider ? "Bắt đầu tìm việc" : "Bắt đầu tìm người"}<Arrow /></Link><a className="hf-text-link" href="#how-it-works">Khám phá cách hoạt động <Arrow diagonal /></a></div>
             <p className="hf-hero-note"><AppIcon name="check" /> Một tài khoản, linh hoạt cả hai vai trò.</p>
           </div>
-          <a className="hf-scroll-cue" href="#categories">Khám phá HandsFree <span aria-hidden="true">↓</span></a>
+          <a className="hf-scroll-cue" href="#categories">Khám phá HandsFree <span aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14m-6-6 6 6 6-6" /></svg></span></a>
         </section>
 
         <section className="hf-value-strip" aria-label="Những điểm nổi bật"><div className="hf-container"><span><AppIcon name="calendar" /> Công việc ngắn hạn</span><span><AppIcon name="users" /> Chủ động chọn kết nối</span><span><AppIcon name="chat" /> Trao đổi trực tiếp</span><span><AppIcon name="star" /> Đánh giá sau kết nối</span></div></section>

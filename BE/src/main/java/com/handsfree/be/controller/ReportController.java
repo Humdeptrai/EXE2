@@ -37,8 +37,8 @@ public class ReportController {
         return ApiResponse.success(200, "Chi tiết báo cáo", reportService.detail(actor(a), id));
     }
     @GetMapping("/staff/reports")
-    public ApiResponse<PageResponse<ReportResponse>> list(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state) {
-        return ApiResponse.success(200, "Báo cáo", reportService.list(actor(a), page, search, state));
+    public ApiResponse<PageResponse<ReportResponse>> list(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(defaultValue="20") int size) {
+        return ApiResponse.success(200, "Báo cáo", reportService.list(actor(a), page, search, state, size));
     }
     @PostMapping("/staff/reports/{id}/claim")
     public ApiResponse<ReportResponse> claim(Authentication a, @PathVariable UUID id) {

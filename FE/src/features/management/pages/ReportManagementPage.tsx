@@ -11,7 +11,7 @@ import { getApiErrorMessage } from "../../auth/utils/apiError";
 export default function ReportManagementPage() {
   const { user } = useAuth();
   const [creditBusy,setCreditBusy]=useState(false);
-  const [items, setItems] = useState<Report[]>([]); const { page, setPage, search, state: filter, apply } = useOperatorFilters(); const [last, setLast] = useState(true);
+  const [items, setItems] = useState<Report[]>([]); const { page, size, setSize, setPage, search, state: filter, apply } = useOperatorFilters(); const [last, setLast] = useState(true);
   const [total, setTotal] = useState(0); const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Report | null>(null); const detailId = detail?.id;
   const [action, setAction] = useState<{ report: Report; status: "RESOLVED" | "REJECTED" } | null>(null);
@@ -20,13 +20,13 @@ export default function ReportManagementPage() {
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
-      const result = await reportService.list(page, signal, search, filter);
+      const result = await reportService.list(page, signal, search, filter, size);
       if (signal?.aborted) return;
       setItems(result.content); setLast(result.last); setTotal(result.totalElements);
       if (detailId) { const current = await reportService.detail(detailId, signal); if (!signal?.aborted) setDetail(current); }
     } catch (e) { if (!signal?.aborted) setError(getApiErrorMessage(e, "Không tải được báo cáo.")); }
     finally { if (!signal?.aborted) setLoading(false); }
-  }, [page, detailId, search, filter]);
+  }, [page, size, detailId, search, filter]);
   useEffect(() => {
     const controller = new AbortController(); let pending = false;
     const refresh = async () => { if (pending || lock.current || document.visibilityState !== "visible") return; pending = true; try { await load(controller.signal); } finally { pending = false; } };
@@ -67,7 +67,7 @@ export default function ReportManagementPage() {
     {message && <p className="op-notice" role="status">{message}</p>}{error && !action && <UserNotice message={error} error />}
     <section className="op-card op-table-card"><FilterBar search={search} state={filter} options={reportStatuses} onApply={apply} total={total} placeholder="Tên người gửi, người xử lý, mã hoặc nội dung…" />
       <div className="op-table-scroll"><table className="op-table op-report-table"><thead><tr><th>Người báo cáo</th><th>Người được báo cáo / liên quan</th><th>Nội dung</th><th>Trạng thái</th><th>Người xử lý</th><th>Ngày gửi</th><th>Thao tác</th></tr></thead><tbody>{filtered.map(r => <tr key={r.id}><td className="op-cell-primary" title={r.reporterId}>{r.reporterName || "Chưa có tên"}</td><td title={r.targetId}>{r.targetName || "—"}</td><td><span className="op-cell" title={r.reason}>{r.reason}</span><small className="op-cell-secondary">{reportTargets[r.targetType]}</small></td><td><StatusBadge value={r.status} /></td><td>{r.assignedName || "Chưa nhận"}</td><td>{new Date(r.createdAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}</td><td><div className="op-row-actions"><button type="button" className="op-row-button" onClick={() => void view(r)}>Chi tiết & bằng chứng</button>{actions(r)}</div></td></tr>)}</tbody></table>{loading ? <p className="op-empty" role="status">Đang tải báo cáo…</p> : !filtered.length && <p className="op-empty">Không có báo cáo phù hợp.</p>}</div>
-      <Pagination page={page} last={last} total={total} loading={busy || loading} onPage={setPage} />
+      <Pagination page={page} last={last} total={total} loading={busy || loading} onPage={setPage} size={size} onSize={setSize} />
     </section>
     {detail && <OperatorModal variant="drawer" title="Chi tiết báo cáo" onClose={() => {if(!creditBusy)setDetail(null);}}><ReportDetailContent report={detail} />{user?.role === "ADMIN" && detail.targetType === "SUPPORT" && detail.status === "IN_REVIEW" && detail.assignedTo === user.id && <details className="op-card" style={{padding:16,marginTop:16}}><summary>Cộng tiền sau khi đối soát (ADMIN)</summary><AdminWalletCreditForm userId={detail.reporterId} name={detail.reporterName || "Người gửi yêu cầu"} reportId={detail.id} onBusyChange={setCreditBusy} /></details>}<div className="op-modal-actions">{actions(detail)}</div></OperatorModal>}
     {action && <OperatorModal title={reportStatuses[action.status]} onClose={() => { if (!busy) setAction(null); }}><form noValidate onSubmit={e => { e.preventDefault(); void change(action.report, "resolve"); }}><p className="op-muted">{action.report.reason}</p><label>Phản hồi / lý do đầy đủ<textarea disabled={busy} value={resolution} onChange={e => setResolution(e.target.value)} maxLength={2000} rows={7} placeholder="Người gửi sẽ xem toàn bộ nội dung này khi bấm vào thông báo." /></label><p className="op-muted">{resolution.length}/2.000 ký tự</p>{error && <UserNotice message={error} error />}<div className="op-modal-actions"><button type="button" className="op-button secondary" disabled={busy} onClick={() => setAction(null)}>Quay lại</button><button className={`op-button ${action.status === "REJECTED" ? "danger" : ""}`} disabled={busy}>{busy ? "Đang lưu…" : "Lưu và thông báo"}</button></div></form></OperatorModal>}

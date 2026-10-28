@@ -30,11 +30,15 @@ public class OperatorListServiceImpl implements OperatorListService {
     }
     private String name(UUID id) { return id==null ? "" : users.findNameById(id).map(UserRepository.Name::getFullName).orElse(""); }
     @Override public PageResponse<Map<String,Object>> list(UUID actor,String panel,int page,String search,String state) {
+        return list(actor,panel,page,search,state,20);
+    }
+    @Override public PageResponse<Map<String,Object>> list(UUID actor,String panel,int page,String search,String state,int size) {
         access.operator(actor,!"jobs".equals(panel));
+        OperatorPageSize.require(size);
         if(search==null || search.length()>100 || state==null || state.length()>40) throw new AppException(ErrorCode.VALIDATION_FAILED);
         String q=search.trim().toLowerCase(Locale.ROOT);
-        var created=PageRequest.of(Math.max(0,page),20,Sort.by(Sort.Direction.DESC,"createdAt").and(Sort.by(Sort.Direction.DESC,"id")));
-        var occurred=PageRequest.of(Math.max(0,page),20,Sort.by(Sort.Direction.DESC,"occurredAt").and(Sort.by(Sort.Direction.DESC,"id")));
+        var created=PageRequest.of(Math.max(0,page),size,Sort.by(Sort.Direction.DESC,"createdAt").and(Sort.by(Sort.Direction.DESC,"id")));
+        var occurred=PageRequest.of(Math.max(0,page),size,Sort.by(Sort.Direction.DESC,"occurredAt").and(Sort.by(Sort.Direction.DESC,"id")));
         return switch(panel) {
             case "jobs" -> PageResponse.from(jobs.findAll(filter(q,state,"status","title","id","owner.fullName","owner.id"),created).map(j -> row(
                 "id",j.getId(),"title",j.getTitle(),"status",j.getStatus(),"hidden",j.isModerationHidden(),"ownerId",j.getOwner().getId(),"ownerName",j.getOwner().getFullName(),
@@ -46,7 +50,7 @@ public class OperatorListServiceImpl implements OperatorListService {
                     "paymentDeadlineAt",m.getPaymentDeadlineAt(),"expectedEndAt",m.getExpectedEndAt());
             }));
             case "users" -> PageResponse.from(users.findAll(filter(q,state,"role","fullName","email","phone","id"),created).map(u -> row("id",u.getId(),"fullName",u.getFullName(),"email",u.getEmail(),"role",u.getRole(),"active",u.isActive(),"balance",u.getWalletBalance())));
-            case "topups" -> PageResponse.from(orders.findAll(filter(q,state,"status","orderCode","ownerId","@ownerName"),PageRequest.of(Math.max(0,page),20,Sort.by(Sort.Direction.DESC,"createdAt").and(Sort.by(Sort.Direction.DESC,"orderCode")))).map(o -> row("orderCode",o.getOrderCode(),"ownerId",o.getOwnerId(),"ownerName",name(o.getOwnerId()),"requestId",o.getRequestId(),"checkoutUrl",o.getCheckoutUrl(),"paymentLinkId",o.getPaymentLinkId(),"amount",o.getAmount(),"status",o.getStatus(),"createdAt",o.getCreatedAt(),"creditedAt",o.getCreditedAt())));
+            case "topups" -> PageResponse.from(orders.findAll(filter(q,state,"status","orderCode","ownerId","@ownerName"),PageRequest.of(Math.max(0,page),size,Sort.by(Sort.Direction.DESC,"createdAt").and(Sort.by(Sort.Direction.DESC,"orderCode")))).map(o -> row("orderCode",o.getOrderCode(),"ownerId",o.getOwnerId(),"ownerName",name(o.getOwnerId()),"requestId",o.getRequestId(),"checkoutUrl",o.getCheckoutUrl(),"paymentLinkId",o.getPaymentLinkId(),"amount",o.getAmount(),"status",o.getStatus(),"createdAt",o.getCreatedAt(),"creditedAt",o.getCreditedAt())));
             case "ledger" -> PageResponse.from(entries.findAll(filter(q,state,"kind","id","ownerId","description","@ownerName"),occurred).map(e -> row("id",e.getId(),"ownerId",e.getOwnerId(),"ownerName",name(e.getOwnerId()),"kind",e.getKind(),"amount",e.getAmount(),"balanceAfter",e.getBalanceAfter(),"description",e.getDescription(),"dedupeKey",e.getDedupeKey(),"occurredAt",e.getOccurredAt())));
             case "audit" -> PageResponse.from(audit.findAll(filter(q,state,"action","id","actorId","detail","@actorName"),occurred).map(a -> row("id",a.getId(),"actorId",a.getActorId(),"actorName",name(a.getActorId()),"action",a.getAction(),"detail",a.getDetail(),"occurredAt",a.getOccurredAt())));
             default -> throw new AppException(ErrorCode.VALIDATION_FAILED);

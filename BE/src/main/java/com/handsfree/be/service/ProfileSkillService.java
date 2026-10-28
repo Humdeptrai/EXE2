@@ -10,5 +10,6 @@ public interface ProfileSkillService {
     Skill add(UUID admin, String name);
     Skill review(UUID admin, UUID id, boolean approved, String reason);
     PageResponse<Skill> search(UUID admin, String search, String status, int page);
+    PageResponse<Skill> search(UUID admin, String search, String status, int page, int size);
     Set<String> approvedTags(List<String> tags, Set<String> previous);
 }

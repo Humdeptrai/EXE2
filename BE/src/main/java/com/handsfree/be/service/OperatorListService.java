@@ -4,4 +4,5 @@ import java.util.*;
 /** Operator-only summaries; no document images or private OCR are included. */
 public interface OperatorListService {
     PageResponse<Map<String,Object>> list(UUID actor, String panel, int page, String search, String state);
+    PageResponse<Map<String,Object>> list(UUID actor, String panel, int page, String search, String state, int size);
 }

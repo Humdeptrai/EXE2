@@ -25,6 +25,7 @@ public interface IdentityService {
     Appeal appeal(UUID actor, UUID id);
     byte[] appealImage(UUID actor, UUID id, String kind);
     com.handsfree.be.dto.response.PageResponse<Appeal> appeals(UUID actor, int page, String state, String search);
+    com.handsfree.be.dto.response.PageResponse<Appeal> appeals(UUID actor, int page, String state, String search, int size);
     Appeal claimAppeal(UUID actor, UUID id, boolean release);
     Appeal resolveAppeal(UUID actor, UUID id, Review request);
     void requireNoOpenAppeal(UUID user);
@@ -55,5 +56,6 @@ public interface IdentityService {
     byte[] verifiedFace(UUID user);
     com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor, int page);
     com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor, int page, String search, String state);
+    com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor, int page, String search, String state, int size);
     byte[] counterpartFace(UUID actor, UUID match);
 }

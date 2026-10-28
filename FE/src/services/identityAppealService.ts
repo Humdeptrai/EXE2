@@ -7,7 +7,7 @@ export const identityAppealService = {
   async latest(signal?: AbortSignal) { return (await api.get<ApiResponse<IdentityAppeal | null>>("/identity/requests/latest", { signal })).data.result; },
   async create(note: string) { return (await api.post<ApiResponse<IdentityAppeal>>("/identity/requests", { note })).data.result; },
   async get(id: string, signal?: AbortSignal) { return (await api.get<ApiResponse<IdentityAppeal>>(`/identity/requests/${id}`, { signal })).data.result; },
-  async list(page: number, state: string, search: string, signal?: AbortSignal) { return (await api.get<ApiResponse<PageResponse<IdentityAppeal>>>("/admin/identity-appeals", { params: { page, state, search }, signal })).data.result; },
+  async list(page: number, state: string, search: string, signal?: AbortSignal, size = 20) { return (await api.get<ApiResponse<PageResponse<IdentityAppeal>>>("/admin/identity-appeals", { params: { page, size, state, search }, signal })).data.result; },
   async claim(id: string, release = false) { return (await api.post<ApiResponse<IdentityAppeal>>(`/admin/identity-appeals/${id}/${release ? "release" : "claim"}`)).data.result; },
   async review(id: string, approved: boolean, fullName: string, reason: string, transferIdentity = false, claim: {documentOwner:string|null;claimVersion:number|null}|null = null) { return (await api.post<ApiResponse<IdentityAppeal>>(`/admin/identity-appeals/${id}/review`, { approved, fullName, reason, transferIdentity, expectedIdentityOwner:claim?.documentOwner, claimVersion:claim?.claimVersion })).data.result; },
 };

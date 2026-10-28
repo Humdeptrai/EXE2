@@ -12,6 +12,7 @@ public interface ReportService {
     PageResponse<ReportResponse> mine(UUID actor, int page);
     PageResponse<ReportResponse> list(UUID actor, int page);
     PageResponse<ReportResponse> list(UUID actor, int page, String search, String state);
+    PageResponse<ReportResponse> list(UUID actor, int page, String search, String state, int size);
     ReportResponse detail(UUID actor, UUID reportId);
     ReportResponse claim(UUID actor, UUID reportId);
     ReportResponse release(UUID actor, UUID reportId);

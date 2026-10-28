@@ -26,6 +26,28 @@ export default function OperatorDashboard({ revenueOnly = false }: { revenueOnly
   const { user } = useAuth(); const admin = user?.role === "ADMIN"; const base = admin ? "/admin" : "/staff";
   const [month, setMonth] = useState(() => new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit" }).format(new Date()));
   const [data, setData] = useState<Analytics | null>(null); const [error, setError] = useState(""); const [revision, setRevision] = useState(0); const [loading, setLoading] = useState(true);
+  const [presence, setPresence] = useState<{ onlineUsers: number; observedAt: string } | null>(null);
+  const [presenceError, setPresenceError] = useState(false);
+  useEffect(() => {
+    if (!admin) return;
+    const controller = new AbortController();
+    let pending = false;
+    const refresh = async () => {
+      if (pending || document.visibilityState === "hidden") return;
+      pending = true;
+      try {
+        const r = await api.get<ApiResponse<{ onlineUsers: number; observedAt: string }>>("/admin/presence", { signal: controller.signal });
+        if (!controller.signal.aborted) { setPresence(r.data.result); setPresenceError(false); }
+      } catch { if (!controller.signal.aborted) setPresenceError(true); }
+      finally { pending = false; }
+    };
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 30000);
+    const visible = () => { if (document.visibilityState === "visible") void refresh(); };
+    window.addEventListener("focus", visible);
+    document.addEventListener("visibilitychange", visible);
+    return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", visible); document.removeEventListener("visibilitychange", visible); };
+  }, [admin, revenueOnly, revision]);
   useEffect(() => {
     const controller = new AbortController();
     api.get<ApiResponse<Analytics>>(admin ? "/admin/analytics" : "/staff/analytics", { params: admin ? { month } : {}, signal: controller.signal })
@@ -42,6 +64,8 @@ export default function OperatorDashboard({ revenueOnly = false }: { revenueOnly
     return () => { window.clearInterval(interval); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, []);
   const cards = data ? admin ? [
+    { title: "Tổng tài khoản", value: number(data.users), sub: "Tất cả vai trò và trạng thái", icon: "users" as const, to: "/admin/users" },
+    { title: "Đang online", value: presence ? number(presence.onlineUsers) : "—", sub: presenceError ? "Chưa cập nhật được số online" : presence ? `Cập nhật ${new Date(presence.observedAt).toLocaleTimeString("vi-VN")} · mỗi 30 giây` : "Tài khoản đang kết nối", icon: "check" as const, to: "/admin/users" },
     { title: "Phí kết nối thuần trong tháng", value: formatVnd(data.monthNetFees), sub: "Phí đã thu − phí đã hoàn", icon: "star" as const, to: "/admin/revenue" },
     { title: "Tiền nạp trong tháng", value: formatVnd(data.monthTopups), sub: "Tiền vào ví, tách khỏi phí app", icon: "bookmark" as const, to: "/admin/topups" },
     { title: "Kết nối", value: number(data.matches), sub: "Tổng kết nối trên hệ thống", icon: "chat" as const, to: "/admin/matches" },

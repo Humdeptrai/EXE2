@@ -16,7 +16,7 @@ public class ProfileSkillController {
     @GetMapping("/profile-skills") public ApiResponse<?> catalog(Authentication a) { return ApiResponse.success(200,"Danh mục kỹ năng và sở thích",service.catalog(user(a))); }
     @GetMapping("/profile-skills/mine") public ApiResponse<?> mine(Authentication a) { return ApiResponse.success(200,"Đề xuất của bạn",service.mine(user(a))); }
     @PostMapping("/profile-skills/proposals") public ApiResponse<?> propose(Authentication a,@Valid @RequestBody Name body) { return ApiResponse.success(200,"Đã gửi đề xuất",service.propose(user(a),body.name())); }
-    @GetMapping("/admin/profile-skills") public ApiResponse<?> list(Authentication a,@RequestParam(defaultValue="") String search,@RequestParam(defaultValue="") String status,@RequestParam(defaultValue="0") int page) { return ApiResponse.success(200,"Danh sách kỹ năng và sở thích",service.search(user(a),search,status,page)); }
+    @GetMapping("/admin/profile-skills") public ApiResponse<?> list(Authentication a,@RequestParam(defaultValue="") String search,@RequestParam(defaultValue="") String status,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size) { return ApiResponse.success(200,"Danh sách kỹ năng và sở thích",service.search(user(a),search,status,page,size)); }
     @PostMapping("/admin/profile-skills") public ApiResponse<?> add(Authentication a,@Valid @RequestBody Name body) { return ApiResponse.success(200,"Đã thêm vào danh mục",service.add(user(a),body.name())); }
     @PutMapping("/admin/profile-skills/{id}/review") public ApiResponse<?> review(Authentication a,@PathVariable UUID id,@Valid @RequestBody Review body) { return ApiResponse.success(200,"Đã xử lý đề xuất",service.review(user(a),id,body.approved(),body.reason())); }
 }

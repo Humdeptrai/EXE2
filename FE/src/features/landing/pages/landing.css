@@ -53,7 +53,7 @@
 .hf-landing .hf-hero-note { display: flex; align-items: center; justify-content: center; gap: 8px; color: #e1ebe6; font-size: 12px; margin: 20px 0 0; }
 .hf-landing .hf-hero-note svg { width: 16px; height: 16px; }
 .hf-landing .hf-scroll-cue { position: absolute; bottom: max(26px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 12px; color: #fff; font-size: 11px; letter-spacing: .08em; }
-.hf-landing .hf-scroll-cue span { border: 1px solid #ffffff80; border-radius: 50%; width: 30px; height: 36px; display: grid; place-items: center; font-size: 18px; }
+.hf-landing .hf-scroll-cue span { border: 1px solid #ffffff80; border-radius: 50%; box-sizing: border-box; width: 36px; height: 36px; aspect-ratio: 1; flex: 0 0 36px; display: grid; place-items: center; }
 
 .hf-landing .hf-value-strip { border-bottom: 1px solid var(--hf-line); background: #f0eee5; }
 .hf-landing .hf-value-strip > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 20px; padding-block: 26px; }
@@ -223,3 +223,5 @@
   .hf-landing [data-reveal], .hf-landing .hf-category, .hf-landing .hf-button { transition: none; }
   .hf-landing .hf-reveal-pending { opacity: 1; transform: none; }
 }
+
+.hf-landing .hf-scroll-cue span svg { width: 18px; height: 18px; display: block; }

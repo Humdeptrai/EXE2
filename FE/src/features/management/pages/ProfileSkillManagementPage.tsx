@@ -20,10 +20,10 @@ export default function ProfileSkillManagementPage() {
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => { if (active) setLoading(true); });
-    profileSkillService.list(filters.search, filters.state, filters.page).then(result => { if (active) { setData(result); setError(""); } })
+    profileSkillService.list(filters.search, filters.state, filters.page, filters.size).then(result => { if (active) { setData(result); setError(""); } })
       .catch(e => { if (active) { setData(null); setError(getApiErrorMessage(e, "Không thể tải danh mục.")); } }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [filters.search, filters.state, filters.page, revision]);
+  }, [filters.search, filters.state, filters.page, filters.size, revision]);
   async function act(task: () => Promise<unknown>, message: string) {
     if (busy) return; setBusy(true); setError(""); setSuccess("");
     try { await task(); setSuccess(message); setRevision(x => x + 1); setReject(null); setReason(""); }
@@ -42,7 +42,7 @@ export default function ProfileSkillManagementPage() {
         <div className="min-w-0"><h2 className="break-words text-sm font-extrabold text-slate-800">{s.name}</h2><p className="mt-1 text-xs text-slate-500">{s.submittedName ? `Đề xuất bởi ${s.submittedName}` : "Danh mục hệ thống"} · {s.createdAt && new Date(s.createdAt).toLocaleDateString("vi-VN")}</p>{s.rejectionReason && <p className="mt-2 break-words text-xs text-red-700">Lý do từ chối: {s.rejectionReason}</p>}</div>
         <div className="flex shrink-0 flex-wrap items-center gap-2"><StatusBadge value={s.status} label={labels[s.status]} />{s.status === "PENDING" && <><button className="op-button primary" disabled={busy} onClick={() => void act(() => profileSkillService.review(s.id, true), "Đã duyệt và thông báo cho người đề xuất.")}>Duyệt</button><button className="op-button danger" disabled={busy} onClick={() => { setReject(s); setReason(""); }}>Từ chối</button></>}</div>
       </li>)}</ul>}
-      {data && <Pagination page={filters.page} last={data.last} total={data.totalElements} loading={loading || busy} onPage={filters.setPage} />}
+      {data && <Pagination page={filters.page} last={data.last} total={data.totalElements} loading={loading || busy} onPage={filters.setPage} size={filters.size} onSize={filters.setSize} />}
     </section>
     {reject && <OperatorModal title={`Từ chối: ${reject.name}`} onClose={() => { if (!busy) setReject(null); }}><form onSubmit={e => { e.preventDefault(); void act(() => profileSkillService.review(reject.id, false, reason.trim()), "Đã từ chối và thông báo lý do cho người đề xuất."); }}>
       {error && <UserNotice error message={error} />}

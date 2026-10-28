@@ -67,12 +67,17 @@ public class ProfileSkillServiceImpl implements ProfileSkillService {
     }
     @Override @Transactional(readOnly=true)
     public PageResponse<Skill> search(UUID admin,String search,String status,int page) {
+        return search(admin,search,status,page,20);
+    }
+    @Override @Transactional(readOnly=true)
+    public PageResponse<Skill> search(UUID admin,String search,String status,int page,int size) {
+        OperatorPageSize.require(size);
         accounts.operator(admin,true);
         if(!Set.of("","PENDING","APPROVED","REJECTED").contains(status)) throw new AppException(ErrorCode.VALIDATION_FAILED);
         String q=Objects.requireNonNullElse(search, "").strip().toLowerCase(Locale.ROOT);
         if(q.length()>100) throw new AppException(ErrorCode.VALIDATION_FAILED);
         q=q.replace("!","!!").replace("%","!%").replace("_","!_");
-        return PageResponse.from(skills.search(status,"%"+q+"%",PageRequest.of(Math.max(0,page),20)).map(this::dto));
+        return PageResponse.from(skills.search(status,"%"+q+"%",PageRequest.of(Math.max(0,page),size)).map(this::dto));
     }
     @Override @Transactional(readOnly=true)
     public Set<String> approvedTags(List<String> tags,Set<String> previous) {

@@ -333,11 +333,16 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     }
     @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
     public com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor,int page,String search,String state) {
+        return list(actor,page,search,state,20);
+    }
+    @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
+    public com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor,int page,String search,String state,int size) {
+        OperatorPageSize.require(size);
         access.operator(actor, false);
         if(search==null || search.length()>100 || !Set.of("","NOT_SUBMITTED","PROCESSING","REVIEW_REQUIRED","VERIFIED","REJECTED","ERROR").contains(state)) throw new AppException(ErrorCode.VALIDATION_FAILED);
         String q=search.trim().toLowerCase(Locale.ROOT);
         if(!q.isEmpty()) q="%"+q.replace("!","!!").replace("%","!%").replace("_","!_")+"%";
-        var queue = identities.searchQueue(state,q,org.springframework.data.domain.PageRequest.of(Math.max(page, 0), 20));
+        var queue = identities.searchQueue(state,q,org.springframework.data.domain.PageRequest.of(Math.max(page, 0), size));
         var names = users.findNamesByIdIn(queue.getContent().stream().map(IdentityRepository.State::getUserId).toList())
             .stream().collect(java.util.stream.Collectors.toMap(UserRepository.Name::getId, n -> n.getFullName() == null ? "" : n.getFullName()));
         return com.handsfree.be.dto.response.PageResponse.from(queue.map(i -> {
@@ -409,11 +414,16 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     }
     @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
     public com.handsfree.be.dto.response.PageResponse<Appeal> appeals(UUID actor,int page,String state,String search) {
+        return appeals(actor,page,state,search,20);
+    }
+    @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
+    public com.handsfree.be.dto.response.PageResponse<Appeal> appeals(UUID actor,int page,String state,String search,int size) {
+        OperatorPageSize.require(size);
         access.operator(actor,true);
         if(state==null || !List.of("","REQUESTED","PROCESSING","RESOLVED","REJECTED").contains(state)) throw new AppException(ErrorCode.VALIDATION_FAILED);
         if(search==null || search.length()>100) throw new AppException(ErrorCode.VALIDATION_FAILED);
         return com.handsfree.be.dto.response.PageResponse.from(appeals.search(state,search.trim().toLowerCase(Locale.ROOT),
-            org.springframework.data.domain.PageRequest.of(Math.max(0,page),20)).map(a -> new Appeal(a.getId(),a.getUserId(),a.getStatus(),a.getNote(),a.getReason(),a.getCreatedAt(),a.getResolvedAt(),a.getClaimedBy(),a.getClaimedAt(),null,null,a.getSimilarity(),null,accountName(a.getUserId()),accountName(a.getClaimedBy()))));
+            org.springframework.data.domain.PageRequest.of(Math.max(0,page),size)).map(a -> new Appeal(a.getId(),a.getUserId(),a.getStatus(),a.getNote(),a.getReason(),a.getCreatedAt(),a.getResolvedAt(),a.getClaimedBy(),a.getClaimedAt(),null,null,a.getSimilarity(),null,accountName(a.getUserId()),accountName(a.getClaimedBy()))));
     }
     private com.handsfree.be.entity.IdentityAppeal lockedAppeal(UUID actor,UUID id) {
         registry.lock();

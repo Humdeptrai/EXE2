@@ -9,7 +9,7 @@ export const profileSkillService = {
   async catalog() { return (await api.get<ApiResponse<ProfileSkill[]>>("/profile-skills")).data.result; },
   async mine() { return (await api.get<ApiResponse<ProfileSkill[]>>("/profile-skills/mine")).data.result; },
   async propose(name: string) { return (await api.post<ApiResponse<ProfileSkill>>("/profile-skills/proposals", { name })).data.result; },
-  async list(search: string, status: string, page: number) { return (await api.get<ApiResponse<PageResponse<ProfileSkill>>>("/admin/profile-skills", { params: { search, status, page } })).data.result; },
+  async list(search: string, status: string, page: number, size = 20) { return (await api.get<ApiResponse<PageResponse<ProfileSkill>>>("/admin/profile-skills", { params: { search, status, page, size } })).data.result; },
   async add(name: string) { return (await api.post<ApiResponse<ProfileSkill>>("/admin/profile-skills", { name })).data.result; },
   async review(id: string, approved: boolean, reason = "") { return (await api.put<ApiResponse<ProfileSkill>>(`/admin/profile-skills/${id}/review`, { approved, reason })).data.result; },
 };
