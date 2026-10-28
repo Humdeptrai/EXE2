@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import ThemeToggle from "../../theme/ThemeToggle";
 import { AppIcon } from "../ui/AppIcon";
 
 export default function AccountMenu({ avatar }: { avatar: React.ReactNode }) {
@@ -30,6 +31,7 @@ export default function AccountMenu({ avatar }: { avatar: React.ReactNode }) {
     {open && <section id={id} className="hf-account-menu-panel" aria-label="Tài khoản của bạn">
       <div className="hf-account-menu-heading"><strong>{user?.fullName || "Tài khoản của bạn"}</strong><span>{user?.email || user?.phone}</span></div>
       <nav aria-label="Menu tài khoản">{links.map(item => <NavLink key={item.to} to={item.to} onClick={() => setOpen(false)}><AppIcon name={item.icon} className="h-5 w-5" />{item.label}</NavLink>)}</nav>
+      <ThemeToggle className="hf-theme-menu-button" label />
       <button type="button" className="hf-account-menu-logout" onClick={() => { setOpen(false); void logout(); }}><AppIcon name="logout" className="h-5 w-5" />Đăng xuất</button>
     </section>}
   </div>;

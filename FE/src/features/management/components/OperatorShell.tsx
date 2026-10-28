@@ -1,3 +1,4 @@
+import ThemeToggle from "../../../theme/ThemeToggle";
 import { Suspense } from "react";
 import RouteLoading from "../../../components/feedback/RouteLoading";
 import { HandsFreeLogo } from "../../../components/brand/HandsFreeLogo";
@@ -51,7 +52,7 @@ export default function OperatorShell() {
       </div>)}</nav>
       <div className="op-sidebar-footer"><div className="op-avatar">{user?.fullName?.charAt(0) || "H"}</div><div><strong>{user?.fullName}</strong><small>{admin ? "Quản trị viên" : "Nhân viên hỗ trợ"}</small></div><button title="Đăng xuất" aria-label="Đăng xuất" onClick={() => void signOut()}><AppIcon name="logout" className="op-icon" /></button></div>
     </aside>
-    <div className="op-main"><header className="op-topbar"><div className="op-topbar-left"><button className="op-menu-button" aria-label="Mở điều hướng" aria-expanded={open} onClick={() => setOpen(!open)}><AppIcon name="menu" className="op-icon" /></button><span>Không gian {admin ? "quản trị" : "hỗ trợ"}<b> / </b><strong>{current?.title || "Tổng quan"}</strong></span></div><div className="op-topbar-right"><span className="op-role-badge">{admin ? "ADMIN" : "STAFF"}</span><span className="op-avatar small">{user?.fullName?.charAt(0) || "H"}</span></div></header>
+    <div className="op-main"><header className="op-topbar"><div className="op-topbar-left"><button className="op-menu-button" aria-label="Mở điều hướng" aria-expanded={open} onClick={() => setOpen(!open)}><AppIcon name="menu" className="op-icon" /></button><span>Không gian {admin ? "quản trị" : "hỗ trợ"}<b> / </b><strong>{current?.title || "Tổng quan"}</strong></span></div><div className="op-topbar-right"><ThemeToggle className="op-role-badge hf-theme-role-button" slotLabel={admin ? "ADMIN" : "STAFF"} /><span className="op-avatar small">{user?.fullName?.charAt(0) || "H"}</span></div></header>
       <main id="operator-content" className="op-content"><Suspense fallback={<RouteLoading />}><Outlet /></Suspense></main>
       <footer className="op-footer">HandsFree · Không gian vận hành</footer>
     </div>

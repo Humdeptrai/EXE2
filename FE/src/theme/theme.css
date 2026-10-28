@@ -1,0 +1,19 @@
+/* The user switch lives inside the existing account popover. The operator
+   switch occupies the existing role badge slot, preserving header geometry. */
+.hf-account-menu-panel .hf-theme-menu-button{display:flex;align-items:center;gap:10px;width:100%;padding:12px 10px;border:0;border-radius:10px;background:transparent;color:inherit;text-align:left;font-size:14px;font-weight:700}
+.hf-account-menu-panel .hf-theme-menu-button:hover{background:#e8f6f8}
+.op-topbar .hf-theme-role-button{position:relative;font-size:10px;font-weight:800;line-height:inherit}
+.hf-theme-slot-label{visibility:hidden}
+.hf-theme-role-button>svg{position:absolute;inset:0;margin:auto}
+:root[data-theme="dark"]{color-scheme:dark;color:#e4edf4;background:#101b26}
+:root[data-theme="dark"] .hf-account-menu-panel .hf-theme-menu-button:hover{background:#223d48}
+:root[data-theme="dark"] .hf-brand-wordmark img{filter:brightness(0) invert(1)}
+:root[data-theme="dark"] .leaflet-popup-content-wrapper,
+:root[data-theme="dark"] .leaflet-popup-tip,
+:root[data-theme="dark"] .leaflet-control-layers,
+:root[data-theme="dark"] .leaflet-bar a{background:#1b2b39;color:#e4edf4}
+:root[data-theme="dark"] .op-revenue-plot text{fill:#a7bdc9}
+:root[data-theme="dark"] .op-revenue-plot line[stroke="#dce8eb"]{stroke:#344958}
+:root[data-theme="dark"] .hf-app,
+:root[data-theme="dark"] .op-root{background:#101b26}
+:root[data-theme="dark"] .op-root.op-modal{background:#1b2b39}
