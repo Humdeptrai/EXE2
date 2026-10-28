@@ -1,3 +1,4 @@
+import { OPERATOR_PAGE_SIZES } from "../../../utils/operatorPagination";
 import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
@@ -31,9 +32,9 @@ export function FilterBar({ search, state, options, onApply, total, placeholder 
     {total !== undefined && <span className="op-result-count"><strong>{total.toLocaleString("vi-VN")}</strong> kết quả</span>}
   </form>;
 }
-export const OPERATOR_PAGE_SIZES = [5, 10, 15, 30, 50] as const;
+
 export function Pagination({ page, last, total, loading, onPage, size = 10, onSize }: { page: number; last: boolean; total?: number; loading?: boolean; onPage: (page: number) => void; size?: number; onSize?: (size: number) => void }) {
-  return <footer className="op-pagination"><span>Trang <strong>{page + 1}</strong>{total !== undefined && ` · ${total.toLocaleString("vi-VN")} kết quả`}</span><div>{onSize && <label className="op-filter-label">Mục / trang <select aria-label="Số mục mỗi trang" value={size} disabled={loading} onChange={e => onSize(Number(e.target.value))}>{OPERATOR_PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}</select></label>}<button type="button" className="op-button secondary" disabled={!page || loading} onClick={() => onPage(page - 1)}>← Trước</button><button type="button" className="op-button secondary" disabled={last || loading} onClick={() => onPage(page + 1)}>Tiếp →</button></div></footer>;
+  return <footer className="op-pagination"><span>Trang <strong>{page + 1}</strong>{total !== undefined && ` / ${Math.max(1, Math.ceil(total / size))} · Hiển thị ${total ? Math.min(page * size + 1, total) : 0}–${Math.min((page + 1) * size, total)} trên ${total.toLocaleString("vi-VN")} kết quả`}</span><div>{onSize && <label className="op-filter-label">Mục / trang <select aria-label="Số mục mỗi trang" value={size} disabled={loading} onChange={e => onSize(Number(e.target.value))}>{OPERATOR_PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}</select></label>}<button type="button" className="op-button secondary" disabled={!page || loading} onClick={() => onPage(page - 1)}>← Trước</button><button type="button" className="op-button secondary" disabled={last || loading} onClick={() => onPage(page + 1)}>Tiếp →</button></div></footer>;
 }
 export function useOperatorFilters(prefix = "") {
   const [params, setParams] = useSearchParams();

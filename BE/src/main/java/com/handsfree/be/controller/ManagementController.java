@@ -64,7 +64,7 @@ public class ManagementController {
     }
 
     @GetMapping("/staff/jobs")
-    public ApiResponse<?> jobs(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(defaultValue="20") int size) {
+    public ApiResponse<?> jobs(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(name="size", defaultValue="10") int size) {
         return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "jobs", page, search, state, size));
     }
 
@@ -121,7 +121,7 @@ public class ManagementController {
     }
 
     @GetMapping("/admin/users")
-    public ApiResponse<?> users(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(defaultValue="20") int size) {
+    public ApiResponse<?> users(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(name="size", defaultValue="10") int size) {
         return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "users", page, search, state, size));
     }
 
@@ -134,22 +134,22 @@ public class ManagementController {
 
     @GetMapping("/admin/matches")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public ApiResponse<?> matches(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(defaultValue="20") int size) {
+    public ApiResponse<?> matches(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(name="size", defaultValue="10") int size) {
         return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "matches", page, search, state, size));
     }
 
     @GetMapping("/admin/topups")
-    public ApiResponse<?> orders(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(defaultValue="20") int size) {
+    public ApiResponse<?> orders(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(name="size", defaultValue="10") int size) {
         return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "topups", page, search, state, size));
     }
 
     @GetMapping("/admin/ledger")
-    public ApiResponse<?> ledger(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(defaultValue="20") int size) {
+    public ApiResponse<?> ledger(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(name="size", defaultValue="10") int size) {
         return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "ledger", page, search, state, size));
     }
 
     @GetMapping("/admin/audit")
-    public ApiResponse<?> audit(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(defaultValue="20") int size) {
+    public ApiResponse<?> audit(Authentication a, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue="") String search, @RequestParam(defaultValue="") String state, @RequestParam(name="size", defaultValue="10") int size) {
         return ApiResponse.success(200, "Dữ liệu quản trị", lists.list(id(a), "audit", page, search, state, size));
     }
 

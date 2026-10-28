@@ -43,6 +43,7 @@ class OperatorListsHttpTest {
             staffToken=jwt.issueTokens(account("Staff",UserRole.STAFF)).accessToken();
             userToken=jwt.issueTokens(account("Member",UserRole.USER)).accessToken();
             for(int i=0;i<57;i++)account("Paging fixture "+i,UserRole.USER);
+            for(int i=0;i<23;i++)account("TwentyThree fixture "+i,UserRole.USER);
         });
     }
     HttpResponse<String> get(String path,String token)throws Exception {
@@ -51,10 +52,24 @@ class OperatorListsHttpTest {
         return HttpClient.newHttpClient().send(b.GET().build(),HttpResponse.BodyHandlers.ofString());
     }
     @Test void allOperatorListsHonorEveryOfferedSize()throws Exception {
-        for(String path:endpoints)for(int size:new int[]{5,10,15,30,50}){
+        for(String path:endpoints)for(int size:new int[]{5,10,15,30,50,100}){
             var r=get(path+"?size="+size,adminToken);assertEquals(200,r.statusCode(),path+" "+r.body());
             var page=json.readTree(r.body()).path("result");assertEquals(size,page.path("size").asInt(),path);
             assertTrue(page.path("content").size()<=size,path);
+        }
+    }
+    @Test void twentyThreeUsersSplitExactlyForEachOfferedSize()throws Exception {
+        for(int size:new int[]{5,10,15,30,50,100}) {
+            Set<String> seen=new HashSet<>();int expectedPages=(23+size-1)/size;
+            for(int page=0;page<expectedPages;page++) {
+                var r=get("/admin/users?size="+size+"&search=TwentyThree%20fixture&page="+page,adminToken);
+                assertEquals(200,r.statusCode(),r.body());var result=json.readTree(r.body()).path("result");
+                assertEquals(23,result.path("totalElements").asInt());assertEquals(expectedPages,result.path("totalPages").asInt());
+                assertEquals(Math.min(size,23-page*size),result.path("content").size());
+                assertEquals(page==expectedPages-1,result.path("last").asBoolean());
+                for(var row:result.path("content"))assertTrue(seen.add(row.path("id").asString()));
+            }
+            assertEquals(23,seen.size());
         }
     }
     @Test void unsupportedSizesAreRejectedAcrossAllLists()throws Exception {
@@ -72,9 +87,9 @@ class OperatorListsHttpTest {
         }while(pages<20);
         assertEquals(57,total);assertEquals(57,ids.size());assertEquals(12,pages);
     }
-    @Test void legacyClientsStillReceiveTwentyPerPage()throws Exception {
+    @Test void omittedPageSizeDefaultsToTen()throws Exception {
         var r=get("/admin/users",adminToken);assertEquals(200,r.statusCode(),r.body());
-        assertEquals(20,json.readTree(r.body()).path("result").path("size").asInt());
+        assertEquals(10,json.readTree(r.body()).path("result").path("size").asInt());
     }
     @Test void presenceIsAdminOnlyAndReturnsSnapshot()throws Exception {
         assertEquals(401,get("/admin/presence",null).statusCode());

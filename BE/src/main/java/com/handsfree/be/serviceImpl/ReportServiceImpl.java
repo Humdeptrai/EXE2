@@ -111,7 +111,7 @@ public class ReportServiceImpl implements ReportService {
     }
     @Override @Transactional(readOnly=true)
     public PageResponse<ReportResponse> list(UUID actor,int page,String search,String state) {
-        return list(actor,page,search,state,20);
+        return list(actor,page,search,state,10);
     }
     @Override @Transactional(readOnly=true)
     public PageResponse<ReportResponse> list(UUID actor,int page,String search,String state,int size) {

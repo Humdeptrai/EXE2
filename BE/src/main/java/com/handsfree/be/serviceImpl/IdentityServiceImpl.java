@@ -333,7 +333,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     }
     @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
     public com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor,int page,String search,String state) {
-        return list(actor,page,search,state,20);
+        return list(actor,page,search,state,10);
     }
     @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
     public com.handsfree.be.dto.response.PageResponse<QueueRow> list(UUID actor,int page,String search,String state,int size) {
@@ -414,7 +414,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     }
     @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
     public com.handsfree.be.dto.response.PageResponse<Appeal> appeals(UUID actor,int page,String state,String search) {
-        return appeals(actor,page,state,search,20);
+        return appeals(actor,page,state,search,10);
     }
     @Override @org.springframework.transaction.annotation.Transactional(readOnly=true)
     public com.handsfree.be.dto.response.PageResponse<Appeal> appeals(UUID actor,int page,String state,String search,int size) {

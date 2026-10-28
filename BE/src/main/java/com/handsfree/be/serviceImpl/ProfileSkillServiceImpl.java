@@ -67,7 +67,7 @@ public class ProfileSkillServiceImpl implements ProfileSkillService {
     }
     @Override @Transactional(readOnly=true)
     public PageResponse<Skill> search(UUID admin,String search,String status,int page) {
-        return search(admin,search,status,page,20);
+        return search(admin,search,status,page,10);
     }
     @Override @Transactional(readOnly=true)
     public PageResponse<Skill> search(UUID admin,String search,String status,int page,int size) {

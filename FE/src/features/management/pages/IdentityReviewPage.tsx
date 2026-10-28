@@ -1,10 +1,10 @@
+import { getOperatorPage } from "../../../services/operatorPageService";
 import { useCallback, useEffect, useState } from "react";
 import IdentityImageViewer from "../../../components/feedback/IdentityImageViewer";
 import IdentityAppeals from "../../identity/components/IdentityAppeals";
 import api from "../../../config/axios";
 import { useAuth } from "../../../context/AuthContext";
 import type { ApiResponse } from "../../../types/api";
-import type { PageResponse } from "../../../types/job";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
 import OperatorModal from "../components/OperatorModal";
 import { PageHeading, FilterBar, Pagination, StatusBadge, useOperatorFilters } from "../components/OperatorUi";
@@ -31,7 +31,7 @@ export default function IdentityReviewPage() {
   const [error, setError] = useState(""); const [loading, setLoading] = useState(false); const [detail, setDetail] = useState<Dossier | null>(null);
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError("");
-    try { const r = await api.get<ApiResponse<PageResponse<State>>>("/staff/identities", { params: { page, size, search, state }, signal }); if (signal?.aborted) return; setRows(r.data.result.content); setLast(r.data.result.last); setTotal(r.data.result.totalElements); }
+    try { const result = await getOperatorPage<State>("/staff/identities", { page, size, search, state }, signal); if (signal?.aborted) return; setRows(result.content); setLast(result.last); setTotal(result.totalElements); }
     catch (e) { if (!signal?.aborted) setError(getApiErrorMessage(e, "Không tải được hồ sơ xác thực.")); } finally { if (!signal?.aborted) setLoading(false); }
   }, [page, size, search, state]);
   useEffect(() => { const c = new AbortController(); const timer = setTimeout(() => void load(c.signal), 0); return () => { clearTimeout(timer); c.abort(); }; }, [load]);

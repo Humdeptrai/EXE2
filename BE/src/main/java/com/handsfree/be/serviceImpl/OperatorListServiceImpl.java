@@ -30,7 +30,7 @@ public class OperatorListServiceImpl implements OperatorListService {
     }
     private String name(UUID id) { return id==null ? "" : users.findNameById(id).map(UserRepository.Name::getFullName).orElse(""); }
     @Override public PageResponse<Map<String,Object>> list(UUID actor,String panel,int page,String search,String state) {
-        return list(actor,panel,page,search,state,20);
+        return list(actor,panel,page,search,state,10);
     }
     @Override public PageResponse<Map<String,Object>> list(UUID actor,String panel,int page,String search,String state,int size) {
         access.operator(actor,!"jobs".equals(panel));

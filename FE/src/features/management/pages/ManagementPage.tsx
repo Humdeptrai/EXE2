@@ -1,3 +1,4 @@
+import { getOperatorPage } from "../../../services/operatorPageService";
 import AdminWalletCreditForm from "../components/AdminWalletCreditForm";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
@@ -8,7 +9,7 @@ import ImageViewer from "../../../components/ui/ImageViewer";
 import OperatorModal from "../components/OperatorModal";
 import { PageHeading, FilterBar, Pagination, StatusBadge, useOperatorFilters, operatorLabels } from "../components/OperatorUi";
 import type { ApiResponse } from "../../../types/api";
-import type { JobPost, PageResponse } from "../../../types/job";
+import type { JobPost } from "../../../types/job";
 import { formatVnd } from "../../jobs/utils/jobFormat";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
 
@@ -50,10 +51,15 @@ export default function ManagementPage({ panel }: { panel: string }) {
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      const response = await api.get<ApiResponse<PageResponse<Row> | Settings>>(section.url, { params: { page, size, search, state: filter }, signal });
-      if (signal?.aborted) return;
-      if (panel === "settings") setSettings(response.data.result as Settings);
-      else { const result = response.data.result as PageResponse<Row>; setRows(result.content); setLast(result.last); setTotal(result.totalElements); }
+      if (panel === "settings") {
+        const response = await api.get<ApiResponse<Settings>>(section.url, { signal });
+        if (signal?.aborted) return;
+        setSettings(response.data.result);
+      } else {
+        const result = await getOperatorPage<Row>(section.url, { page, size, search, state: filter }, signal);
+        if (signal?.aborted) return;
+        setRows(result.content); setLast(result.last); setTotal(result.totalElements);
+      }
       setError("");
     } catch (e) { if (!signal?.aborted) { setRows([]); setError(getApiErrorMessage(e, "Không thể tải dữ liệu.")); } }
     finally { if (!signal?.aborted) setLoading(false); }
