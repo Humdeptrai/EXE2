@@ -32,7 +32,10 @@ interface AppIconProps {
     | "chevron-left"
     | "chevron-right"
     | "undo"
-    | "info";
+    | "info"
+    | "wallet"
+    | "link"
+    | "shield-check";
   className?: string;
 }
 
@@ -67,6 +70,9 @@ const paths: Record<AppIconProps["name"], ReactNode> = {
   "chevron-left": <path d="m15 18-6-6 6-6"/>,
   "chevron-right": <path d="m9 18 6-6-6-6"/>,
   undo: <><path d="M9 7H4v-5"/><path d="M4 7a9 9 0 1 1-1 7"/></>,
+  wallet: <><path d="M20 8H5a2 2 0 0 1 0-4h13v4M4 6v13a1 1 0 0 0 1 1h15V8"/><path d="M20 12h-5v4h5M17 14h.01"/></>,
+  link: <><path d="m10 13 4-4M8.5 15.5l-1 1a4 4 0 0 1-5.6-5.6l4-4a4 4 0 0 1 5.6 0M12.5 13.1a4 4 0 0 0 5.6 0l4-4a4 4 0 0 0-5.6-5.6l-1 1"/></>,
+  "shield-check": <><path d="M12 3 4 6v6c0 4 3.7 7.3 8 9 4.3-1.7 8-5 8-9V6z"/><path d="m8 12 3 3 5-6"/></>,
   info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></>,
 };
 

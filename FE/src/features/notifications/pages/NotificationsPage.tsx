@@ -1,3 +1,4 @@
+import { notificationPresentation } from "../utils/notificationPresentation";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
@@ -6,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import { useNotifications } from "../../../context/NotificationContext";
 import { notificationService } from "../../../services/notificationService";
-import type { NotificationItem, NotificationType } from "../../../types/notification";
+import type { NotificationItem } from "../../../types/notification";
 
 function formatTime(value: string) {
   const date = new Date(value);
@@ -16,22 +17,6 @@ function formatTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
-}
-
-function typeLabel(type: NotificationType) {
-  switch (type) {
-    case "JOB_INTEREST_RECEIVED": return "Ứng viên";
-    case "CANDIDATE_ACCEPTED": return "Matching";
-    case "CANDIDATE_REJECTED": return "Ứng tuyển";
-    case "PAYMENT_RECEIVED": return "Thanh toán";
-    case "CONNECTION_SUCCEEDED": return "Kết nối";
-    case "CHAT_MESSAGE_RECEIVED": return "Tin nhắn";
-    case "SKILL_REVIEWED": return "Kỹ năng & sở thích";
-    case "RATING_RECEIVED": return "Đánh giá";
-    case "IDENTITY_REVIEWED": return "Xác minh tài khoản";
-    case "REPORT_RESOLVED":
-    case "REPORT_REJECTED": return "Báo cáo & hỗ trợ";
-  }
 }
 
 export default function NotificationsPage() {
@@ -129,19 +114,24 @@ export default function NotificationsPage() {
         </div>
       ) : (
         <div className="divide-y divide-slate-100">
-          {items.map((item) => (
-            <button key={item.id} type="button" onClick={() => void openNotification(item)} className={`flex w-full gap-3 px-4 py-4 text-left transition hover:bg-slate-50 sm:px-6 ${item.read ? "bg-white" : "bg-[#f2fbfc]"}`}>
-              <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${item.read ? "bg-slate-200" : "bg-[#00a8bd]"}`} />
+          {items.map((item) => {
+            const presentation = notificationPresentation(item.type);
+            return <button key={item.id} type="button" onClick={() => void openNotification(item)} data-notification-type={item.type} className={`flex w-full gap-3 px-4 py-4 text-left transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#007f95] sm:px-6 ${item.read ? "bg-white" : "bg-[#f2fbfc]"}`}>
+              <span aria-hidden="true" className={`relative mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${presentation.iconClass}`}>
+                <AppIcon name={presentation.icon} className="h-5 w-5" />
+                {!item.read && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-[#007f95]" />}
+              </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <p className="font-extrabold text-slate-800">{item.title}</p>
+                  <p className="min-w-0 max-w-full break-words font-extrabold text-slate-800">{item.title}</p>
                   <span className="shrink-0 text-[11px] font-bold text-slate-400">{formatTime(item.createdAt)}</span>
                 </div>
-                <p className="mt-1 text-sm leading-6 text-slate-600">{item.message}</p>
-                <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-500">{typeLabel(item.type)}</span>
+                <p className="mt-1 break-words text-sm leading-6 text-slate-600">{item.message}</p>
+                <span className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide ${presentation.badgeClass}`}>{presentation.label}</span>
+                <span className="sr-only">{item.read ? "Đã đọc" : "Chưa đọc"}</span>
               </div>
-            </button>
-          ))}
+            </button>;
+          })}
         </div>
       )}
     </section>
