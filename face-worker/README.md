@@ -1,5 +1,19 @@
 # Face worker
 
+## Back CCCD capture thresholds
+
+Back images require a minimum Laplacian sharpness of 25 (previously 35),
+450x280 pixels (previously 500x300), and mean OCR confidence of 25 (previously
+35). The pixel limits apply both to detected cards and the existing full-photo
+fallback. Front thresholds, lighting limits, semantic field requirements, MRZ
+checks, front/back number comparison and face/PAD checks are unchanged.
+
+Only redeploy the worker for this threshold adjustment; no BE/FE change or
+database migration is required. Run `python -m unittest discover -s tests -v`
+from this directory for synthetic regressions. Real capture acceptance rates
+still need validation on representative phone photos; these tests do not
+measure OCR accuracy on actual CCCD images.
+
 ## Separate face and document processing
 
 A single worker process now has one face/model lock and one document/OCR slot.

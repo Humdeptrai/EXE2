@@ -166,7 +166,7 @@ def _image_quality(image, side=None):
     sharpness = float(cv2.Laplacian(detail, cv2.CV_64F).var())
     brightness = float(detail.mean())
     white = float(np.mean(detail >= 250))
-    if sharpness < (35 if side == 'back' else 55):
+    if sharpness < (25 if side == 'back' else 55):
         return dict(passed=False, reason='BLUR', sharpness=sharpness)
     if brightness < 55 or brightness > 240 or white > .60:
         return dict(passed=False, reason='LIGHTING', brightness=brightness)
@@ -183,7 +183,7 @@ def card_image(image, side=None):
     too_small = False
     quality_failure = None
     for points, card_width, card_height in _card_candidates(image):
-        min_width, min_height = (500, 300) if side == 'back' else (550, 320)
+        min_width, min_height = (450, 280) if side == 'back' else (550, 320)
         if card_width < min_width or card_height < min_height:
             too_small = True
             continue
@@ -200,7 +200,7 @@ def card_image(image, side=None):
         # No reliable boundary: OCR the original pixels instead of rejecting a
         # readable back on a similar-coloured surface. Never synthesize a card.
         height, width = image.shape[:2]
-        if max(width, height) < 500 or min(width, height) < 300:
+        if max(width, height) < 450 or min(width, height) < 280:
             return None, dict(passed=False, reason='TOO_SMALL')
         quality = _image_quality(image, side)
         quality['frameDetected'] = False
@@ -483,7 +483,7 @@ def document_fields(front_text, back_text, front_confidence, back_confidence):
                    ('NOI CU TRU', 'PLACE OF RESIDENCE'), ('NOI SINH',),
                    ('DATE OF EXPIRY', 'CO GIA TRI DEN'),
                    ('NGON TRO', 'INDEX FINGER'))
-    back_ok = (len(back_text) >= 40 and back_confidence >= 35
+    back_ok = (len(back_text) >= 40 and back_confidence >= 25
                and (sum(any(marker in back for marker in group) for group in back_groups) >= 2
                     or _valid_back_mrz(back_text)))
     return dict(frontReadable=front_ok, backReadable=back_ok,

@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from document_checks import card_image, document_fields, read_card
+from document_checks import _image_quality, card_image, document_fields, read_card
 
 TEXT = 'Personal identification: synthetic mark\nDate of issue: 01/01/2021'
 
@@ -46,6 +46,39 @@ class BackPolicyTests(unittest.TestCase):
         self.assertIsNone(card)
         self.assertEqual(quality['reason'], 'TOO_SMALL')
 
+    def test_smaller_readable_back_without_border(self):
+        image = cv2.resize(borderless_photo(), (450, 280))
+        with patch('document_checks._card_candidates', return_value=iter(())):
+            card, quality = card_image(image, side='back')
+        self.assertTrue(quality['passed'], quality)
+        np.testing.assert_array_equal(card, image)
+        for size in ((449, 280), (450, 279)):
+            with self.subTest(size=size), patch('document_checks._card_candidates', return_value=iter(())):
+                card, quality = card_image(cv2.resize(image, size), side='back')
+            self.assertIsNone(card)
+            self.assertEqual(quality['reason'], 'TOO_SMALL')
+
+    def test_smaller_detected_card_is_accepted_only_for_back(self):
+        image = cv2.resize(borderless_photo(), (450, 280))
+        points = np.array([[0, 0], [449, 0], [449, 279], [0, 279]], np.float32)
+        for side, passed in (('back', True), ('front', False)):
+            with self.subTest(side=side), patch('document_checks._card_candidates',
+                                               return_value=iter(((points, 450, 280),))):
+                card, quality = card_image(image, side=side)
+            self.assertEqual(quality['passed'], passed, quality)
+            self.assertEqual(card is not None, passed)
+
+    def test_lower_contrast_text_is_accepted_only_for_back(self):
+        image = borderless_photo()
+        sharpness = _image_quality(image, side='back')['sharpness']
+        # Retain actual text pixels with Laplacian variance between 25 and 35.
+        image = np.rint(180 + (image.astype(float) - 180) * (30 / sharpness)**.5).astype(np.uint8)
+        quality = _image_quality(image, side='back')
+        self.assertGreaterEqual(quality['sharpness'], 25)
+        self.assertLess(quality['sharpness'], 35)
+        self.assertTrue(quality['passed'])
+        self.assertEqual(_image_quality(image, side='front')['reason'], 'BLUR')
+
     def test_overexposed_back_still_fails_quality(self):
         image = borderless_photo()
         image[:450] = 255
@@ -61,8 +94,8 @@ class BackPolicyTests(unittest.TestCase):
         self.assertFalse(document_fields('', 'Personal identification '*5, 0, 99)['backReadable'])
 
     def test_back_confidence_threshold(self):
-        self.assertTrue(document_fields('', TEXT, 0, 35)['backReadable'])
-        self.assertFalse(document_fields('', TEXT, 0, 34)['backReadable'])
+        self.assertTrue(document_fields('', TEXT, 0, 25)['backReadable'])
+        self.assertFalse(document_fields('', TEXT, 0, 24)['backReadable'])
 
     def test_fingerprint_label_with_issue_date(self):
         text = 'Ngon tro trai / Left index finger\nNgay, thang, nam: 01/01/2021'
@@ -74,9 +107,9 @@ class BackPolicyTests(unittest.TestCase):
         self.assertTrue(document_fields(text, '', 45, 0)['frontReadable'])
 
     def test_read_card_uses_relaxed_back_policy(self):
-        with patch('document_checks._ocr', return_value=(TEXT, 36)) as ocr:
+        with patch('document_checks._ocr', return_value=(TEXT, 25)) as ocr:
             _, confidence = read_card(borderless_photo(), side='back')
-        self.assertEqual(confidence, 36)
+        self.assertEqual(confidence, 25)
         self.assertEqual(ocr.call_count, 1)
 
     def test_checkpoint_fallback_still_rejects_number_mismatch(self):
