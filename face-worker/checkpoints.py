@@ -123,6 +123,8 @@ def finish(token, front, back, threshold):
     if not state.get('selfie') or state['selfieScore'] < threshold or state['selfiePad'] < .8:
         raise HTTPException(422, 'Selfie required')
     f, b = dict(docs['front']), docs['back']
+    from document_checks import _name_value
+    f['fullName'] = _name_value(f.get('fullName') or '')
     # Old signed checkpoints retain the old parser's empty name even after a
     # redeploy. Re-read only this field from the exact saved front evidence;
     # never use a profile name or change validated face comparison scores.

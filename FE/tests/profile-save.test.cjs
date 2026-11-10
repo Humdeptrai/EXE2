@@ -12,9 +12,10 @@ const requireFE = Module.createRequire(path.join(root, 'package.json'));
 const { build } = process.env.ESBUILD_MODULE ? require(process.env.ESBUILD_MODULE) : requireFE('esbuild');
 
 test('field saves update saved completion without submitting or discarding other drafts', async () => {
-  const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost/profile?onboarding=1' });
+  const dom = new JSDOM('<div id="root"></div>', { url: 'http://localhost/profile?onboarding=1', pretendToBeVisual: true });
   for (const key of ['window', 'document', 'HTMLElement', 'HTMLInputElement', 'HTMLTextAreaElement', 'Event', 'localStorage']) global[key] = dom.window[key];
   global.IS_REACT_ACT_ENVIRONMENT = true;
+  global.IntersectionObserver = class { observe() {} disconnect() {} };
   const React = requireFE('react');
   const { act } = React;
   const { createRoot } = requireFE('react-dom/client');
@@ -34,10 +35,11 @@ test('field saves update saved completion without submitting or discarding other
   let failNext = false;
   let persist;
   let currentPath;
+  let identityProgress = {};
   global.profileTestApi = {
     async get(url) {
       const result = url === '/locations/activity' ? activity : url === '/profile-skills' ? [{ id: 'skill', name: 'Chăm sóc cây', status: 'APPROVED' }]
-        : url === '/identity/progress/profile' ? { eligibility: { identityVerified: false, selfieVerified: false, documentConfirmed: false, identityStatus: 'DRAFT' }, personal: { verification: { status: 'DRAFT' } }, progress: {} } : [];
+        : url === '/identity/progress/profile' ? { eligibility: { identityVerified: false, selfieVerified: false, documentConfirmed: false, identityStatus: 'DRAFT' }, personal: { verification: { status: 'DRAFT' }, documentFullName: 'TÊN CŨ' }, progress: identityProgress } : [];
       return { data: { result } };
     },
   };
@@ -85,6 +87,15 @@ test('field saves update saved completion without submitting or discarding other
     await act(async () => renderer.render(React.createElement(Fixture)));
     await settle();
     assert.equal(progress(), 23);
+    assert.equal(document.getElementById('private-document-name').value, 'TEN CU');
+    identityProgress = { status: 'DRAFT', frontUrl: '/identity/progress/images/front', documentFullName: 'TRỊNH ĐẠT HOÀNG' };
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    await settle();
+    assert.equal(document.getElementById('private-document-name').value, 'TRINH DAT HOANG');
+    identityProgress = { status: 'DRAFT', frontUrl: '/identity/progress/images/front', documentFullName: null };
+    await act(async () => window.dispatchEvent(new Event('focus')));
+    await settle();
+    assert.equal(document.getElementById('private-document-name').value, '');
     await fill('Họ và tên', '');
     await fill('Giới thiệu bản thân', 'Bản nháp chưa lưu');
     await click('+ Chăm sóc cây');

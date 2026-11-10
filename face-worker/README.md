@@ -1,5 +1,19 @@
 # Face worker
 
+## Front CCCD names
+
+OCR names are returned in uppercase without Vietnamese accents. The name crop
+includes extra space on the left to preserve surname initials; names beginning
+or ending with broken punctuation are rejected instead of guessing letters.
+Existing checkpoints with an invalid name are re-read from their saved front
+image at finish. No account/profile name is used as an OCR fallback.
+
+Deploy the worker, BE and FE together for the name-preview change. The BE reads
+the latest front name from the existing encrypted checkpoint, and the profile
+shows that pending name instead of an older submission. A failed new front
+capture clears the preview. No database schema migration is needed, and the
+approved identity is still only changed by the existing finish/review flows.
+
 ## Back CCCD capture thresholds
 
 Back images require a minimum Laplacian sharpness of 25 (previously 35),

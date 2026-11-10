@@ -5,7 +5,8 @@ import java.util.UUID;
 public interface IdentityProgressService {
     record Progress(boolean scanPassed, boolean selfiePassed, boolean frontPassed, boolean backPassed,
                     String frontReason, String backReason, String status, String documentNumber,
-                    String selfieUrl, String frontUrl, String backUrl, Instant updatedAt, long version) {}
+                    String selfieUrl, String frontUrl, String backUrl, Instant updatedAt, long version,
+                    String documentFullName) {}
     record Profile(IdentityService.Eligibility eligibility, IdentityService.MyIdentity personal, Progress progress) {}
     Profile profile(UUID user);
     Progress get(UUID user);

@@ -78,6 +78,12 @@ function UserProfile() {
   const [identityLoaded, setIdentityLoaded] = useState(false);
   const [identityRefresh, setIdentityRefresh] = useState(0);
   useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible") setIdentityRefresh(value => value + 1); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+  }, []);
+  useEffect(() => {
     const controller = new AbortController();
     void identityService.profile(controller.signal).then(result => {
       if (controller.signal.aborted) return;

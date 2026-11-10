@@ -5,6 +5,9 @@ import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 import java.util.*;
 public interface IdentityProgressRepository extends JpaRepository<IdentityProgress,UUID> {
+    interface CheckpointData { byte[] getCheckpoint(); }
+    @Query("select p.checkpoint as checkpoint from IdentityProgress p where p.userId = :id")
+    Optional<CheckpointData> findCheckpoint(@Param("id") UUID id);
     interface Snapshot {
         boolean getHasCheckpoint(); boolean getHasSelfie(); boolean getHasFront(); boolean getHasBack();
         boolean getSelfiePassed(); boolean getFrontPassed(); boolean getBackPassed();

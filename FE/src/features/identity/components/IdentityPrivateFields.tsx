@@ -9,6 +9,12 @@ export default function IdentityPrivateFields({ state, progress, onChanged }: { 
   const personal = updated?.base === state ? updated.value : state;
   const [retake, setRetake] = useState(false);
   const [revision, setRevision] = useState(0);
+  const currentFront = Boolean(progress?.frontUrl && progress.status !== "VERIFIED");
+  // A new front capture supersedes the old OCR preview, including when the new
+  // name is unreadable. It does not change the account's approved identity.
+  const documentName = currentFront ? progress?.documentFullName : progress?.documentFullName ?? personal?.documentFullName;
+  const normalizedName = (documentName || "").normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/gi, "D").toUpperCase().trim().replace(/\s+/g, " ");
+  const displayName = /^[A-Z][A-Z .'-]*[A-Z]$/.test(normalizedName) ? normalizedName : "";
   const photos = [
     { label: "Ảnh quét khuôn mặt", path: personal?.faceUrl || (progress?.scanPassed ? "/identity/progress/images/face" : null) },
     { label: "Selfie xác minh", path: personal?.selfieUrl || progress?.selfieUrl },
@@ -28,8 +34,8 @@ export default function IdentityPrivateFields({ state, progress, onChanged }: { 
     </div>
     <div className="min-w-0 rounded-2xl border border-slate-200 p-4">
       <label className="text-xs font-bold text-slate-400" htmlFor="private-document-name">Họ và tên (CCCD) · Chỉ bạn và ADMIN</label>
-      <input id="private-document-name" readOnly value={personal?.documentFullName || ""} placeholder="Chưa đọc được họ tên từ CCCD" className="mt-2 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" />
-      <p className="mb-4 mt-2 text-xs leading-5 text-slate-500">Họ tên được đọc từ CCCD, độc lập với tên tài khoản. {personal?.verification.status === "VERIFIED" ? "Đã xác minh." : "Chưa xác minh hoàn tất."}</p>
+      <input id="private-document-name" readOnly value={displayName} placeholder="Chưa đọc được họ tên từ CCCD" className="mt-2 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" />
+      <p className="mb-4 mt-2 text-xs leading-5 text-slate-500">Họ tên không dấu được đọc từ CCCD, độc lập với tên tài khoản. {currentFront ? "Kết quả từ mặt trước mới nhất; chờ hoàn tất đối chiếu." : personal?.verification.status === "VERIFIED" ? "Đã xác minh." : "Chưa xác minh hoàn tất."}</p>
       <label className="text-xs font-bold text-slate-400" htmlFor="private-document-number">Số CCCD · Chỉ bạn và ADMIN</label>
       <input id="private-document-number" readOnly value={personal?.documentNumber || progress?.documentNumber || ""} placeholder="Chưa trích xuất được số CCCD" className="mt-2 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm" />
       <p className={`mt-2 text-sm font-bold ${personal?.documentConfirmed ? "text-emerald-700" : "text-red-600"}`}>{personal?.documentConfirmed ? "✓ Đã xác nhận" : progress?.documentNumber ? "Số đã đọc từ mặt trước; chờ hoàn tất đối chiếu" : "! Chưa xác nhận số CCCD"}</p>

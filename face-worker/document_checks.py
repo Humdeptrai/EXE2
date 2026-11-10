@@ -338,9 +338,10 @@ def _name_value(value):
         value = value[:stop.start()].strip(" :/|;.,")
     value = ' '.join(value.split())
     if (2 <= len(value) <= 100 and len(value.split()) >= 2
+            and value[0].isalpha() and value[-1].isalpha()
             and all(c.isalpha() or c in " .'-" for c in value)
             and not _NAME_LABEL.search(_unaccent(value))):
-        return value
+        return plain(value)
     return ''
 
 
@@ -353,14 +354,16 @@ def extract_name(text):
         values = []
         tail = line[label.end():]
         value = _name_value(tail)
-        if '/' in tail and not _NAME_LABEL.search(_unaccent(tail)):
+        next_field = _NAME_STOPS.search(_unaccent(tail))
+        name_tail = tail[:next_field.start()] if next_field else tail
+        if '/' in name_tail and not _NAME_LABEL.search(_unaccent(name_tail)):
             value = ''  # Unreadable bilingual label, not part of the person's name.
         if value:
             values.append(value)
         elif tail.strip(" :/|;.,").isalpha() and not _NAME_LABEL.search(_unaccent(tail)):
             values.append(tail.strip(" :/|;.,"))
         if _NAME_STOPS.search(_unaccent(tail)):
-            return ' '.join(values)
+            return _name_value(' '.join(values))
         for following in lines[index+1:index+5]:
             # Only collect letters inside the labelled name field, ending at
             # the next field. Do not invent a name from account/profile data.
@@ -393,7 +396,9 @@ def read_front_name(image):
     original card quality or face checks. No profile name or fixed name is used.
     """
     height, width = image.shape[:2]
-    roi = image[int(height*.40):int(height*.82), int(width*.27):int(width*.99)]
+    # Leave space before the name: tight crops can clip the first surname letter
+    # and turn it into punctuation. This only changes the OCR crop, not evidence.
+    roi = image[int(height*.40):int(height*.82), int(width*.20):int(width*.99)]
     if roi.size == 0:
         return ''
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
@@ -433,9 +438,7 @@ def read_front_name(image):
         return ''
     # Agreement across preprocessing passes outranks a lone confident guess.
     selected = max(candidates, key=lambda item: (sum(plain(other)==plain(item[0]) for other,_ in candidates), item[1]))[0]
-    variants = {name for name,_ in candidates if plain(name)==plain(selected)}
-    # Do not guess Vietnamese accents when OCR passes disagree about them.
-    return plain(selected) if len(variants)>1 else selected
+    return plain(selected)
 
 
 def _valid_back_mrz(text):

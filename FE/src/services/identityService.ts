@@ -14,6 +14,7 @@ export type MyIdentity = {
   faceUrl: string | null; frontUrl: string | null; backUrl: string | null;
 };
 export type IdentityProgress = {
+  documentFullName?: string | null;
   scanPassed: boolean; selfiePassed: boolean; frontPassed: boolean; backPassed: boolean;
   frontReason: string | null; backReason: string | null; status: string; documentNumber: string | null;
   selfieUrl: string | null; frontUrl: string | null; backUrl: string | null; updatedAt: string | null; version: number;

@@ -37,12 +37,25 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
     }
     private void save(IdentityProgress p) { p.setUpdatedAt(Instant.now());repository.saveAndFlush(p); }
     private Progress summary(IdentityProgress p) {
-        if(p==null) return new Progress(false,false,false,false,null,null,"DRAFT",null,null,null,null,null,0);
+        if(p==null) return new Progress(false,false,false,false,null,null,"DRAFT",null,null,null,null,null,0,null);
         return new Progress(p.getCheckpoint()!=null,p.isSelfiePassed(),p.isFrontPassed(),p.isBackPassed(),
             p.getFrontReason(),p.getBackReason(),p.getStatus(),crypto.text(p.getDocumentNumber()),
             p.getSelfieImage()==null?null:"/identity/progress/images/selfie",
             p.getFrontImage()==null?null:"/identity/progress/images/front",
-            p.getBackImage()==null?null:"/identity/progress/images/back",p.getUpdatedAt(),p.getVersion());
+            p.getBackImage()==null?null:"/identity/progress/images/back",p.getUpdatedAt(),p.getVersion(),
+            p.isFrontPassed() ? checkpointName(p.getCheckpoint()) : null);
+    }
+    private String normalizeName(String name) {
+        if(name==null || name.isBlank()) return null;
+        String value=java.text.Normalizer.normalize(name,java.text.Normalizer.Form.NFD)
+            .replaceAll("\\p{M}+", "").replace('đ','d').replace('Đ','D')
+            .toUpperCase(java.util.Locale.ROOT).trim().replaceAll("\\s+", " ");
+        return value.matches("[A-Z][A-Z .'-]{0,98}[A-Z]") ? value : null;
+    }
+    private String checkpointName(byte[] checkpoint) {
+        if(checkpoint==null) return null;
+        var front=payload(crypto.text(checkpoint)).path("documents").path("front");
+        return front.path("passed").asBoolean(false) ? normalizeName(front.path("fullName").asString("")) : null;
     }
     private AppException invalidResponse(String operation,String reason) { return new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR); }
     private JsonNode payload(String token) {
@@ -105,13 +118,14 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             return new Progress(true, true, true, true, null, null, "VERIFIED", active.documentNumber(), active.selfieUrl(),
                     p == null || !p.getHasFront() ? null : "/identity/progress/images/front",
                     p == null || !p.getHasBack() ? null : "/identity/progress/images/back",
-                    active.verification().verifiedAt(), p == null ? 0 : p.getVersion());
+                    active.verification().verifiedAt(), p == null ? 0 : p.getVersion(),normalizeName(active.documentFullName()));
         if (p == null) return summary(null);
         return new Progress(p.getHasCheckpoint(), p.getSelfiePassed(), p.getFrontPassed(), p.getBackPassed(),
                 p.getFrontReason(), p.getBackReason(), p.getStatus(), crypto.text(p.getDocumentNumber()),
                 p.getHasSelfie() ? "/identity/progress/images/selfie" : null,
                 p.getHasFront() ? "/identity/progress/images/front" : null,
-                p.getHasBack() ? "/identity/progress/images/back" : null, p.getUpdatedAt(), p.getVersion());
+                p.getHasBack() ? "/identity/progress/images/back" : null, p.getUpdatedAt(), p.getVersion(),
+                p.getFrontPassed() ? checkpointName(repository.findCheckpoint(user).map(IdentityProgressRepository.CheckpointData::getCheckpoint).orElse(null)) : null);
     }
     @Override @Transactional public void saveScan(UUID user,String token) {
         var p=locked(user);var data=payload(token);
