@@ -114,7 +114,7 @@ export default function RegisterPage() {
               <input type="checkbox" checked={form.termsAccepted} onChange={(event) => updateField("termsAccepted", event.target.checked)} className="mt-0.5 h-6 w-6 shrink-0 appearance-none rounded-[5px] border border-[#aebbc5] bg-white checked:border-[#007087] checked:bg-[#007087] checked:bg-[linear-gradient(135deg,transparent_44%,white_44%,white_53%,transparent_53%),linear-gradient(45deg,transparent_42%,white_42%,white_52%,transparent_52%)]" />
               <span>Tôi đồng ý với <button type="button" className="text-[#006b82] hover:underline" onClick={(event) => { event.preventDefault(); setShowTerms(true); }}>Điều khoản &amp; Chính sách</button></span>
             </label>
-            {errors.termsAccepted && <p className="mt-2 pl-1 text-sm font-medium text-red-600">{errors.termsAccepted}</p>}
+            {errors.termsAccepted && <p role="alert" className="mt-2 pl-1 text-sm font-medium text-red-600">{errors.termsAccepted}</p>}
           </div>
 
           {message && <FormMessage {...message} />}

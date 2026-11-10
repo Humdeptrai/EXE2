@@ -3,7 +3,6 @@ import { useChat } from "../../context/ChatContext";
 import { usePwa } from "../../features/pwa/usePwa";
 import RatingReminder from "../../features/rating/components/RatingReminder";
 import IdentityActionGuard from "../../features/identity/components/IdentityActionGuard";
-import FeedbackProvider from "../feedback/FeedbackProvider";
 import { useViewportHeight } from "./useViewportHeight";
 import "./app-ui.css";
 import { Suspense, useEffect, useRef } from "react";
@@ -164,5 +163,5 @@ function AppShellLayout() {
 }
 
 export default function AppShell() {
-  return <FeedbackProvider><AppShellLayout /></FeedbackProvider>;
+  return <AppShellLayout />;
 }

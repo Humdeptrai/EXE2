@@ -1,37 +1,10 @@
-import { type PropsWithChildren, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { type PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FeedbackContext } from "./FeedbackContext";
 import { Confirmation, type ConfirmOptions } from "./confirmation";
 import UserNotice from "./UserNotice";
-import { AppIcon } from "../ui/AppIcon";
+import ConfirmDialog from "./ConfirmDialog";
+import ErrorPopup from "./ErrorPopup";
 import "./feedback.css";
-
-function ConfirmDialog({ options, finish }: { options: ConfirmOptions; finish: (accepted: boolean) => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
-  const messageId = useId();
-  useEffect(() => {
-    const dialog = ref.current;
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    dialog?.showModal();
-    return () => {
-      dialog?.close();
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
-    };
-  }, []);
-  return createPortal(<dialog ref={ref} className={`hf-confirm-dialog${options.acknowledgeOnly ? " hf-confirm-alert" : ""}`} role={options.acknowledgeOnly ? "alertdialog" : "dialog"} aria-labelledby={titleId} aria-describedby={messageId}
-    onCancel={(event) => { event.preventDefault(); finish(false); }}>
-    <div className={`hf-confirm-icon${options.danger ? " hf-confirm-danger" : ""}`}><AppIcon name="info" className="hf-notice-icon" /></div>
-    <h2 id={titleId}>{options.title}</h2><p id={messageId}>{options.message}</p>
-    <div className="hf-confirm-actions">
-      {!options.acknowledgeOnly && <button type="button" autoFocus onClick={() => finish(false)}>{options.cancelLabel || "Hủy"}</button>}
-      <button type="button" autoFocus={options.acknowledgeOnly} className={`hf-confirm-primary${options.danger ? " hf-confirm-danger-button" : ""}`} onClick={() => finish(true)}>{options.confirmLabel || "Xác nhận"}</button>
-    </div>
-  </dialog>, document.body);
-}
 
 export default function FeedbackProvider({ children }: PropsWithChildren) {
   const [coordinator] = useState(() => new Confirmation());
@@ -51,5 +24,6 @@ export default function FeedbackProvider({ children }: PropsWithChildren) {
   return <FeedbackContext.Provider value={value}>{children}
     {options && <ConfirmDialog options={options} finish={finish} />}
     {notice && <div className="hf-user-toast"><UserNotice key={notice.id} message={notice.message} error onClose={() => setNotice(null)} /></div>}
+    <ErrorPopup blocked={Boolean(options)} />
   </FeedbackContext.Provider>;
 }
