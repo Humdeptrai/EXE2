@@ -16,11 +16,19 @@ import { AppIcon } from "../../../components/ui/AppIcon";
 import { useAuth } from "../../../context/AuthContext";
 import { ratingService } from "../../../services/ratingService";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
-import type { UpdateProfileRequest } from "../../../types/auth";
+import type { UpdateProfileRequest, User } from "../../../types/auth";
 import type { UserReputation } from "../../../types/rating";
 
-function emptyForm(): UpdateProfileRequest {
-  return { fullName: "", phone: "", avatarUrl: "", bio: "", location: "", tags: [] };
+type ProfileField = "fullName" | "phone" | "location" | "bio" | "tags";
+const fieldLabels: Record<ProfileField, string> = {
+  fullName: "họ tên", phone: "số điện thoại", location: "khu vực", bio: "giới thiệu", tags: "kỹ năng & sở thích",
+};
+
+function savedForm(user: User | null): UpdateProfileRequest {
+  return {
+    fullName: user?.fullName || "", phone: user?.phone || "", avatarUrl: user?.avatarUrl || "",
+    bio: user?.bio || "", location: user?.location || "", tags: user?.tags || [],
+  };
 }
 
 export default function ProfilePage() {
@@ -40,30 +48,15 @@ function UserProfile() {
     const timer = window.setTimeout(() => setEditing(true), 0);
     return () => window.clearTimeout(timer);
   }, [onboarding]);
-  const [form, setForm] = useState<UpdateProfileRequest>(emptyForm);
+  const [form, setForm] = useState<UpdateProfileRequest>(() => savedForm(user));
   const [activity, setActivity] = useState<Activity | null>(null);
   const [savedActivity, setSavedActivity] = useState<Activity | null>(null);
   const [activityLoaded, setActivityLoaded] = useState(false);
   useEffect(() => { const c = new AbortController(); void locationService.activity(c.signal).then(a => { if (!c.signal.aborted) { setActivity(a); setSavedActivity(a); if (a) setForm(f => ({ ...f, location: a.place.area })); } }).catch(() => undefined).finally(() => { if (!c.signal.aborted) setActivityLoaded(true); }); return () => c.abort(); }, []);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<ProfileField | "all" | null>(null);
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [reputation, setReputation] = useState<UserReputation | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    const timer = window.setTimeout(() => {
-      setForm({
-        fullName: user.fullName || "",
-        phone: user.phone || "",
-        avatarUrl: user.avatarUrl || "",
-        bio: user.bio || "",
-        location: savedActivity?.place.area || user.location || "",
-        tags: user.tags || [],
-      });
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [user]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -130,6 +123,55 @@ function UserProfile() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  async function saveField(field: ProfileField) {
+    if (!user || saving || avatarSaving) return;
+    const value = field === "tags" ? form.tags : form[field].trim();
+    if (field === "fullName" && !value.length) {
+      setMessage({ type: "error", text: "Họ tên không được để trống." });
+      return;
+    }
+    if (field === "phone" && value && !/^0\d{9}$/.test(String(value))) {
+      setMessage({ type: "error", text: "Số điện thoại phải gồm 10 số và bắt đầu bằng 0." });
+      return;
+    }
+    setSaving(field);
+    setMessage(null);
+    try {
+      // The existing API takes a full profile. Use saved values for every other
+      // field so this action neither submits nor discards unrelated drafts.
+      const updated = await updateProfile({
+        ...savedForm(user), [field]: value,
+        ...(field === "location" && activity && activity.place.area === value ? { activityLocation: activity } : {}),
+      });
+      const saved = savedForm(updated);
+      setForm(current => ({ ...current, [field]: saved[field] }));
+      if (field === "location") setSavedActivity(activity && activity.place.area === saved.location ? activity : null);
+      setMessage({ type: "success", text: `Đã lưu ${fieldLabels[field]}.` });
+    } catch (error) {
+      setMessage({ type: "error", text: getApiErrorMessage(error, `Không thể lưu ${fieldLabels[field]}.`) });
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  function fieldSave(field: ProfileField) {
+    const saved = savedForm(user)[field];
+    const draft = form[field];
+    const changed = field === "tags" ? JSON.stringify(draft) !== JSON.stringify(saved)
+      : String(draft).trim() !== String(saved);
+    const locationChanged = field === "location" && JSON.stringify(activity) !== JSON.stringify(savedActivity);
+    const dirty = changed || locationChanged;
+    return <div className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs">
+      {dirty ? <span className="font-medium text-amber-700">Chưa lưu</span>
+        : saved.length > 0 && <span className="font-bold text-emerald-700">✓ Đã lưu</span>}
+      <button type="button" disabled={Boolean(saving) || avatarSaving || !dirty || (field === "location" && !activityLoaded)}
+        onClick={() => void saveField(field)}
+        className="min-h-10 rounded-xl bg-[#007f95] px-4 py-2 text-xs font-extrabold text-white disabled:opacity-60">
+        {saving === field ? "Đang lưu…" : `Lưu ${fieldLabels[field]}`}
+      </button>
+    </div>;
+  }
+
   function toggleTag(tag: string) {
     setMessage(null);
     setForm((current) => {
@@ -188,7 +230,8 @@ function UserProfile() {
       setMessage({ type: "error", text: "Vui lòng điền họ tên, số điện thoại hợp lệ và nơi ở trước khi tiếp tục." });
       return;
     }
-    setSaving(true);
+    if (saving || avatarSaving) return;
+    setSaving("all");
     setMessage(null);
     try {
       const updated = await updateProfile({
@@ -200,6 +243,7 @@ function UserProfile() {
         location: form.location.trim(),
         activityLocation: activity && activity.place.area === form.location.trim() ? activity : undefined,
       });
+      setForm(savedForm(updated));
       setMessage({ type: "success", text: identity?.identityVerified ? "Đã lưu thông tin hồ sơ." : "Đã lưu thông tin hồ sơ. Bạn cần hoàn tất xác thực danh tính để đăng hoặc nhận việc." });
       if (onboarding && updated.profileCompleted && updated.phone && updated.location) {
         navigate(onboardingUrl(next), { replace: true });
@@ -209,7 +253,7 @@ function UserProfile() {
     } catch (error) {
       setMessage({ type: "error", text: getApiErrorMessage(error, "Không thể cập nhật hồ sơ lúc này.") });
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   }
 
@@ -255,7 +299,11 @@ function UserProfile() {
             </div>
             <button
               type="button"
-              onClick={() => { setEditing((value) => !value); setMessage(null); }}
+              disabled={Boolean(saving) || avatarSaving}
+              onClick={() => {
+                if (!editing) { setForm({ ...savedForm(user), location: savedActivity?.place.area || user?.location || "" }); setActivity(savedActivity); }
+                setEditing((value) => !value); setMessage(null);
+              }}
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#007f95] px-4 py-2.5 text-sm font-extrabold text-white sm:w-auto"
             >
               <AppIcon name="edit" className="h-4 w-4" />
@@ -293,17 +341,18 @@ function UserProfile() {
 
           {editing && (
             <form onSubmit={handleSubmit} className="mt-6 space-y-5 sm:mt-7">
+              <fieldset disabled={Boolean(saving) || avatarSaving} className="min-w-0 space-y-5">
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block text-sm font-extrabold">Họ và tên *
+                <div><label className="block text-sm font-extrabold">Họ và tên *
                   <input value={form.fullName} onChange={(e) => setField("fullName", e.target.value)} maxLength={100} required className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
-                </label>
-                <label className="block text-sm font-extrabold">Số điện thoại (cần khi đăng/nhận việc)
+                </label>{fieldSave("fullName")}</div>
+                <div><label className="block text-sm font-extrabold">Số điện thoại (cần khi đăng/nhận việc)
                   <input required={onboarding} pattern="0[0-9]{9}" value={form.phone} onChange={(e) => setField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="0901234567" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
-                </label>
+                </label>{fieldSave("phone")}</div>
               </div>
               {addressBook}
               <div><p className="text-sm font-extrabold">Nơi ở / khu vực hoạt động *</p><LocationField title="Chọn khu vực hoạt động" disabled={!activityLoaded} value={activity?.place} fallback={form.location} onChange={p => { setActivity({ place: { ...p, address: p.area }, radiusKm: p.latitude == null ? null : activity?.radiusKm || null }); setField("location", p.area); }} /><p className="mt-2 text-xs leading-5 text-slate-500">Người khác chỉ thấy tên khu vực. Tâm vị trí dùng để gợi ý tìm việc; địa chỉ nhà riêng nằm trong danh sách riêng tư.</p>
-              <label className="mt-3 block text-xs font-bold">Phạm vi tìm việc mặc định<select className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base" value={activity?.radiusKm || ""} disabled={activity?.place.latitude == null} onChange={e => setActivity(a => a ? { ...a, radiusKm: e.target.value ? Number(e.target.value) : null } : a)}><option value="">Không giới hạn</option>{[1,3,5,10,20].map(km => <option key={km} value={km}>{km} km</option>)}</select></label></div>
+              <label className="mt-3 block text-xs font-bold">Phạm vi tìm việc mặc định<select className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base" value={activity?.radiusKm || ""} disabled={activity?.place.latitude == null} onChange={e => setActivity(a => a ? { ...a, radiusKm: e.target.value ? Number(e.target.value) : null } : a)}><option value="">Không giới hạn</option>{[1,3,5,10,20].map(km => <option key={km} value={km}>{km} km</option>)}</select></label>{fieldSave("location")}</div>
               <div className="rounded-2xl border border-slate-200 p-4">
                 <p className="text-sm font-extrabold">Ảnh đại diện</p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">JPEG, PNG hoặc WEBP · tối đa 5 MB. Khi Cloudinary được bật, ảnh sẽ được lưu trên CDN.</p>
@@ -319,19 +368,20 @@ function UserProfile() {
                   )}
                 </div>
               </div>
-              <label className="block text-sm font-extrabold">Giới thiệu bản thân (không bắt buộc)
+              <div><label className="block text-sm font-extrabold">Giới thiệu bản thân (không bắt buộc)
                 <textarea value={form.bio} onChange={(e) => setField("bio", e.target.value)} maxLength={500} rows={5} placeholder="Chia sẻ ngắn về kinh nghiệm, cách làm việc và thời gian bạn thường rảnh..." className="mt-2 min-h-32 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-base font-medium leading-6 outline-none focus:border-[#007f95] focus:ring-2 focus:ring-[#cbe9ed]" />
                 <span className="mt-1 block text-right text-xs font-bold text-slate-400">{form.bio.length}/500</span>
-              </label>
-              <ProfileSkills selected={form.tags} toggle={toggleTag} />
+              </label>{fieldSave("bio")}</div>
+              <div><ProfileSkills selected={form.tags} toggle={toggleTag} />{fieldSave("tags")}</div>
 
               <div className="grid gap-3 sm:grid-cols-2">{identityFields}</div>
 
               {message && <UserNotice message={message.text} tone={message.type} />}
 
-              <button disabled={saving} className="min-h-12 w-full rounded-xl bg-[#007f95] px-5 py-3.5 font-extrabold text-white shadow-[0_10px_25px_rgba(0,127,149,0.2)] disabled:opacity-60">
+              <button disabled={Boolean(saving) || avatarSaving} className="min-h-12 w-full rounded-xl bg-[#007f95] px-5 py-3.5 font-extrabold text-white shadow-[0_10px_25px_rgba(0,127,149,0.2)] disabled:opacity-60">
                 {saving ? "Đang lưu..." : onboarding ? "Lưu và tiếp tục" : "Lưu hồ sơ"}
               </button>
+              </fieldset>
             </form>
           )}
 
@@ -343,7 +393,7 @@ function UserProfile() {
 
         <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between"><h2 className="font-extrabold">Mức độ hoàn thiện</h2><span className="font-extrabold text-[#007f95]">{identityLoaded ? `${progress}%` : "Đang tải…"}</span></div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#007f95] transition-all" style={{ width: identityLoaded ? `${progress}%` : "0%" }} /></div>
+          <div role="progressbar" aria-label="Mức độ hoàn thiện hồ sơ" aria-valuemin={0} aria-valuemax={100} aria-valuenow={identityLoaded ? progress : undefined} className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-[#007f95] transition-all" style={{ width: identityLoaded ? `${progress}%` : "0%" }} /></div>
           <div className="mt-4 space-y-3 text-sm">
             {[
               ["Họ và tên", completedItems[0]],
