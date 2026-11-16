@@ -105,6 +105,13 @@ public class ManagementController {
         return ApiResponse.success(200, "Cấu hình", settings.get());
     }
 
+    public record IdentitySettingsRequest(@NotNull Boolean facePhotoUploadEnabled) {}
+
+    @PatchMapping("/admin/settings/identity")
+    public ApiResponse<?> identitySettings(Authentication a, @Valid @RequestBody IdentitySettingsRequest r) {
+        return ApiResponse.success(200, "Đã lưu phương thức xác minh", management.changeFacePhotoUpload(id(a), r.facePhotoUploadEnabled()));
+    }
+
     @PutMapping("/admin/settings")
     public ApiResponse<?> settings(Authentication a, @Valid @RequestBody SettingsRequest r) {
         return ApiResponse.success(

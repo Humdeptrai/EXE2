@@ -15,7 +15,12 @@ public interface IdentityService {
                       String faceUrl, String frontUrl, String backUrl, String documentFullName, String imageRevision) {}
     record DocumentCorrection(String documentNumber, String reason, boolean pending, Long version) {}
     record ScanSubmission(byte[] front, byte[] back, byte[] face, byte[] selfie, String fullName,
-                          String documentNumber, String evidence, double similarity, boolean approved, String reason) {}
+                          String documentNumber, String evidence, double similarity, boolean approved, String reason, boolean live) {
+        public ScanSubmission(byte[] front, byte[] back, byte[] face, byte[] selfie, String fullName,
+                              String documentNumber, String evidence, double similarity, boolean approved, String reason) {
+            this(front,back,face,selfie,fullName,documentNumber,evidence,similarity,approved,reason,true);
+        }
+    }
     record Appeal(UUID id, UUID userId, String status, String note, String reason, Instant createdAt,
                   Instant resolvedAt, UUID claimedBy, Instant claimedAt, String fullName, String documentNumber,
                   Double similarity, String documentData, String accountName, String claimedName) {}

@@ -6,7 +6,10 @@ public interface IdentityProgressService {
     record Progress(boolean scanPassed, boolean selfiePassed, boolean frontPassed, boolean backPassed,
                     String frontReason, String backReason, String status, String documentNumber,
                     String selfieUrl, String frontUrl, String backUrl, Instant updatedAt, long version,
-                    String documentFullName) {}
+                    String documentFullName, boolean facePhotoUploaded) {}
+    record Options(boolean facePhotoUploadEnabled, boolean photoRequiresAdminReview) {}
+    Options options(UUID user);
+    Progress uploadFace(UUID user, MultipartFile face, boolean consent);
     record Profile(IdentityService.Eligibility eligibility, IdentityService.MyIdentity personal, Progress progress) {}
     Profile profile(UUID user);
     Progress get(UUID user);

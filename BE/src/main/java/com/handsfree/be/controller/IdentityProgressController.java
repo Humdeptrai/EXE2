@@ -13,6 +13,11 @@ public class IdentityProgressController {
     private UUID user(Authentication a) { return UUID.fromString(a.getName()); }
     @GetMapping public ApiResponse<?> get(Authentication a) { return ApiResponse.success(200,"Tiến trình đã lưu",progress.get(user(a))); }
     @GetMapping("/profile") public ApiResponse<?> profile(Authentication a) { return ApiResponse.success(200,"Hồ sơ xác minh",progress.profile(user(a))); }
+    @GetMapping("/options") public ApiResponse<?> options(Authentication a) { return ApiResponse.success(200,"Phương thức xác minh",progress.options(user(a))); }
+    @PostMapping(value="/face-photo",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<?> uploadFace(Authentication a,@RequestPart MultipartFile face,@RequestParam boolean consent) {
+        return ApiResponse.success(200,"Đã lưu ảnh khuôn mặt để xét duyệt",progress.uploadFace(user(a),face,consent));
+    }
     @PostMapping(value="/selfie",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<?> selfie(Authentication a,@RequestPart MultipartFile selfie) { return ApiResponse.success(200,"Đã lưu selfie",progress.selfie(user(a),selfie)); }
     @PostMapping(value="/selfie/replacement",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)

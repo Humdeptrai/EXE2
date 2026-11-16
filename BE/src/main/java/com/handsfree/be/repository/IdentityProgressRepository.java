@@ -10,7 +10,7 @@ public interface IdentityProgressRepository extends JpaRepository<IdentityProgre
     Optional<CheckpointData> findCheckpoint(@Param("id") UUID id);
     interface Snapshot {
         boolean getHasCheckpoint(); boolean getHasSelfie(); boolean getHasFront(); boolean getHasBack();
-        boolean getSelfiePassed(); boolean getFrontPassed(); boolean getBackPassed();
+        boolean getSelfiePassed(); boolean getFrontPassed(); boolean getBackPassed(); boolean getFacePhotoUploaded();
         String getFrontReason(); String getBackReason(); String getStatus(); byte[] getDocumentNumber();
         java.time.Instant getUpdatedAt(); long getVersion();
     }
@@ -18,6 +18,7 @@ public interface IdentityProgressRepository extends JpaRepository<IdentityProgre
         select (p.checkpoint is not null) as hasCheckpoint, (p.selfieImage is not null) as hasSelfie,
             (p.frontImage is not null) as hasFront, (p.backImage is not null) as hasBack,
             p.selfiePassed as selfiePassed, p.frontPassed as frontPassed, p.backPassed as backPassed,
+            p.facePhotoUploaded as facePhotoUploaded,
             p.frontReason as frontReason, p.backReason as backReason, p.status as status,
             p.documentNumber as documentNumber, p.updatedAt as updatedAt, p.version as version
         from IdentityProgress p where p.userId = :id

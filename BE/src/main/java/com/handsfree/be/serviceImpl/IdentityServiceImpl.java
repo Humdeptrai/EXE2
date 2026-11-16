@@ -86,8 +86,8 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         draft.setDocumentData(crypto.encrypt(data.evidence())); draft.setFrontImage(crypto.encrypt(data.front()));
         draft.setBackImage(crypto.encrypt(data.back())); draft.setFaceImage(crypto.encrypt(data.face()));
         draft.setSelfieImage(crypto.encrypt(data.selfie())); draft.setSelfieVerifiedAt(now);
-        draft.setDocumentNumberConfirmedAt(null); draft.setSimilarity(data.similarity()); draft.setLive(true);
-        boolean autoApproval = !manual && data.approved();
+        draft.setDocumentNumberConfirmedAt(null); draft.setSimilarity(data.similarity()); draft.setLive(data.live());
+        boolean autoApproval = !manual && data.approved() && data.live();
         var assessment=autoApproval?registry.assess(user,data.documentNumber(),data.evidence()):new com.handsfree.be.service.IdentityRegistryService.Assessment(false,"",List.of());
         if(autoApproval && !assessment.allowed()) {draft.setStatus("REVIEW_REQUIRED");draft.setReason(assessment.message());}
         if (autoApproval && assessment.allowed()) {

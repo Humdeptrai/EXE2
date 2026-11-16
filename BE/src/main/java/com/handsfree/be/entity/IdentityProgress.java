@@ -16,6 +16,7 @@ public class IdentityProgress {
     @Column(columnDefinition="bytea") private byte[] backImage;
     @Column(columnDefinition="bytea") private byte[] documentNumber;
     @Column(nullable=false) private boolean selfiePassed;
+    @Column(nullable=false) @org.hibernate.annotations.ColumnDefault("false") private boolean facePhotoUploaded;
     @Column(nullable=false) private boolean frontPassed;
     @Column(nullable=false) private boolean backPassed;
     @Column(length=500) private String frontReason;

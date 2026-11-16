@@ -143,6 +143,17 @@ class ManualIdentityReviewTest {
         verify(registry).assess(user,"012345678901","synthetic evidence");
         verify(registry,never()).claim(any(),any(),any(),anyBoolean(),anyBoolean());
     }
+    @Test void photoReferenceCannotAutoApproveOrFabricateLiveStatus() {
+        when(appeals.findFirstByUserIdAndStatusIn(eq(user),any())).thenReturn(Optional.empty());
+        var data=new IdentityService.ScanSubmission(new byte[]{1},new byte[]{2},new byte[]{3},new byte[]{4},
+                "Synthetic Name","012345678901","PHOTO_UPLOAD",.9,true,"photo needs review",false);
+        assertEquals("REVIEW_REQUIRED",service.storeScan(user,data).status());
+        assertFalse(draft.getLive());
+        verify(registry,never()).assess(any(),any(),any());
+        assertEquals("VERIFIED",service.review(actor,user,approve()).status());
+        assertFalse(active.getLive());
+        noAutomaticChecks();
+    }
     @Test void manualSubmissionNeverRunsRegistryEvenIfApprovedFlagIsSet() {
         when(appeals.findFirstByUserIdAndStatusIn(eq(user),any())).thenReturn(Optional.empty());
         var data=new IdentityService.ScanSubmission(new byte[]{1},new byte[]{2},new byte[]{3},new byte[]{4},

@@ -221,6 +221,11 @@ def capture_selfie(app, sid, raw, decode, feature, threshold):
         raise HTTPException(410, 'Phiên đã hết hạn. Vui lòng quét lại.')
     if session['index'] != len(session['steps']) or len(session['pad']) < 6:
         raise HTTPException(422, 'Hoàn thành quét khuôn mặt trước khi chụp selfie.')
+    return capture_selfie_evidence(app, session, raw, decode, feature, threshold)
+
+
+def capture_selfie_evidence(app, session, raw, decode, feature, threshold):
+    """Validate a real selfie against its reference, without asserting motion."""
     image = decode(raw)
     try:
         pitch, yaw, roll = pose(app, image)

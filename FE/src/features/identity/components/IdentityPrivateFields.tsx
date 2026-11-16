@@ -16,7 +16,7 @@ export default function IdentityPrivateFields({ state, progress, onChanged }: { 
   const normalizedName = (documentName || "").normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/gi, "D").toUpperCase().trim().replace(/\s+/g, " ");
   const displayName = /^[A-Z][A-Z .'-]*[A-Z]$/.test(normalizedName) ? normalizedName : "";
   const photos = [
-    { label: "Ảnh quét khuôn mặt", path: personal?.faceUrl || (progress?.scanPassed ? "/identity/progress/images/face" : null) },
+    { label: progress?.facePhotoUploaded ? "Ảnh khuôn mặt tải lên" : "Ảnh quét khuôn mặt", path: progress?.facePhotoUploaded && progress.status !== "VERIFIED" ? "/identity/progress/images/face" : personal?.faceUrl || (progress?.scanPassed || progress?.facePhotoUploaded ? "/identity/progress/images/face" : null) },
     { label: "Selfie xác minh", path: personal?.selfieUrl || progress?.selfieUrl },
     { label: "CCCD mặt trước", path: personal?.frontUrl || progress?.frontUrl },
     { label: "CCCD mặt sau", path: personal?.backUrl || progress?.backUrl },

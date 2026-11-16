@@ -120,6 +120,15 @@ public class ManagementServiceImpl implements ManagementService {
         return s;
     }
 
+    @Override @Transactional
+    public PlatformSettings changeFacePhotoUpload(UUID actor, boolean enabled) {
+        access.operator(actor, true);
+        var s = settings.get();
+        s.setFacePhotoUploadEnabled(enabled);
+        log(actor, "IDENTITY_PHOTO_UPLOAD_SETTINGS", "enabled=" + enabled + " review=ADMIN");
+        return s;
+    }
+
     @Transactional
     public void refund(UUID actor, UUID matchId, String reason) {
         access.operator(actor, true);

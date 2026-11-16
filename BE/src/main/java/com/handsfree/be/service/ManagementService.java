@@ -12,5 +12,6 @@ public interface ManagementService {
     void hideJob(UUID actor, UUID id, boolean hidden, String reason);
     void updateUser(UUID actor, UUID id, UserRole role, boolean active, String reason);
     PlatformSettings changeSettings(UUID actor, BigDecimal consumer, BigDecimal provider, long min, long max, boolean enabled, int paymentWindowMinutes, int ratingDelayMinutes);
+    PlatformSettings changeFacePhotoUpload(UUID actor, boolean enabled);
     void refund(UUID actor, UUID matchId, String reason);
 }

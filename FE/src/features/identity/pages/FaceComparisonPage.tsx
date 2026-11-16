@@ -54,6 +54,7 @@ export default function FaceComparisonPage() {
   const { confirm } = useFeedback();
   const [saved, setSaved] = useState<IdentityProgress | null>(null);
   const [loading, setLoading] = useState(true);
+  const [photoEnabled, setPhotoEnabled] = useState(false);
   const [appealPending, setAppealPending] = useState(false);
   const [draft, setDraft] = useState<File | null>(null);
   const [capturing, setCapturing] = useState(false);
@@ -77,14 +78,17 @@ export default function FaceComparisonPage() {
   const request = useRef<AbortController | null>(null); const frameErrors = useRef(0);
   const remaining = Math.max(0, Math.ceil((expiresAt - clock) / 1000));
   const expired = expiresAt > 0 && remaining === 0 && phase === "scan";
+  const hasFaceReference = Boolean(saved?.scanPassed || saved?.facePhotoUploaded);
+  const photoBlocked = Boolean(saved?.facePhotoUploaded && !photoEnabled && saved.status !== "VERIFIED");
   function closeCamera() {
     cameraAttempt.current++; stream.current?.getTracks().forEach(t => t.stop()); stream.current = null; setCamera(null); setDraft(null);
   }
   function resume(progress: IdentityProgress) {
-    setSaved(progress); setConsent(progress.scanPassed); setExpiresAt(0);
-    setPhase(progress.scanPassed ? progress.selfiePassed ? "documents" : "selfie" : "scan");
+    const reference = Boolean(progress.scanPassed || progress.facePhotoUploaded);
+    setSaved(progress); setConsent(reference); setExpiresAt(0);
+    setPhase(reference ? progress.selfiePassed ? "documents" : "selfie" : "scan");
     if (progress.status === "VERIFIED") {
-      setResult({ status: "VERIFIED", decision: "MATCH", cosineScore: 0, motionPassed: true, antiSpoofPassed: true, documentReadable: true, identityVerified: true, message: "Hồ sơ đã xác minh. Các bước hoàn tất đã được lưu." });
+      setResult({ status: "VERIFIED", decision: "MATCH", cosineScore: 0, motionPassed: !progress.facePhotoUploaded, antiSpoofPassed: !progress.facePhotoUploaded, documentReadable: true, identityVerified: true, message: "Hồ sơ đã xác minh. Các bước hoàn tất đã được lưu." });
       setPhase("result");
     }
   }
@@ -104,6 +108,14 @@ export default function FaceComparisonPage() {
     return () => controller.abort();
   }, []);
   useEffect(() => {
+    const controller = new AbortController();
+    const refresh = () => { void identityService.options(controller.signal).then(options => {
+      if (!controller.signal.aborted) setPhotoEnabled(options.facePhotoUploadEnabled === true);
+    }).catch(() => { if (!controller.signal.aborted) setPhotoEnabled(false); }); };
+    refresh(); window.addEventListener("focus", refresh);
+    return () => { controller.abort(); window.removeEventListener("focus", refresh); };
+  }, []);
+  useEffect(() => {
     const ticker = setInterval(() => setClock(Date.now()), 1000);
     const attemptRef = attempt; const cameraAttemptRef = cameraAttempt;
     return () => {
@@ -121,6 +133,7 @@ export default function FaceComparisonPage() {
   }, [camera]);
   async function open(target: Slot | "face") {
     if (appealPending) return;
+    if (photoBlocked && phase !== "scan") { setError("Tải ảnh khuôn mặt đã tắt. Vui lòng quay lại bước quét trực tiếp."); return; }
     closeCamera(); setError(""); const current = cameraAttempt.current;
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("Camera cần HTTPS hoặc localhost.");
@@ -140,7 +153,7 @@ export default function FaceComparisonPage() {
     return await new Promise<Blob>((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error("Không đọc được camera.")), "image/jpeg", camera === "face" ? .9 : .95));
   }
   async function select(target: Slot, blob: Blob): Promise<boolean> {
-    if (busy || appealPending) return false;
+    if (busy || appealPending || photoBlocked) return false;
     setError(""); setBusy(true); const current = attempt.current;
     try {
       const file = await normalize(blob); const body = new FormData(); body.append("document", file);
@@ -151,6 +164,24 @@ export default function FaceComparisonPage() {
       return true;
     } catch (e) { if (current === attempt.current) setError(getApiErrorMessage(e, "Chưa lưu được ảnh. Ảnh xem lại được giữ để bạn thử lưu lại.")); return false; }
     finally { if (current === attempt.current) setBusy(false); }
+  }
+  async function uploadFace(file: File) {
+    if (!photoEnabled || !consent || busy || appealPending) return;
+    const current = ++attempt.current;
+    setBusy(true); setError("");
+    try {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) throw new Error("Vui lòng chọn ảnh JPG, PNG hoặc WebP.");
+      const face = await normalize(file); const body = new FormData(); body.append("face", face);
+      const response = await api.post<ApiResponse<IdentityProgress>>("/identity/progress/face-photo", body,
+        { params: { consent }, headers: { "Content-Type": undefined }, timeout: 150000 });
+      if (current !== attempt.current) return;
+      closeCamera(); setFiles({ front: null, back: null }); setSelfie(null); setResult(null); resume(response.data.result);
+    } catch (error) {
+      if (current === attempt.current) {
+        if ((error as { response?: { data?: { code?: number } } }).response?.data?.code === 40362) setPhotoEnabled(false);
+        setError(getApiErrorMessage(error, error instanceof Error && !('response' in error) && /[à-ỹđ]/i.test(error.message) ? error.message : "Chưa lưu được ảnh khuôn mặt. Vui lòng chọn ảnh rõ nét rồi thử lại."));
+      }
+    } finally { if (current === attempt.current) setBusy(false); }
   }
   async function captureDocument() {
     if (!camera || camera === "face" || busy || capturing) return;
@@ -221,6 +252,7 @@ export default function FaceComparisonPage() {
     } catch (e) { if (current === attempt.current) { setError(getApiErrorMessage(e, "Không bắt đầu được phiên quét.")); setBusy(false); } }
   }
   async function captureSelfie() {
+    if (photoBlocked) return;
     if (!saved?.scanPassed || busy) return;
     setBusy(true); setError(""); const current = attempt.current;
     try {
@@ -234,7 +266,7 @@ export default function FaceComparisonPage() {
     finally { if (current === attempt.current) setBusy(false); }
   }
   async function finish() {
-    if (!saved?.frontPassed || !saved.backPassed || busy || appealPending) return;
+    if (!saved?.frontPassed || !saved.backPassed || busy || appealPending || saved.facePhotoUploaded) return;
     closeCamera(); setBusy(true); setError(""); const current = attempt.current;
     try {
       const r = await api.post<ApiResponse<Result>>("/identity/progress/finish", null, { timeout: 150000 });
@@ -250,37 +282,40 @@ export default function FaceComparisonPage() {
     } finally { if (current === attempt.current) setBusy(false); }
   }
   const steps = [
-    { label: "Quét mặt", passed: saved?.scanPassed }, { label: "Selfie", passed: saved?.selfiePassed },
+    { label: saved?.facePhotoUploaded ? "Ảnh khuôn mặt" : "Quét mặt", passed: hasFaceReference }, { label: "Selfie", passed: saved?.selfiePassed },
     { label: "CCCD mặt trước", passed: saved?.frontPassed }, { label: "CCCD mặt sau", passed: saved?.backPassed },
   ];
   const progress = result?.identityVerified || saved?.status === "VERIFIED" ? 100 : steps.filter(step => step.passed).length * 20;
   return <main className="hf-face">
     <Link className="hf-face-back" to="/profile">← Hồ sơ của tôi</Link>
-    <header><h1>Xác minh tài khoản</h1><p>Quét khuôn mặt → chụp selfie trực tiếp → cung cấp CCCD hai mặt.</p></header>
+    <header><h1>Xác minh tài khoản</h1><p>{photoEnabled ? "Quét hoặc tải ảnh khuôn mặt → chụp selfie trực tiếp → cung cấp CCCD hai mặt." : "Quét khuôn mặt → chụp selfie trực tiếp → cung cấp CCCD hai mặt."}</p></header>
     <progress max={100} value={progress} aria-label="Tiến trình xác minh" /><p>{progress}% · {phase === "scan" ? "Bước 1: Quét mặt" : phase === "selfie" ? "Bước 2: Selfie" : phase === "documents" ? "Bước 3: CCCD" : "Kết quả"}</p>
     {expiresAt > 0 && phase !== "result" && <p role="status">{expired ? "Phiên đã hết hạn. Hãy bắt đầu lại." : `Còn ${remaining} giây để hoàn tất phiên.`}</p>}
     {loading && <p role="status">Đang khôi phục các bước đã lưu…</p>}
     <ol className="hf-verification-steps">{steps.map(step => <li key={step.label} className={step.passed ? "hf-step-complete" : ""}><span aria-hidden="true">{step.passed ? "✓" : "○"}</span>{step.label}<small>{step.passed ? "Đã lưu" : "Chưa hoàn tất"}</small></li>)}</ol>
     {error && <div className="hf-face-error" role="alert">{error}</div>}
+    {photoBlocked && !appealPending && phase !== "scan" && <section className="hf-face-note"><p>ADMIN đã tắt tải ảnh khuôn mặt. Vui lòng quét trực tiếp để tiếp tục; hồ sơ đã gửi xét duyệt vẫn được giữ.</p><button disabled={busy} onClick={() => { closeCamera(); setPhase("scan"); setConsent(false); }}>Quét bằng camera</button></section>}
+    {saved?.facePhotoUploaded && photoEnabled && !result && phase !== "scan" && <div className="hf-face-actions"><button disabled={busy || appealPending} onClick={() => { closeCamera(); setPhase("scan"); }}>Đổi ảnh khuôn mặt hoặc quét lại</button></div>}
     {phase === "scan" && <section className="hf-face-scan"><h2>1. Quét khuôn mặt</h2><p>Đủ sáng, tháo kính tối màu. Thực hiện đúng hướng rồi giữ đầu ổn định.</p>
       <label className="hf-face-consent"><input type="checkbox" checked={consent} disabled={busy} onChange={e => setConsent(e.target.checked)} /><span>Tôi đồng ý xử lý CCCD và khuôn mặt để xác minh. CCCD chỉ tôi và ADMIN được xem. Selfie đã xác minh được chia sẻ với đối tác khi cả hai hoàn tất phí kết nối.</span></label>
       {!camera && <button disabled={!consent || busy || loading || appealPending} onClick={() => void open("face")}>Mở camera</button>}
+      {photoEnabled && !camera && <><p className="hf-face-note">Bạn có thể tải ảnh khuôn mặt thay bước quét động tác. Vẫn cần selfie trực tiếp; hồ sơ dùng ảnh tải lên phải được ADMIN xét duyệt. Thay ảnh sẽ yêu cầu làm lại selfie và CCCD.</p><div className="hf-face-actions"><label className={!consent || busy || loading || appealPending ? "hf-disabled" : ""}>Chọn ảnh khuôn mặt<input type="file" aria-label="Chọn ảnh khuôn mặt" accept="image/jpeg,image/png,image/webp" disabled={!consent || busy || loading || appealPending} onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void uploadFace(file); }} /></label></div></>}
     </section>}
-    {phase === "selfie" && <section className="hf-face-scan"><h2>2. Chụp selfie trực tiếp</h2><p>Nhìn thẳng, giữ trọn khuôn mặt trong khung rồi bấm chụp. Selfie phải khớp người vừa quét.</p>{!camera && <button disabled={expired || appealPending} onClick={() => void open("face")}>Mở lại camera selfie</button>}</section>}
+    {phase === "selfie" && <section className="hf-face-scan"><h2>2. Chụp selfie trực tiếp</h2><p>Nhìn thẳng, giữ trọn khuôn mặt trong khung rồi bấm chụp. {saved?.facePhotoUploaded ? "Selfie phải khớp ảnh khuôn mặt đã tải lên." : "Selfie phải khớp người vừa quét."}</p>{!camera && <button disabled={expired || appealPending || photoBlocked} onClick={() => void open("face")}>Mở lại camera selfie</button>}</section>}
     {phase === "documents" && <><section className="hf-face-scan"><h2>Selfie đã khớp phiên quét</h2><div className="hf-face-preview">{selfie ? <Preview file={selfie} label="Selfie vừa chụp" /> : saved?.selfieUrl ? <PrivateIdentityImage path={`${saved.selfieUrl}?v=${saved.version}`} alt="Selfie đã lưu" /> : null}</div></section>
       <p>Chụp rõ cả hai mặt CCCD, đủ bốn góc và chừa một khoảng viền trên nền tương phản. Số CCCD được đọc tự động. Nếu ảnh chưa đạt, bạn vẫn có thể điền thông tin và gửi ADMIN xét duyệt sau khi lưu đủ hai mặt.</p>
       <div className="hf-face-grid">{(["front", "back"] as const).map(target => <section key={target} ref={target === "back" ? backStep : frontStep}><h2>{target === "front" ? "Mặt trước CCCD" : "Mặt sau CCCD"} {saved?.[target === "front" ? "frontPassed" : "backPassed"] && <span className="hf-step-check" aria-label="Đã đạt">✓</span>}</h2>
         <div className="hf-face-preview">{files[target] ? <Preview file={files[target]} label={target === "front" ? "Mặt trước CCCD" : "Mặt sau CCCD"} /> : saved?.[target === "front" ? "frontUrl" : "backUrl"] ? <PrivateIdentityImage path={saved[target === "front" ? "frontUrl" : "backUrl"]! + `?v=${saved.version}`} alt={target === "front" ? "Mặt trước đã lưu" : "Mặt sau đã lưu"} /> : <p>Chưa có ảnh</p>}</div>
         {saved?.[target === "front" ? "frontReason" : "backReason"] && <p className="hf-face-error" role="alert">{saved[target === "front" ? "frontReason" : "backReason"]}</p>}
-        <div className="hf-face-actions"><button disabled={busy || expired || appealPending} onClick={() => void open(target)}>{saved?.[target === "front" ? "frontUrl" : "backUrl"] ? "Chụp lại mặt này" : "Chụp CCCD"}</button><label className={busy || expired || appealPending ? "hf-disabled" : ""}>Chọn ảnh CCCD<input type="file" accept="image/jpeg,image/png" disabled={busy || expired || appealPending} onChange={e => { const f = e.target.files?.[0]; if (f) void select(target, f); e.target.value = ""; }} /></label></div></section>)}</div>
-      <button ref={submitStep} className="hf-face-submit" disabled={busy || appealPending || !saved?.frontPassed || !saved.backPassed} onClick={() => void finish()}>{busy ? "Đang đối chiếu hồ sơ…" : "Xác minh hồ sơ"}</button></>}
+        <div className="hf-face-actions"><button disabled={busy || expired || appealPending || photoBlocked} onClick={() => void open(target)}>{saved?.[target === "front" ? "frontUrl" : "backUrl"] ? "Chụp lại mặt này" : "Chụp CCCD"}</button><label className={busy || expired || appealPending || photoBlocked ? "hf-disabled" : ""}>Chọn ảnh CCCD<input type="file" accept="image/jpeg,image/png" disabled={busy || expired || appealPending || photoBlocked} onChange={e => { const f = e.target.files?.[0]; if (f) void select(target, f); e.target.value = ""; }} /></label></div></section>)}</div>
+      {!saved?.facePhotoUploaded ? <button ref={submitStep} className="hf-face-submit" disabled={busy || appealPending || !saved?.frontPassed || !saved.backPassed} onClick={() => void finish()}>{busy ? "Đang đối chiếu hồ sơ…" : "Xác minh hồ sơ"}</button> : <p className="hf-face-note">Ảnh khuôn mặt không có bước quét động tác. Sau khi lưu đủ ảnh, dùng mục “Yêu cầu kiểm tra danh tính” bên dưới để gửi ADMIN xét duyệt.</p>}</>}
     {camera === "face" && <CameraDialog face title={phase === "selfie" ? "Chụp selfie" : "Quét khuôn mặt"} onClose={reset}>
       <div className="hf-face-instruction"><h3>{phase === "selfie" ? "Nhìn thẳng để chụp selfie" : scan ? directions[scan.step] : "Nhìn thẳng vào camera"}</h3>
         <p aria-live="polite">{phase === "scan" ? scan?.message || "Nhấn bắt đầu quét, sau đó làm theo hướng dẫn." : "Giữ trọn khuôn mặt trong khung rồi bấm chụp."}</p></div>
       <div className="hf-live-view hf-mirror"><video ref={video} autoPlay muted playsInline /><div className="hf-live-oval" /></div>
       {(phase === "scan" || saved?.scanPassed) && <div className="hf-scan-progress"><div><strong>Tiến trình quét khuôn mặt</strong><span>{saved?.scanPassed ? 100 : scan?.progress || 0}%</span></div><progress max={100} value={saved?.scanPassed ? 100 : scan?.progress || 0} aria-label="Tiến trình riêng của bước quét mặt" /></div>}
       {error && <p className="hf-face-error" role="alert">{error}</p>}
-      <div className="hf-face-actions">{phase === "scan" ? <button disabled={busy || appealPending || !consent} onClick={() => void begin()}>{busy ? "Đang quét…" : "Bắt đầu quét"}</button> : <button disabled={busy || expired || appealPending} onClick={() => void captureSelfie()}>{busy ? "Đang kiểm tra…" : "Chụp selfie"}</button>}</div>
+      <div className="hf-face-actions">{phase === "scan" ? <button disabled={busy || appealPending || !consent} onClick={() => void begin()}>{busy ? "Đang quét…" : "Bắt đầu quét"}</button> : <button disabled={busy || expired || appealPending || photoBlocked} onClick={() => void captureSelfie()}>{busy ? "Đang kiểm tra…" : "Chụp selfie"}</button>}</div>
     </CameraDialog>}
     {(camera === "front" || camera === "back") && <CameraDialog title={camera === "front" ? "Chụp mặt trước CCCD" : "Chụp mặt sau CCCD"} onClose={() => void dismissDocument()}>
       {error && <div className="hf-face-error" role="alert">{error}</div>}
@@ -291,9 +326,9 @@ export default function FaceComparisonPage() {
         <p>Đặt CCCD nằm ngang trong khung, giữ đủ bốn góc trên nền tương phản.</p>
         <div className="hf-face-actions"><button disabled={capturing || closing} onClick={() => void captureDocument()}>{capturing ? "Đang chụp…" : "Chụp ảnh"}</button></div></>}
     </CameraDialog>}
-    {(camera || expiresAt > 0 || busy) && <button className="hf-face-back" onClick={reset}>{saved?.scanPassed ? "Đóng camera / giữ tiến trình đã lưu" : "Dừng phiên quét"}</button>}
-    {!loading && saved?.scanPassed && <p className="hf-face-note">Các bước đã đạt được lưu riêng tư. Bạn có thể về hồ sơ hoặc quay lại sau để tiếp tục; không cần quét lại khi chỉ một mặt CCCD chưa đạt.</p>}
-    {!result && <IdentityAppealRequest status={saved?.status || "DRAFT"} onPending={setAppealPending} manual={saved?.scanPassed && saved.selfiePassed && saved.frontUrl && saved.backUrl ? { documentNumber: saved.documentNumber } : undefined} />}
-    {result && <section className={`hf-face-result ${result.status === "REJECTED" ? "hf-no-match" : "hf-match"}`} aria-live="polite"><h2>{result.identityVerified ? "Xác minh thành công" : result.status === "REJECTED" ? "Cần thực hiện lại" : "Cần kiểm tra bổ sung"}</h2><p role={result.identityVerified ? "status" : "alert"}>{result.message}</p><div className="hf-onboarding-actions"><Link className="hf-onboarding-secondary" to="/profile">Xem hồ sơ, selfie và số CCCD</Link>{result.identityVerified ? <Link className="hf-onboarding-primary" to={next}>Tiếp tục sử dụng HandsFree</Link> : <button disabled={appealPending} onClick={() => { setResult(null); setPhase("documents"); }}>Chụp lại CCCD cần bổ sung</button>}</div>{!result.identityVerified && <IdentityAppealRequest status={result.status} onPending={setAppealPending} manual={saved?.scanPassed && saved.selfiePassed && saved.frontUrl && saved.backUrl ? { documentNumber: saved.documentNumber } : undefined} />}</section>}
+    {(camera || expiresAt > 0 || busy) && <button className="hf-face-back" onClick={reset}>{hasFaceReference ? "Đóng camera / giữ tiến trình đã lưu" : "Dừng phiên quét"}</button>}
+    {!loading && hasFaceReference && <p className="hf-face-note">Các bước đã đạt được lưu riêng tư. Bạn có thể về hồ sơ hoặc quay lại sau để tiếp tục; không cần quét lại khi chỉ một mặt CCCD chưa đạt.</p>}
+    {!result && <IdentityAppealRequest status={saved?.status || "DRAFT"} onPending={setAppealPending} manual={(saved?.scanPassed || saved?.facePhotoUploaded) && !photoBlocked && saved?.selfiePassed && saved.frontUrl && saved.backUrl ? { documentNumber: saved.documentNumber } : undefined} />}
+    {result && <section className={`hf-face-result ${result.status === "REJECTED" ? "hf-no-match" : "hf-match"}`} aria-live="polite"><h2>{result.identityVerified ? "Xác minh thành công" : result.status === "REJECTED" ? "Cần thực hiện lại" : "Cần kiểm tra bổ sung"}</h2><p role={result.identityVerified ? "status" : "alert"}>{result.message}</p><div className="hf-onboarding-actions"><Link className="hf-onboarding-secondary" to="/profile">Xem hồ sơ, selfie và số CCCD</Link>{result.identityVerified ? <Link className="hf-onboarding-primary" to={next}>Tiếp tục sử dụng HandsFree</Link> : <button disabled={appealPending} onClick={() => { setResult(null); setPhase("documents"); }}>Chụp lại CCCD cần bổ sung</button>}</div>{!result.identityVerified && <IdentityAppealRequest status={result.status} onPending={setAppealPending} manual={(saved?.scanPassed || saved?.facePhotoUploaded) && !photoBlocked && saved?.selfiePassed && saved.frontUrl && saved.backUrl ? { documentNumber: saved.documentNumber } : undefined} />}</section>}
   </main>;
 }

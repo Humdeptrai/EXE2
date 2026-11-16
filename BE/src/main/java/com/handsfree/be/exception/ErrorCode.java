@@ -5,6 +5,9 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
+    IDENTITY_PHOTO_UPLOAD_DISABLED(40362, HttpStatus.FORBIDDEN, "Tải ảnh khuôn mặt đang tắt. Vui lòng quét trực tiếp bằng camera để tiếp tục."),
+    IDENTITY_PHOTO_REVIEW_REQUIRED(40962, HttpStatus.CONFLICT, "Hồ sơ dùng ảnh khuôn mặt tải lên cần quản trị viên xét duyệt. Vui lòng gửi yêu cầu kiểm tra danh tính."),
+    IDENTITY_FACE_PHOTO_INVALID(42262, HttpStatus.UNPROCESSABLE_ENTITY, "Chưa nhận rõ một khuôn mặt trong ảnh. Vui lòng chọn ảnh rõ mặt, đủ sáng và chỉ có một người."),
     PASSWORD_RESET_INVALID(40098,HttpStatus.BAD_REQUEST,"Liên kết không hợp lệ, đã dùng hoặc hết hạn. Vui lòng yêu cầu liên kết mới."),
     PASSWORD_RESET_UNAVAILABLE(50398,HttpStatus.SERVICE_UNAVAILABLE,"Dịch vụ gửi email chưa sẵn sàng. Vui lòng thử lại sau."),
     PASSWORD_RESET_RATE_LIMIT(42998,HttpStatus.TOO_MANY_REQUESTS,"Bạn gửi yêu cầu quá nhanh. Vui lòng thử lại sau."),

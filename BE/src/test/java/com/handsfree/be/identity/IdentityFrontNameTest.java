@@ -41,7 +41,7 @@ class IdentityFrontNameTest {
         var properties=new IdentityProperties();properties.setEncryptionKey(Base64.getEncoder().encodeToString(new byte[32]));
         crypto=new IdentityCrypto(properties);
         service=new IdentityProgressServiceImpl(mock(IdentityRegistryService.class),repository,users,
-            mock(IdentityRepository.class),mock(IdentitySubmissionRepository.class),access,crypto,worker,json,identity);
+            mock(IdentityRepository.class),mock(IdentitySubmissionRepository.class),access,crypto,worker,json,identity,mock(PlatformSettingsService.class));
         progress=new IdentityProgress();progress.setUserId(user);progress.setSelfiePassed(true);progress.setStatus("DRAFT");
         progress.setFrontImage(crypto.encrypt(new byte[]{1}));progress.setFrontPassed(true);
         progress.setCheckpoint(crypto.encrypt(token("AN OLD NAME")));

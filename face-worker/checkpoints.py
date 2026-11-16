@@ -36,7 +36,12 @@ def unseal(token):
         expected = hmac.new(os.environ['FACE_COMPARE_SHARED_KEY'].encode(), payload, hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, signature): raise ValueError()
         state = json.loads(payload)
-        if state['policyVersion'] != 4 or state['total'] != 6 or len(state['pad']) < 6: raise ValueError()
+        photo = state.get('source') == 'PHOTO_UPLOAD'
+        if state['policyVersion'] != 4: raise ValueError()
+        if photo:
+            if state['total'] != 0 or state['pad'] != []: raise ValueError()
+        elif state.get('source', 'LIVE_SCAN') != 'LIVE_SCAN' or state['total'] != 6 or len(state['pad']) < 6:
+            raise ValueError()
         if not all(math.isfinite(x) and .8 <= x <= 1 for x in state['pad']): raise ValueError()
         if not state['portrait'] or np.asarray(state['reference']).shape != (1, 128): raise ValueError()
         return state
@@ -52,9 +57,30 @@ def export_scan(session):
                      selfieScore=session.get('selfie_score'), selfiePad=session.get('selfie_pad'), documents={}))
 
 
+def photo_reference(app, raw, decode, feature):
+    """A photo is reference evidence for ADMIN review, never a motion/PAD pass."""
+    image = decode(raw)
+    reference = feature(app, image)
+    if np.asarray(reference).shape != (1, 128) or not np.isfinite(reference).all():
+        raise HTTPException(422, 'Ảnh khuôn mặt chưa đủ rõ. Vui lòng chọn ảnh khác.')
+    _, encoded = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 95])
+    return dict(policyVersion=4, accepted=True, checkpoint=seal(dict(
+        policyVersion=4, source='PHOTO_UPLOAD', total=0, pad=[], baseline=None,
+        nonce=secrets.token_hex(16), portrait=base64.b64encode(encoded).decode(),
+        reference=reference.tolist(), selfie=None, selfieScore=None, selfiePad=None, documents={})))
+
+
 def selfie(app, token, raw, decode, feature, threshold):
     from liveness import SESSIONS, capture_selfie
     state = unseal(token)
+    if state.get('source') == 'PHOTO_UPLOAD':
+        from liveness import capture_selfie_evidence
+        session = dict(reference=np.asarray(state['reference'], dtype=np.float32), baseline=None,
+                       expires=time.monotonic()+120)
+        capture_selfie_evidence(app, session, raw, decode, feature, threshold)
+        state.update(selfie=base64.b64encode(session['selfie']).decode(),
+                     selfieScore=session['selfie_score'], selfiePad=session['selfie_pad'], documents={})
+        return dict(policyVersion=4, accepted=True, checkpoint=seal(state))
     sid = secrets.token_urlsafe(32)
     session = dict(steps=['CENTER']*6, index=6, expires=time.monotonic()+120,
                    portrait=base64.b64decode(state['portrait']), pad=state['pad'],
@@ -115,6 +141,8 @@ def document(app, token, side, raw, decode, feature, threshold):
 
 def finish(token, front, back, threshold):
     state = unseal(token)
+    if state.get('source') == 'PHOTO_UPLOAD':
+        raise HTTPException(422, 'Ảnh khuôn mặt tải lên cần ADMIN xét duyệt.')
     docs = state['documents']
     for side, raw in (('front', front), ('back', back)):
         data = docs.get(side, {})

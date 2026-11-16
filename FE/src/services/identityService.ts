@@ -15,12 +15,16 @@ export type MyIdentity = {
 };
 export type IdentityProgress = {
   documentFullName?: string | null;
+  facePhotoUploaded?: boolean;
   scanPassed: boolean; selfiePassed: boolean; frontPassed: boolean; backPassed: boolean;
   frontReason: string | null; backReason: string | null; status: string; documentNumber: string | null;
   selfieUrl: string | null; frontUrl: string | null; backUrl: string | null; updatedAt: string | null; version: number;
 };
 export type IdentityProfile = { eligibility: Eligibility; personal: MyIdentity; progress: IdentityProgress };
 export const identityService = {
+  async options(signal?: AbortSignal): Promise<{ facePhotoUploadEnabled: boolean; photoRequiresAdminReview: boolean }> {
+    return (await api.get<ApiResponse<{ facePhotoUploadEnabled: boolean; photoRequiresAdminReview: boolean }>>("/identity/progress/options", { signal })).data.result;
+  },
   async profile(signal?: AbortSignal): Promise<IdentityProfile> {
     return (await api.get<ApiResponse<IdentityProfile>>("/identity/progress/profile", { signal })).data.result;
   },

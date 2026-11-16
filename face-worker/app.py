@@ -189,3 +189,15 @@ async def identity_features(request: Request):
     def extract():
         return {"faceModel": "sface-2021dec-128", "faceEmbedding": feature(request.app, decode(raw)).tolist()}
     return await run_in_threadpool(face_work, extract)
+
+
+@app.post("/photo-reference")
+async def upload_photo_reference(request: Request):
+    from checkpoints import photo_reference
+    from starlette.concurrency import run_in_threadpool
+    async with request.form(max_files=1, max_fields=0, max_part_size=MAX_IMAGE) as form:
+        if set(form.keys()) != {"face"}: raise HTTPException(422, "Expected face")
+        upload = form["face"]
+        if getattr(upload, "content_type", None) != "image/jpeg": raise HTTPException(422, "JPEG required")
+        raw = await upload.read(MAX_IMAGE + 1)
+    return await run_in_threadpool(face_work, photo_reference, request.app, raw, decode, feature)

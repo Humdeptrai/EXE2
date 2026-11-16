@@ -29,6 +29,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
     private final FaceWorkerClient worker;
     private final ObjectMapper json;
     private final IdentityService identity;
+    private final PlatformSettingsService settings;
     private void user(UUID user) { if(access.active(user).getRole()!=com.handsfree.be.constant.UserRole.USER) throw new AppException(ErrorCode.FORBIDDEN); }
     private IdentityProgress locked(UUID id) {
         user(id);users.lockById(id).orElseThrow(()->new AppException(ErrorCode.USER_NOT_FOUND));
@@ -37,13 +38,13 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
     }
     private void save(IdentityProgress p) { p.setUpdatedAt(Instant.now());repository.saveAndFlush(p); }
     private Progress summary(IdentityProgress p) {
-        if(p==null) return new Progress(false,false,false,false,null,null,"DRAFT",null,null,null,null,null,0,null);
-        return new Progress(p.getCheckpoint()!=null,p.isSelfiePassed(),p.isFrontPassed(),p.isBackPassed(),
+        if(p==null) return new Progress(false,false,false,false,null,null,"DRAFT",null,null,null,null,null,0,null,false);
+        return new Progress(p.getCheckpoint()!=null && !p.isFacePhotoUploaded(),p.isSelfiePassed(),p.isFrontPassed(),p.isBackPassed(),
             p.getFrontReason(),p.getBackReason(),p.getStatus(),crypto.text(p.getDocumentNumber()),
             p.getSelfieImage()==null?null:"/identity/progress/images/selfie",
             p.getFrontImage()==null?null:"/identity/progress/images/front",
             p.getBackImage()==null?null:"/identity/progress/images/back",p.getUpdatedAt(),p.getVersion(),
-            p.isFrontPassed() ? checkpointName(p.getCheckpoint()) : null);
+            p.isFrontPassed() ? checkpointName(p.getCheckpoint()) : null,p.isFacePhotoUploaded());
     }
     private String normalizeName(String name) {
         if(name==null || name.isBlank()) return null;
@@ -66,7 +67,46 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         if(response.path("policyVersion").asInt(0)!=4) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
         String token=response.path("checkpoint").asString("");
         if(token.length()<1000 || token.length()>20*1024*1024) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        boolean photo="PHOTO_UPLOAD".equals(payload(token).path("source").asString(""));
+        if(photo!=p.isFacePhotoUploaded()) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
         p.setCheckpoint(crypto.encrypt(token));
+    }
+    private void photoEnabled(IdentityProgress p) {
+        if(p.isFacePhotoUploaded() && !settings.get().isFacePhotoUploadEnabled())
+            throw new AppException(ErrorCode.IDENTITY_PHOTO_UPLOAD_DISABLED);
+    }
+    @Override @Transactional public Options options(UUID user) {
+        user(user);
+        return new Options(settings.get().isFacePhotoUploadEnabled(),true);
+    }
+    @Override @Transactional public Progress uploadFace(UUID user,MultipartFile face,boolean consent) {
+        var p=locked(user);
+        if(!settings.get().isFacePhotoUploadEnabled()) throw new AppException(ErrorCode.IDENTITY_PHOTO_UPLOAD_DISABLED);
+        if(!consent) throw new AppException(ErrorCode.VALIDATION_FAILED);
+        byte[] raw=jpeg(face);
+        JsonNode response;
+        try { response=worker.send("POST","/photo-reference",new String[]{"face"},new byte[][]{raw}); }
+        catch(AppException error) {
+            if(error.getErrorCode()==ErrorCode.IDENTITY_SCAN_FAILED) throw new AppException(ErrorCode.IDENTITY_FACE_PHOTO_INVALID);
+            throw error;
+        }
+        var data=payload(response.path("checkpoint").asString(""));
+        if(!response.path("accepted").asBoolean(false) || data.path("policyVersion").asInt(0)!=4 || !"PHOTO_UPLOAD".equals(data.path("source").asString(""))
+                || data.path("total").asInt(-1)!=0 || !data.path("pad").isArray() || data.path("pad").size()!=0)
+            throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        var reference=data.path("reference");
+        if(!reference.isArray() || reference.size()!=1 || !reference.get(0).isArray() || reference.get(0).size()!=128)
+            throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        for(var value:reference.get(0)) if(!Double.isFinite(value.asDouble(Double.NaN))) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        byte[] portrait;
+        try { portrait=java.util.Base64.getDecoder().decode(data.path("portrait").asString("")); }
+        catch(Exception e) { throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR); }
+        if(portrait.length<1000 || portrait.length>5*1024*1024) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        p.setFacePhotoUploaded(true);checkpoint(p,response);
+        p.setFaceImage(crypto.encrypt(portrait));p.setSelfiePassed(false);p.setSelfieImage(null);
+        p.setFrontPassed(false);p.setBackPassed(false);p.setFrontImage(null);p.setBackImage(null);
+        p.setDocumentNumber(null);p.setFrontReason(null);p.setBackReason(null);p.setStatus("DRAFT");
+        save(p);return summary(p);
     }
     private byte[] jpeg(MultipartFile file) {
         try {
@@ -115,30 +155,32 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         boolean newerApproval = p != null && p.getUpdatedAt() != null && active.verification().verifiedAt() != null
                 && active.verification().verifiedAt().isAfter(p.getUpdatedAt());
         if (activeComplete && (p == null || "VERIFIED".equals(p.getStatus()) || newerApproval))
-            return new Progress(true, true, true, true, null, null, "VERIFIED", active.documentNumber(), active.selfieUrl(),
+            return new Progress(p == null || !p.getFacePhotoUploaded(), true, true, true, null, null, "VERIFIED", active.documentNumber(), active.selfieUrl(),
                     p == null || !p.getHasFront() ? null : "/identity/progress/images/front",
                     p == null || !p.getHasBack() ? null : "/identity/progress/images/back",
-                    active.verification().verifiedAt(), p == null ? 0 : p.getVersion(),normalizeName(active.documentFullName()));
+                    active.verification().verifiedAt(), p == null ? 0 : p.getVersion(),normalizeName(active.documentFullName()),p != null && p.getFacePhotoUploaded());
         if (p == null) return summary(null);
-        return new Progress(p.getHasCheckpoint(), p.getSelfiePassed(), p.getFrontPassed(), p.getBackPassed(),
+        return new Progress(p.getHasCheckpoint() && !p.getFacePhotoUploaded(), p.getSelfiePassed(), p.getFrontPassed(), p.getBackPassed(),
                 p.getFrontReason(), p.getBackReason(), p.getStatus(), crypto.text(p.getDocumentNumber()),
                 p.getHasSelfie() ? "/identity/progress/images/selfie" : null,
                 p.getHasFront() ? "/identity/progress/images/front" : null,
                 p.getHasBack() ? "/identity/progress/images/back" : null, p.getUpdatedAt(), p.getVersion(),
-                p.getFrontPassed() ? checkpointName(repository.findCheckpoint(user).map(IdentityProgressRepository.CheckpointData::getCheckpoint).orElse(null)) : null);
+                p.getFrontPassed() ? checkpointName(repository.findCheckpoint(user).map(IdentityProgressRepository.CheckpointData::getCheckpoint).orElse(null)) : null,p.getFacePhotoUploaded());
     }
     @Override @Transactional public void saveScan(UUID user,String token) {
         var p=locked(user);var data=payload(token);
         if(data.path("policyVersion").asInt(0)!=4 || data.path("total").asInt(0)!=6 || token.length()>20*1024*1024)
             throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
+        if("PHOTO_UPLOAD".equals(data.path("source").asString(""))) throw new AppException(ErrorCode.IDENTITY_GATEWAY_ERROR);
         // Re-delivery of the last frame must not erase already saved subsequent steps.
         if(p.getCheckpoint()!=null && payload(crypto.text(p.getCheckpoint())).path("nonce").asString("").equals(data.path("nonce").asString(""))) return;
         p.setCheckpoint(crypto.encrypt(token));p.setFaceImage(crypto.encrypt(java.util.Base64.getDecoder().decode(data.path("portrait").asString(""))));
+        p.setFacePhotoUploaded(false);
         p.setSelfiePassed(false);p.setSelfieImage(null);p.setFrontPassed(false);p.setBackPassed(false);
         p.setFrontImage(null);p.setBackImage(null);p.setDocumentNumber(null);p.setFrontReason(null);p.setBackReason(null);p.setStatus("DRAFT");save(p);
     }
     @Override @Transactional public Progress selfie(UUID user,MultipartFile image) {
-        var p=locked(user);if(p.getCheckpoint()==null) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
+        var p=locked(user);photoEnabled(p);if(p.getCheckpoint()==null) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
         byte[] raw=jpeg(image);
         var response=worker.send("POST","/checkpoints/selfie",new String[]{"checkpoint","selfie"},new byte[][]{crypto.decrypt(p.getCheckpoint()),raw});
         if(!response.path("accepted").asBoolean(false)) throw new AppException(ErrorCode.IDENTITY_SCAN_FAILED);
@@ -164,7 +206,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
     }
     @Override @Transactional public Progress document(UUID user,String side,MultipartFile image) {
         if(!java.util.Set.of("front","back").contains(side)) throw new AppException(ErrorCode.VALIDATION_FAILED);
-        var p=locked(user);if(!p.isSelfiePassed()) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
+        var p=locked(user);photoEnabled(p);if(!p.isSelfiePassed()) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
         byte[] raw=jpeg(image);
         // Retain valid image uploads even when the automated worker cannot read
         // them or is unavailable, so the user can request manual review.
@@ -215,6 +257,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         var existing=identity.latestAppeal(user);
         if(existing!=null && java.util.Set.of("REQUESTED","PROCESSING").contains(existing.status())) return existing;
         var p=locked(user);
+        photoEnabled(p);
         String name=request==null || request.fullName()==null ? "" : request.fullName().trim();
         String number=request==null || request.documentNumber()==null ? "" : request.documentNumber().trim();
         String note=request==null || request.note()==null ? "" : request.note().trim();
@@ -225,7 +268,8 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             throw new AppException(ErrorCode.IDENTITY_REQUIRED);
         var checkpoint=payload(crypto.text(p.getCheckpoint()));
         var evidence=json.createObjectNode();
-        evidence.put("verificationSource","USER_REQUESTED_MANUAL_REVIEW");
+        evidence.put("verificationSource",p.isFacePhotoUploaded()?"PHOTO_UPLOAD":"USER_REQUESTED_MANUAL_REVIEW");
+        if(p.isFacePhotoUploaded()) { evidence.put("motionPassed",false);evidence.put("faceReferenceLivenessVerified",false); }
         evidence.put("declaredFullName",name);evidence.put("declaredDocumentNumber",number);
         evidence.put("frontPassed",p.isFrontPassed());evidence.put("backPassed",p.isBackPassed());
         evidence.put("frontReason",p.getFrontReason());evidence.put("backReason",p.getBackReason());
@@ -235,13 +279,14 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         double score=checkpoint.path("documents").path("front").path("scanScore").asDouble(0);
         var submission=new IdentityService.ScanSubmission(crypto.decrypt(p.getFrontImage()),crypto.decrypt(p.getBackImage()),
                 crypto.decrypt(p.getFaceImage()),crypto.decrypt(p.getSelfieImage()),name,number,json.writeValueAsString(evidence),
-                score,false,"Người dùng yêu cầu ADMIN xét duyệt hồ sơ đã lưu.");
+                score,false,p.isFacePhotoUploaded()?"Hồ sơ dùng ảnh khuôn mặt tải lên, không thực hiện quét động tác; cần ADMIN xét duyệt.":"Người dùng yêu cầu ADMIN xét duyệt hồ sơ đã lưu.",!p.isFacePhotoUploaded());
         var appeal=identity.submitManualReview(user,submission,note);
         p.setStatus("REVIEW_REQUIRED");save(p);return appeal;
     }
     @Override @Transactional public FaceComparisonService.Completion finish(UUID user) {
         registry.lock();
         var p=locked(user);
+        if(p.isFacePhotoUploaded()) throw new AppException(ErrorCode.IDENTITY_PHOTO_REVIEW_REQUIRED);
         if(!p.isSelfiePassed() || !p.isFrontPassed() || !p.isBackPassed()) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
         byte[] f=crypto.decrypt(p.getFrontImage()),b=crypto.decrypt(p.getBackImage());
         if("VERIFIED".equals(p.getStatus()) && "VERIFIED".equals(identity.status(user).status()))

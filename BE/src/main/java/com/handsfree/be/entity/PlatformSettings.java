@@ -30,6 +30,10 @@ public class PlatformSettings {
     private boolean topUpEnabled;
 
     @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    private boolean facePhotoUploadEnabled;
+
+    @Column(nullable = false)
     private int paymentWindowMinutes = 1440;
 
     @Column(nullable = false)
