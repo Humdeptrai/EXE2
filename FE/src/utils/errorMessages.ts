@@ -2,6 +2,11 @@ import type { ApiErrorPayload } from "../types/api";
 
 // Codes are stable API contracts. Do not renumber them for presentation.
 export const errorMessages: Readonly<Record<number, string>> = {
+  40099: "Mật khẩu hiện tại chưa đúng. Vui lòng kiểm tra lại.", // PASSWORD_CURRENT_INCORRECT
+  40999: "Mật khẩu mới phải khác mật khẩu hiện tại.", // PASSWORD_NEW_UNCHANGED
+  40399: "Tài khoản chưa có mật khẩu. Vui lòng tiếp tục đăng nhập bằng Google.", // PASSWORD_CHANGE_UNAVAILABLE
+  42299: "Mật khẩu mới cần 8–72 ký tự, gồm chữ và số, tối đa 72 byte.", // PASSWORD_NEW_INVALID
+  42999: "Bạn đã thử đổi mật khẩu nhiều lần. Vui lòng chờ một phút rồi thử lại.", // PASSWORD_CHANGE_RATE_LIMIT
   40362: "Tải ảnh khuôn mặt đang tắt. Vui lòng quét trực tiếp bằng camera để tiếp tục.", // IDENTITY_PHOTO_UPLOAD_DISABLED
   40962: "Hồ sơ dùng ảnh khuôn mặt tải lên cần quản trị viên xét duyệt. Vui lòng gửi yêu cầu kiểm tra danh tính.", // IDENTITY_PHOTO_REVIEW_REQUIRED
   42262: "Chưa nhận rõ một khuôn mặt trong ảnh. Vui lòng chọn ảnh rõ mặt, đủ sáng và chỉ có một người.", // IDENTITY_FACE_PHOTO_INVALID

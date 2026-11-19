@@ -1,3 +1,4 @@
+import ChangePasswordForm from "../components/ChangePasswordForm";
 import ProfileSkills from "../components/ProfileSkills";
 import LocationField from "../../location/LocationField";
 import SavedAddresses from "../../location/SavedAddresses";
@@ -396,6 +397,7 @@ function UserProfile() {
       </section>
 
       <aside className="min-w-0 space-y-4 sm:space-y-5">
+        <ChangePasswordForm />
 
         <section className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between"><h2 className="font-extrabold">Mức độ hoàn thiện</h2><span className="font-extrabold text-[#007f95]">{identityLoaded ? `${progress}%` : "Đang tải…"}</span></div>

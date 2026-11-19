@@ -21,7 +21,9 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<LoginErrors>({});
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ kind: "error" | "info"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ kind: "error" | "info"; text: string } | null>(() =>
+    (location.state as { passwordChanged?: boolean } | null)?.passwordChanged
+      ? { kind: "info", text: "Đã đổi mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới." } : null);
 
   const destination = (location.state as { from?: string } | null)?.from || "/home";
 

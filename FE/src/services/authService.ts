@@ -9,6 +9,9 @@ import type {
 } from "../types/auth";
 
 export const authService = {
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await api.post("/users/me/password", { currentPassword, newPassword });
+  },
   async register(payload: RegisterRequest): Promise<AuthResult> {
     const response = await api.post<ApiResponse<AuthResult>>("/auth/register", payload);
     return response.data.result;

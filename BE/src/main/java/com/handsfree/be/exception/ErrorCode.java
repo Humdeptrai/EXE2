@@ -5,6 +5,11 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
+    PASSWORD_CURRENT_INCORRECT(40099, HttpStatus.BAD_REQUEST, "Mật khẩu hiện tại chưa đúng. Vui lòng kiểm tra lại."),
+    PASSWORD_NEW_UNCHANGED(40999, HttpStatus.CONFLICT, "Mật khẩu mới phải khác mật khẩu hiện tại."),
+    PASSWORD_CHANGE_UNAVAILABLE(40399, HttpStatus.FORBIDDEN, "Tài khoản chưa có mật khẩu. Vui lòng tiếp tục đăng nhập bằng Google."),
+    PASSWORD_NEW_INVALID(42299, HttpStatus.UNPROCESSABLE_ENTITY, "Mật khẩu mới cần 8–72 ký tự, gồm chữ và số, tối đa 72 byte."),
+    PASSWORD_CHANGE_RATE_LIMIT(42999, HttpStatus.TOO_MANY_REQUESTS, "Bạn đã thử đổi mật khẩu nhiều lần. Vui lòng chờ một phút rồi thử lại."),
     IDENTITY_PHOTO_UPLOAD_DISABLED(40362, HttpStatus.FORBIDDEN, "Tải ảnh khuôn mặt đang tắt. Vui lòng quét trực tiếp bằng camera để tiếp tục."),
     IDENTITY_PHOTO_REVIEW_REQUIRED(40962, HttpStatus.CONFLICT, "Hồ sơ dùng ảnh khuôn mặt tải lên cần quản trị viên xét duyệt. Vui lòng gửi yêu cầu kiểm tra danh tính."),
     IDENTITY_FACE_PHOTO_INVALID(42262, HttpStatus.UNPROCESSABLE_ENTITY, "Chưa nhận rõ một khuôn mặt trong ảnh. Vui lòng chọn ảnh rõ mặt, đủ sáng và chỉ có một người."),
