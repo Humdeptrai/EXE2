@@ -1,0 +1,203 @@
+/* Layout-only adjustments. Keep workspace colors and business behavior intact. */
+@media (max-width: 959px) {
+  .op-root .op-main,
+  .op-root .op-content {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .op-root .op-content {
+    flex: 1;
+  }
+
+  .op-root .op-content > *,
+  .op-root .op-card,
+  .op-root .op-table-scroll,
+  .op-root .op-settings-layout > *,
+  .op-root .op-field-grid > *,
+  .op-root .op-kpi-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .op-root .op-table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .op-root .op-sidebar {
+    width: min(300px, calc(100vw - 48px));
+    height: 100dvh;
+    padding-top: max(20px, env(safe-area-inset-top));
+  }
+
+  .op-root .op-sidebar nav {
+    min-height: 0;
+    overscroll-behavior-y: contain;
+  }
+
+  .op-root .op-sidebar-footer {
+    padding-bottom: max(18px, env(safe-area-inset-bottom));
+  }
+
+  .op-root .op-menu-button,
+  .op-root .op-sidebar-footer button {
+    min-width: 44px;
+    min-height: 44px;
+    flex-shrink: 0;
+  }
+
+  .op-root .op-topbar-left {
+    min-width: 0;
+  }
+
+  .op-root .op-topbar-right {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 699px) {
+  .op-root .op-topbar {
+    height: auto;
+    min-height: 65px;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .op-root .op-topbar-left > span {
+    overflow-wrap: anywhere;
+    line-height: 1.5;
+  }
+
+  .op-root .op-page-heading > *,
+  .op-root .op-heading-actions,
+  .op-root .op-search {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .op-root .op-heading-actions {
+    justify-content: flex-start;
+  }
+
+  .op-root .op-button {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .op-root .op-table-toolbar {
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .op-root .op-search {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 100%;
+  }
+
+  .op-root .op-table-toolbar .op-filter-label {
+    flex: 1 1 100%;
+  }
+
+  .op-root .op-table-toolbar select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .op-root input:not([type=checkbox]),
+  .op-root select,
+  .op-root textarea {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px;
+  }
+
+  .op-root .op-result-count {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .op-root .op-pagination > div {
+    width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .op-root .op-pagination .op-filter-label {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .op-root .op-pagination button,
+  .op-root .op-row-button {
+    min-height: 44px;
+  }
+
+  .op-root .op-card header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .op-root .op-kpi-head {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .op-root .op-kpi-head > span,
+  .op-root .op-kpi > strong,
+  .op-root .op-kpi > small,
+  .op-root .op-finance-summary dd,
+  .op-root .op-quick-links span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .op-root .op-kpi-icon {
+    flex-shrink: 0;
+  }
+
+  .op-root .op-switch-row {
+    gap: 12px;
+  }
+
+  .op-root .op-switch-row input {
+    flex-shrink: 0;
+  }
+
+  .op-root.op-modal {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+
+  .op-root.op-modal > header {
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .op-root.op-modal > header h2 {
+    min-width: 0;
+  }
+
+  .op-root.op-modal > header button {
+    flex-shrink: 0;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .op-root .op-modal-actions > .op-button {
+    flex: 1 1 140px;
+  }
+}
+
+@media (max-width: 374px) {
+  .op-root .op-kpi-grid,
+  .op-root .op-dashboard .op-kpi-grid,
+  .op-root .op-lifetime {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -8,6 +8,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import "../operator.css";
 import "../operator-refactor.css";
+import "../operator-mobile.css";
 
 const items = [
   { path: "", title: "Tổng quan", icon: "home" as const, group: "Tổng quan" },
