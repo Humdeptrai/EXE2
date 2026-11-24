@@ -6,7 +6,7 @@ Run `BE/deployment/017_matching_requirements.sql` against the database used by R
 
 ## Admin policy
 
-Open **Admin → Phí & thời gian → Điều kiện matching**. Toggle **Bắt buộc hồ sơ và xác thực khi matching**, then select **Lưu điều kiện matching**.
+Open **Admin → Cấu hình → Điều kiện matching (`/admin/matching-settings`)**. Toggle **Bắt buộc hồ sơ và xác thực khi matching**, then select **Lưu điều kiện matching**.
 
 `PATCH /api/v1/admin/settings/matching` accepts `{ "matchingRequirementsEnabled": false }` (or `true`). ADMIN only; writes `MATCHING_REQUIREMENTS_SETTINGS` audit entries. Ordinary fee settings updates do not change this policy.
 

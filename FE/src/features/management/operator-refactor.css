@@ -105,3 +105,9 @@ a.op-kpi:focus-visible{outline:3px solid #007f9555;outline-offset:3px}
 .op-dashboard .op-kpi-grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 .op-dashboard .op-kpi>strong{font-size:clamp(23px,2vw,30px)}
 @media(max-width:959px){.op-dashboard .op-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Root label styling must not override the shared search-field alignment. */
+.op-root .op-search{display:flex;align-items:center;min-height:44px}
+.op-root .op-search>.op-icon{top:50%;transform:translateY(-50%);pointer-events:none}
+.op-root .op-search input{display:block;min-width:0;margin:0}
+.op-root .op-search:not(:has(>.op-icon)) input{padding-left:13px!important}

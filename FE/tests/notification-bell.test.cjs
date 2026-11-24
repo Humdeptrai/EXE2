@@ -63,16 +63,18 @@ test('admin saves matching policy explicitly and bypassed onboarding goes to the
   async get(url){return {data:{result:url==='/admin/settings'?settings:url==='/identity/eligibility'?{eligible:true,matchingRequirementsEnabled:false,profileComplete:false,identityVerified:false,identityStatus:'NOT_SUBMITTED',missingRequirements:['CCCD'],selfieVerified:false,documentConfirmed:false}:{verification:{status:'NOT_SUBMITTED'}}}};},
   async patch(url,body){writes.push({url,body});settings={...settings,...body};return {data:{result:settings}};}
  };
- const output=await build({stdin:{contents:`export {default as Management} from './src/features/management/pages/ManagementPage'; export {default as Onboarding} from './src/features/identity/pages/IdentityOnboardingPage';`,resolveDir:root,loader:'tsx'},bundle:true,platform:'node',format:'cjs',jsx:'automatic',write:false,define:{'import.meta.env':'{}'},external:['react','react-dom','react-router-dom'],loader:{'.css':'empty'},plugins:[{name:'synthetic-api',setup(b){b.onResolve({filter:/(?:^|\/)config\/axios$/},()=>({path:'api',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export default globalThis.bellTestApi;'}));}}]});
+ const output=await build({stdin:{contents:`export {default as Management} from './src/features/management/pages/ManagementPage'; export {default as MatchingSettings} from './src/features/management/pages/MatchingSettingsPage'; export {default as Onboarding} from './src/features/identity/pages/IdentityOnboardingPage';`,resolveDir:root,loader:'tsx'},bundle:true,platform:'node',format:'cjs',jsx:'automatic',write:false,define:{'import.meta.env':'{}'},external:['react','react-dom','react-router-dom'],loader:{'.css':'empty'},plugins:[{name:'synthetic-api',setup(b){b.onResolve({filter:/(?:^|\/)config\/axios$/},()=>({path:'api',namespace:'fixture'}));b.onLoad({filter:/.*/,namespace:'fixture'},()=>({contents:'export default globalThis.bellTestApi;'}));}}]});
  const compiled=new Module(path.join(root,'policy-fixture.cjs'));compiled.filename=path.join(root,'policy-fixture.cjs');compiled.paths=Module._nodeModulePaths(root);compiled._compile(output.outputFiles[0].text,compiled.filename);
- const {Management,Onboarding}=compiled.exports;const renderer=createRoot(document.getElementById('root'));
+ const {Management,MatchingSettings,Onboarding}=compiled.exports;const renderer=createRoot(document.getElementById('root'));
  function Probe(){currentPath=useLocation().pathname;return null;}
  try{
   await act(async()=>renderer.render(React.createElement(MemoryRouter,{key:'admin',initialEntries:['/admin/settings']},React.createElement(Management,{panel:'settings'}))));
   await act(async()=>{await new Promise(resolve=>setTimeout(resolve,20));});
+  assert.equal(document.querySelector('[aria-label="Bắt buộc hồ sơ và xác thực khi matching"]'),null);
+  await act(async()=>renderer.render(React.createElement(MemoryRouter,{key:'matching',initialEntries:['/admin/matching-settings']},React.createElement(MatchingSettings))));
   const toggle=()=>document.querySelector('[aria-label="Bắt buộc hồ sơ và xác thực khi matching"]');
   assert.equal(toggle().checked,true);await act(async()=>toggle().click());assert.equal(writes.length,0);
-  await act(async()=>[...document.querySelectorAll('button')].find(b=>b.textContent==='Lưu điều kiện matching').click());
+  await act(async()=>document.querySelector('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
   assert.deepEqual(writes,[{url:'/admin/settings/matching',body:{matchingRequirementsEnabled:false}}]);
   assert.equal(toggle().checked,false);assert.match(document.body.textContent,/Phí kết nối vẫn áp dụng/);
   await act(async()=>renderer.render(React.createElement(MemoryRouter,{key:'onboarding',initialEntries:['/onboarding?next=%2Fdiscover']},React.createElement(Routes,null,React.createElement(Route,{path:'/onboarding',element:React.createElement(Onboarding)}),React.createElement(Route,{path:'/discover',element:React.createElement('p',null,'Discover')})),React.createElement(Probe))));

@@ -6,6 +6,7 @@ import OperatorShell from "../features/management/components/OperatorShell";
 const OperatorLoginPage = lazy(() => import("../features/management/pages/OperatorLoginPage"));
 const OperatorDashboard = lazy(() => import("../features/management/pages/OperatorDashboard"));
 const ReportManagementPage = lazy(() => import("../features/management/pages/ReportManagementPage"));
+const MatchingSettingsPage = lazy(() => import("../features/management/pages/MatchingSettingsPage"));
 const ManagementPage = lazy(() => import("../features/management/pages/ManagementPage"));
 
 import LegacyOperatorLogin from "../features/management/components/LegacyOperatorLogin";
@@ -21,7 +22,7 @@ export const operatorRoutes = [
     { element: <OperatorGuard role={role} />, children: [{ path: `/${base}`, element: <OperatorShell />, children: [
       { index: true, element: <OperatorDashboard /> },
       { path: "identities", element: <IdentityReviewPage /> },
-      ...(role === "ADMIN" ? [{ path: "revenue", element: <OperatorDashboard revenueOnly /> }, { path: "skills", element: <ProfileSkillManagementPage /> }] : []),
+      ...(role === "ADMIN" ? [{ path: "matching-settings", element: <MatchingSettingsPage /> }, { path: "revenue", element: <OperatorDashboard revenueOnly /> }, { path: "skills", element: <ProfileSkillManagementPage /> }] : []),
       ...panels.map((panel) => ({ path: panel, element: panel === "reports" ? <ReportManagementPage /> : <ManagementPage key={panel} panel={panel} /> })),
     ] }] },
   ];

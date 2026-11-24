@@ -1,3 +1,4 @@
+import UserNotice from "../../../components/feedback/UserNotice";
 import { getOperatorPage } from "../../../services/operatorPageService";
 import { useCallback, useEffect, useState } from "react";
 import IdentityImageViewer from "../../../components/feedback/IdentityImageViewer";
@@ -28,6 +29,7 @@ export default function IdentityReviewPage() {
   const [documentNumber, setDocumentNumber] = useState(""); const [correctionReason, setCorrectionReason] = useState("");
   const [reviewName, setReviewName] = useState(""); const [reviewReason, setReviewReason] = useState(""); const [reviewing, setReviewing] = useState(false);
   const [rows, setRows] = useState<State[]>([]); const { page, size, setSize, setPage, search, state, apply } = useOperatorFilters(); const [total,setTotal] = useState(0); const [last, setLast] = useState(true);
+  const [backfillMessage, setBackfillMessage] = useState<{ tone: "success" | "info"; text: string } | null>(null);
   const [error, setError] = useState(""); const [loading, setLoading] = useState(false); const [detail, setDetail] = useState<Dossier | null>(null);
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true); setError("");
@@ -40,7 +42,12 @@ export default function IdentityReviewPage() {
     try { const r = await api.get<ApiResponse<Dossier>>(`/admin/identities/${id}`); setDetail(r.data.result); setDocumentNumber(r.data.result.documentNumber || ""); setCorrectionReason(""); setReviewName(""); setReviewReason(""); }
     catch (e) { setError(getApiErrorMessage(e, "Không xem được hồ sơ.")); }
   }
-  useEffect(()=>{const inspect=new URLSearchParams(window.location.search).get("inspect");if(admin&&inspect)void view(inspect);},[admin]);
+  useEffect(() => {
+    const inspect = new URLSearchParams(window.location.search).get("inspect");
+    if (!admin || !inspect) return;
+    const timer = window.setTimeout(() => void view(inspect), 0);
+    return () => window.clearTimeout(timer);
+  }, [admin]);
   async function review(approved: boolean) {
     if (!detail || reviewing) return;
     setReviewing(true); setError("");
@@ -61,8 +68,20 @@ export default function IdentityReviewPage() {
     } catch (e) { setError(getApiErrorMessage(e, "Không sửa được số CCCD. Hãy tải lại hồ sơ.")); }
     finally { setReviewing(false); }
   }
+  async function backfill() {
+    if (reviewing) return;
+    setReviewing(true); setError(""); setBackfillMessage(null);
+    try {
+      const response = await api.post<ApiResponse<{ processed: number; remaining: number; needsReview: string[] }>>("/admin/identity-registry/backfill");
+      const { processed, remaining, needsReview } = response.data.result;
+      const progress = `Đã lập chỉ mục ${processed} hồ sơ. ${remaining ? `Còn ${remaining} hồ sơ chưa có chỉ mục.` : "Không còn hồ sơ cần lập chỉ mục."}`;
+      const followUp = needsReview.length ? ` Cần kiểm tra ảnh cũ của: ${needsReview.join(", ")}.` : remaining ? " Bấm lập chỉ mục để xử lý lượt tiếp theo." : "";
+      setBackfillMessage({ tone: remaining || needsReview.length ? "info" : "success", text: progress + followUp });
+    } catch (e) { setError(getApiErrorMessage(e, "Không lập được chỉ mục danh tính.")); }
+    finally { setReviewing(false); }
+  }
   return <div><PageHeading title="Hồ sơ xác thực" description={admin ? "Xác minh tự động và các hồ sơ cần ADMIN kiểm tra bổ sung." : "Theo dõi trạng thái xác minh. Thông tin CCCD riêng tư chỉ dành cho ADMIN."} actions={<button className="op-button secondary" disabled={loading} onClick={() => void load()}>Làm mới</button>} />
-    {admin && <><button className="op-button secondary" disabled={reviewing} onClick={async()=>{setReviewing(true);setError("");try{const r=await api.post<ApiResponse<{processed:number;remaining:number;needsReview:string[]}>>("/admin/identity-registry/backfill");setError(`Đã lập chỉ mục ${r.data.result.processed} hồ sơ; còn ${r.data.result.remaining}. ${r.data.result.needsReview.length ? `Cần kiểm tra ảnh cũ của: ${r.data.result.needsReview.join(", ")}.` : "Bấm lại nếu còn hồ sơ."}`);}catch(e){setError(getApiErrorMessage(e,"Không lập được chỉ mục danh tính."));}finally{setReviewing(false);}}}>Lập chỉ mục danh tính cũ (tối đa 5 hồ sơ/lượt)</button><IdentityAppeals /></>}
+    {admin && <><button className="op-button secondary" disabled={reviewing} onClick={() => void backfill()}>Lập chỉ mục danh tính cũ (tối đa 5 hồ sơ/lượt)</button>{backfillMessage && <UserNotice tone={backfillMessage.tone} message={backfillMessage.text} onClose={() => setBackfillMessage(null)} />}<IdentityAppeals /></>}
     {error && <p className="op-notice" role="alert">{error}</p>}
     <section className="op-card op-table-card"><div className="op-section-heading"><h2>Tất cả hồ sơ xác thực</h2><p>Trạng thái hiện tại của hồ sơ mới nhất.</p></div><FilterBar search={search} state={state} options={labels} onApply={apply} total={total} /><div className="op-table-scroll"><table className="op-table"><thead><tr><th>Tài khoản</th><th>Trạng thái</th><th>Ngày gửi</th><th>Kết quả</th>{admin && <th>Hồ sơ riêng tư</th>}</tr></thead><tbody>{rows.map(r => <tr key={r.userId}><td className="op-cell-primary" title={r.userId}>{r.accountName || "Chưa có tên"}</td><td><StatusBadge value={r.status} label={labels[r.status]} /></td><td>{r.submittedAt ? new Date(r.submittedAt).toLocaleString("vi-VN") : "—"}</td><td>{r.reason}</td>{admin && <td><button className="op-row-button primary" onClick={() => void view(r.userId)}>Xem CCCD & khuôn mặt</button></td>}</tr>)}</tbody></table>{loading && <p role="status">Đang tải…</p>}{!loading && !rows.length && <p className="op-empty">Chưa có hồ sơ</p>}</div><Pagination page={page} last={last} total={total} loading={loading} onPage={setPage} size={size} onSize={setSize} /></section>
     {detail && <OperatorModal variant="wide" title="Hồ sơ danh tính riêng tư" onClose={() => { if (!reviewing) setDetail(null); }}><div className="op-review-summary"><StatusBadge value={detail.verification.status} label={labels[detail.verification.status]} /><p><strong>Lý do / kết quả:</strong> {detail.verification.reason || "Chưa có thông tin"}</p></div><p>Họ tên được xác nhận: {detail.fullName || "Chưa xác thực"}</p><p>Điểm so khớp: {detail.similarity ?? "—"} · Kiểm tra động tác/PAD: {detail.live ? "Đạt kiểm tra của nguồn xử lý" : "Chưa đạt"}</p><section className="op-evidence-section"><h3>Bằng chứng xác minh</h3><div className="op-identity-images">{(detail.selfiePresent ? ["front", "back", "face", "selfie"] : ["front", "back", "face"]).map(kind => <PrivateImage key={`${detail.verification.userId}-${detail.pending}-${detail.version}-${kind}`} user={detail.verification.userId} kind={kind} />)}</div></section><details><summary>Nội dung OCR và thông tin kiểm tra</summary><pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 12 }}>{detail.documentData || "Chưa có dữ liệu"}</pre></details><p className="op-muted">Hồ sơ VERIFIED có thể được xác minh tự động hoặc duyệt thủ công; xem lý do để biết nguồn xác minh. ADMIN duyệt thủ công khi đủ ảnh sẽ hoàn tất xác minh, bỏ qua OCR, so khớp và trùng danh tính. Tài khoản đã xác minh khác được giữ nguyên. Kiểm tra này không xác nhận giấy tờ do cơ quan nhà nước cấp.</p>
