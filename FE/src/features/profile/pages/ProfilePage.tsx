@@ -251,7 +251,7 @@ function UserProfile() {
         activityLocation: activity && activity.place.area === form.location.trim() ? activity : undefined,
       });
       setForm(savedForm(updated));
-      setMessage({ type: "success", text: identity?.identityVerified ? "Đã lưu thông tin hồ sơ." : "Đã lưu thông tin hồ sơ. Bạn cần hoàn tất xác thực danh tính để đăng hoặc nhận việc." });
+      setMessage({ type: "success", text: (identity?.matchingRequirementsEnabled === false || identity?.identityVerified) ? "Đã lưu thông tin hồ sơ." : "Đã lưu thông tin hồ sơ. Bạn cần hoàn tất xác thực danh tính để đăng hoặc nhận việc." });
       if (onboarding && updated.profileCompleted && updated.phone && updated.location) {
         navigate(onboardingUrl(next), { replace: true });
       }

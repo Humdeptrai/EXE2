@@ -1,3 +1,4 @@
+import { notificationDestination } from "../utils/notificationDestination";
 import { notificationPresentation } from "../utils/notificationPresentation";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { getApiErrorMessage } from "../../auth/utils/apiError";
@@ -67,7 +68,7 @@ export default function NotificationsPage() {
         // Navigation is still useful even if read-state persistence fails temporarily.
       }
     }
-    if (item.actionUrl) navigate(item.actionUrl);
+    navigate(notificationDestination(item));
   }
 
   async function markAllRead() {

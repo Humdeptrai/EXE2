@@ -1,3 +1,4 @@
+import NotificationBell from "../../features/notifications/components/NotificationBell";
 import RouteLoading from "../feedback/RouteLoading";
 import { useChat } from "../../context/ChatContext";
 import { usePwa } from "../../features/pwa/usePwa";
@@ -121,6 +122,7 @@ function AppShellLayout() {
               <NavLink to="/wallet" className="rounded-full bg-[#e8f6f8] px-3 py-2 text-xs font-bold text-[#007f95]">Ví</NavLink>
               {(user?.role === "ADMIN" || user?.role === "STAFF") && <NavLink to="/management" className="rounded-full bg-[#e8f6f8] px-3 py-2 text-xs font-bold text-[#007f95]">Quản lý</NavLink>}
               <div className="hidden w-72 md:block lg:hidden"><ModeSwitcher /></div>
+              <NotificationBell />
               <AccountMenu avatar={<Avatar />} />
             </div>
           </div>

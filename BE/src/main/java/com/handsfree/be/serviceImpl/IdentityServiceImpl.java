@@ -19,6 +19,7 @@ import java.util.*;
 @Service @RequiredArgsConstructor
 public class IdentityServiceImpl implements com.handsfree.be.service.IdentityService {
     private final IdentityRepository identities;
+    private final PlatformSettingsRepository matchingSettings;
     private final com.handsfree.be.service.IdentityRegistryService registry;
     private final IdentitySubmissionRepository submissions;
     private final IdentityAppealRepository appeals;
@@ -52,8 +53,10 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         if (!verified) missing.add("Xác minh khuôn mặt và CCCD");
         if (!selfie) missing.add("Selfie trực tiếp đã xác minh");
         if (!document) missing.add("Số CCCD đã xác nhận");
-        return new Eligibility(profileComplete && verified && selfie && document, profileComplete, verified,
-                state, List.copyOf(missing), selfie, document);
+        boolean required = matchingSettings.findById(1)
+                .map(com.handsfree.be.entity.PlatformSettings::isMatchingRequirementsEnabled).orElse(true);
+        return new Eligibility(!required || (profileComplete && verified && selfie && document), profileComplete, verified,
+                state, List.copyOf(missing), selfie, document, required);
     }
 
     @Override
@@ -256,6 +259,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     }
     public void requireVerified(UUID user) {
         var eligibility = eligibility(user);
+        if (!eligibility.matchingRequirementsEnabled()) return;
         if (!eligibility.identityVerified() || !eligibility.selfieVerified() || !eligibility.documentConfirmed()) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
         if (!eligibility.profileComplete()) throw new AppException(ErrorCode.PROFILE_REQUIRED);
     }

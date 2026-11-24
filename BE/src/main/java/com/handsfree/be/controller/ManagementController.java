@@ -105,6 +105,13 @@ public class ManagementController {
         return ApiResponse.success(200, "Cấu hình", settings.get());
     }
 
+    public record MatchingRequirementsRequest(@NotNull Boolean matchingRequirementsEnabled) {}
+
+    @PatchMapping("/admin/settings/matching")
+    public ApiResponse<?> matchingSettings(Authentication a, @Valid @RequestBody MatchingRequirementsRequest r) {
+        return ApiResponse.success(200, "Đã lưu điều kiện matching", management.changeMatchingRequirements(id(a), r.matchingRequirementsEnabled()));
+    }
+
     public record IdentitySettingsRequest(@NotNull Boolean facePhotoUploadEnabled) {}
 
     @PatchMapping("/admin/settings/identity")

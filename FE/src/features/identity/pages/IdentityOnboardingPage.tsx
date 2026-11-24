@@ -14,11 +14,15 @@ export default function IdentityOnboardingPage() {
   useEffect(() => {
     const controller = new AbortController();
     setChecking(true); setFeedback(""); setReason(""); setError("");
-    void Promise.all([identityService.eligibility(controller.signal), identityService.mine(controller.signal)])
+    void identityService.eligibility(controller.signal).then(async current => {
+      // A bypassed/eligible account can continue without loading private identity data.
+      if (current.eligible || controller.signal.aborted) return [current, null] as const;
+      return [current, await identityService.mine(controller.signal)] as const;
+    })
       .then(([current, personal]) => {
         if (controller.signal.aborted) return;
         setState(current);
-        if (showCheckResult && !current.identityVerified) setReason(personal.verification.reason || "");
+        if (showCheckResult && !current.identityVerified) setReason(personal?.verification.reason || "");
         if (showCheckResult) setFeedback(current.identityVerified
           ? "Đã kiểm tra: danh tính của bạn đã được xác minh."
           : current.identityStatus === "REVIEW_REQUIRED"

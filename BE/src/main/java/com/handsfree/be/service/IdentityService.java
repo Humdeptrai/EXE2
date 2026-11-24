@@ -41,7 +41,7 @@ public interface IdentityService {
     byte[] ownImage(UUID user, String kind);
     Dossier correctDocument(UUID actor, UUID user, DocumentCorrection request);
     record Eligibility(boolean eligible, boolean profileComplete, boolean identityVerified,
-                       String identityStatus, java.util.List<String> missingRequirements, boolean selfieVerified, boolean documentConfirmed) {}
+                       String identityStatus, java.util.List<String> missingRequirements, boolean selfieVerified, boolean documentConfirmed, boolean matchingRequirementsEnabled) {}
     Eligibility eligibility(UUID user);
     record Review(boolean approved, Instant submittedAt, String fullName, String reason, Long version, Boolean transferIdentity, UUID expectedIdentityOwner, Long claimVersion) {
         public Review {

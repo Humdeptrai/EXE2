@@ -121,6 +121,15 @@ public class ManagementServiceImpl implements ManagementService {
     }
 
     @Override @Transactional
+    public PlatformSettings changeMatchingRequirements(UUID actor, boolean enabled) {
+        access.operator(actor, true);
+        var current = settings.get();
+        current.setMatchingRequirementsEnabled(enabled);
+        log(actor, "MATCHING_REQUIREMENTS_SETTINGS", "enabled=" + enabled);
+        return current;
+    }
+
+    @Override @Transactional
     public PlatformSettings changeFacePhotoUpload(UUID actor, boolean enabled) {
         access.operator(actor, true);
         var s = settings.get();

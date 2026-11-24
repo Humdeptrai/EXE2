@@ -40,5 +40,9 @@ public class PlatformSettings {
     @org.hibernate.annotations.ColumnDefault("360")
     private int ratingDelayMinutes = 360;
 
+    @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("true")
+    private boolean matchingRequirementsEnabled = true;
+
     @Version private long version;
 }

@@ -709,6 +709,34 @@
 }
 :root[data-theme="dark"] .candidate-rank-unavailable { color: hsl(204 24% 73% / 1.000); border: 1px dashed hsl(204 20% 27% / 1.000)
 }
+:root[data-theme="dark"] .hf-bell-trigger { border: 1px solid hsl(204 20% 27% / 1.000); background: hsl(187.5 45.0% 17% / 1.000); color: hsl(188.9 75.0% 73% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-trigger:focus-visible,:root[data-theme="dark"] .hf-bell-panel button:focus-visible,:root[data-theme="dark"] .hf-bell-panel a:focus-visible { outline: 2px solid hsl(188.9 45.0% 40% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-count { border: 2px solid hsl(204 20% 27% / 1.000); background: hsl(0.0 45.0% 23% / 1.000); color: #ffffff
+}
+:root[data-theme="dark"] .hf-bell-panel { border: 1px solid hsl(204 20% 27% / 1.000); background: hsl(208 28% 13% / 1.000); color: hsl(204 24% 90% / 1.000); box-shadow: 0 14px 40px rgb(0 0 0 / 0.268)
+}
+:root[data-theme="dark"] .hf-bell-panel header { border-bottom: 1px solid hsl(204 20% 27% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-panel header button,:root[data-theme="dark"] .hf-bell-empty button { color: hsl(188.9 75.0% 73% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-item { background: hsl(208 28% 13% / 1.000); border-bottom: 1px solid hsl(204 20% 27% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-item:hover { background: hsl(190.0 42.9% 13% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-unread { background: hsl(189.2 45.0% 17% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-item-copy > span { color: hsl(204 24% 73% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-item-copy small { color: hsl(204 24% 73% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-empty { color: hsl(204 24% 73% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-panel footer { border-top: 1px solid hsl(204 20% 27% / 1.000)
+}
+:root[data-theme="dark"] .hf-bell-panel footer a { color: hsl(188.9 75.0% 73% / 1.000)
+}
 :root[data-theme="dark"] .hf-pwa-install {background:hsl(188.6 41.2% 13% / 1.000);color:hsl(204 24% 90% / 1.000)
 }
 :root[data-theme="dark"] .hf-pwa-card {background:hsl(208 28% 13% / 1.000);border:1px solid hsl(189.0 34.5% 27% / 1.000);box-shadow:0 14px 40px rgb(0 0 0 / 0.078)

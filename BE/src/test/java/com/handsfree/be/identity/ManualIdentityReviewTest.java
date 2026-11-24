@@ -37,7 +37,7 @@ class ManualIdentityReviewTest {
         users=mock(UserRepository.class);access=mock(AccountAccess.class);
         var properties=new IdentityProperties();properties.setEncryptionKey(Base64.getEncoder().encodeToString(new byte[32]));
         crypto=new IdentityCrypto(properties);
-        service=new IdentityServiceImpl(identities,registry,submissions,appeals,mock(NotificationService.class),
+        service=new IdentityServiceImpl(identities,mock(PlatformSettingsRepository.class),registry,submissions,appeals,mock(NotificationService.class),
                 users,access,properties,crypto,mock(FptIdentityClient.class),mock(TransactionTemplate.class),
                 mock(JobMatchRepository.class),mock(ContactAccess.class),mock(ManagementService.class));
         actor=UUID.randomUUID();user=UUID.randomUUID();

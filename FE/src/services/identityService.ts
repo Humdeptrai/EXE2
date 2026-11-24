@@ -1,6 +1,6 @@
 import api from "../config/axios";
 import type { ApiResponse } from "../types/api";
-export type Eligibility = { eligible: boolean; profileComplete: boolean; identityVerified: boolean; identityStatus: string; selfieVerified: boolean; documentConfirmed: boolean; missingRequirements: string[] };
+export type Eligibility = { matchingRequirementsEnabled?: boolean; eligible: boolean; profileComplete: boolean; identityVerified: boolean; identityStatus: string; selfieVerified: boolean; documentConfirmed: boolean; missingRequirements: string[] };
 export type MyIdentity = {
   verification: { userId: string; status: string; reason: string | null; submittedAt: string | null; verifiedAt: string | null; enabled: boolean };
   documentNumber: string | null;
