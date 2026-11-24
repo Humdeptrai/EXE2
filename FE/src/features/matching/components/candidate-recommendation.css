@@ -1,0 +1,58 @@
+.candidate-rank {
+  --rank-ink: #79513a;
+  --rank-border: #dfc4ae;
+  --rank-surface: #fcf5ee;
+  min-width: 0;
+  border: 1px solid var(--rank-border);
+  border-radius: 20px;
+  background: white;
+  overflow: hidden;
+  color: #334155;
+}
+.candidate-rank-silver { --rank-ink: #53677d; --rank-border: #c0cdda; --rank-surface: #f0f5fa; }
+.candidate-rank-gold { --rank-ink: #88600b; --rank-border: #e5c46a; --rank-surface: #fff8df; box-shadow: 0 2px 12px #aa7f1414; }
+.candidate-rank-platinum { --rank-ink: #007789; --rank-border: #69c5ce; --rank-surface: #e8fafb; box-shadow: 0 3px 16px #007f9520; }
+.candidate-rank-diamond { --rank-ink: #6353ac; --rank-border: #b4a0f1; --rank-surface: #f0ecff; box-shadow: 0 0 0 2px #ded5fa, 0 5px 22px #7a60ce26; }
+.candidate-rank-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 16px;
+  border-top: 3px solid var(--rank-border);
+  background: linear-gradient(125deg, var(--rank-surface), white);
+  color: var(--rank-ink);
+}
+.candidate-rank-crest { flex: 0 0 56px; }
+.candidate-rank-crest svg { display: block; width: 100%; height: auto; }
+.candidate-rank-score { min-width: 0; }
+.candidate-rank-eyebrow { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
+.candidate-rank-score p { display: flex; align-items: baseline; gap: 4px; line-height: 1.1; margin: 6px 0; }
+.candidate-rank-score p strong { font-size: 40px; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -2px; }
+.candidate-rank-score p > span { font-size: 14px; font-weight: 700; }
+.candidate-rank-tier { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: .06em; }
+.candidate-rank-limited { align-self: flex-start; margin-left: auto; padding: 4px 7px; border: 1px solid var(--rank-border); border-radius: 8px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.candidate-rank summary { cursor: pointer; list-style: none; min-height: 44px; }
+.candidate-rank summary::-webkit-details-marker { display: none; }
+.candidate-rank summary:focus-visible { outline: 2px solid var(--rank-ink); outline-offset: -3px; border-radius: 8px; }
+.candidate-rank-explanation > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; font-size: 12px; font-weight: 750; color: var(--rank-ink); border-top: 1px solid var(--rank-border); }
+.candidate-rank-signals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--rank-border); }
+.candidate-rank-signals > details { min-width: 0; }
+.candidate-rank-signals > details + details { border-left: 1px solid var(--rank-border); }
+.candidate-rank-signals summary { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; }
+.candidate-rank-signals summary > svg { color: var(--rank-ink); flex-shrink: 0; }
+.candidate-rank-signals summary > strong { font-size: 24px; font-weight: 850; line-height: 1.2; color: var(--rank-ink); overflow-wrap: anywhere; }
+.candidate-rank-signals summary > span { font-size: 12px; font-weight: 700; line-height: 1.5; }
+.candidate-rank-signals small { display: flex; align-items: center; gap: 6px; margin-top: auto; color: var(--rank-ink); font-size: 11px; }
+.candidate-rank-copy { padding: 0 14px 14px; font-size: 12px; line-height: 1.75; overflow-wrap: anywhere; }
+.candidate-rank-copy > * + * { margin-top: 10px; }
+.candidate-rank-signals details[open] { grid-column: 1 / -1; }
+.candidate-rank-signals details[open] + details { border-left: 0; border-top: 1px solid var(--rank-border); }
+.candidate-rank-unavailable { font-size: 12px; color: #64748b; padding: 12px; border: 1px dashed #cbd5e1; border-radius: 12px; }
+@media (max-width: 374px) {
+  .candidate-rank-hero { gap: 10px; padding: 16px 12px; flex-wrap: wrap; }
+  .candidate-rank-crest { flex-basis: 44px; }
+  .candidate-rank-score p strong { font-size: 34px; }
+  .candidate-rank-signals { grid-template-columns: minmax(0, 1fr); }
+  .candidate-rank-signals > details + details { border-left: 0; border-top: 1px solid var(--rank-border); }
+}

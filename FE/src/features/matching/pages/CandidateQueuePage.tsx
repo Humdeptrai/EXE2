@@ -1,4 +1,4 @@
-import RecommendationBadge from "../../../components/ui/RecommendationBadge";
+import CandidateRecommendation from "../components/CandidateRecommendation";
 import UserNotice from "../../../components/feedback/UserNotice";
 import { EmptyArtwork } from "../../../components/ui/EmptyArtwork";
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -193,7 +193,7 @@ export default function CandidateQueuePage() {
         </div>}
         <div className="grid gap-3 sm:grid-cols-2">
           {candidates.map((candidate, index) => <article key={candidate.interestId} className="min-w-0 space-y-3 rounded-2xl border border-slate-200 p-3 sm:p-4">
-            <RecommendationBadge value={candidate.recommendation} role="working" />
+            <CandidateRecommendation value={candidate.recommendation} />
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0"><p className="break-words text-sm font-extrabold">#{page * 20 + index + 1} · {candidate.displayName}</p><p className="mt-1 break-words text-xs text-slate-500">{candidate.location || "Chưa cập nhật khu vực"}</p></div>
               {candidate.interestLevel === "VERY_INTERESTED" && <span className="shrink-0 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700">Rất quan tâm</span>}

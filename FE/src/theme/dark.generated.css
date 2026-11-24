@@ -689,6 +689,26 @@
 }
 :root[data-theme="dark"] .op-pagination select {background:hsl(208 28% 13% / 1.000)
 }
+:root[data-theme="dark"] .candidate-rank {
+  --rank-ink: hsl(21.9 35.2% 73% / 1.000);
+  --rank-border: hsl(26.9 43.4% 27% / 1.000);
+  --rank-surface: hsl(30.0 45.0% 13% / 1.000);
+  background: hsl(208 28% 13% / 1.000);
+  color: hsl(204 24% 90% / 1.000)
+}
+:root[data-theme="dark"] .candidate-rank-silver { --rank-ink: hsl(204 24% 73% / 1.000); --rank-border: hsl(204 20% 27% / 1.000); --rank-surface: hsl(210.0 45.0% 13% / 1.000)
+}
+:root[data-theme="dark"] .candidate-rank-gold { --rank-ink: hsl(40.8 75.0% 73% / 1.000); --rank-border: hsl(43.9 45.0% 27% / 1.000); --rank-surface: hsl(46.9 45.0% 17% / 1.000); box-shadow: 0 2px 12px rgb(0 0 0 / 0.141)
+}
+:root[data-theme="dark"] .candidate-rank-platinum { --rank-ink: hsl(187.9 75.0% 73% / 1.000); --rank-border: hsl(185.3 45.0% 40% / 1.000); --rank-surface: hsl(183.2 45.0% 17% / 1.000); box-shadow: 0 3px 16px rgb(0 0 0 / 0.226)
+}
+:root[data-theme="dark"] .candidate-rank-diamond { --rank-ink: hsl(250.8 34.9% 73% / 1.000); --rank-border: hsl(254.8 45.0% 27% / 1.000); --rank-surface: hsl(252.6 45.0% 13% / 1.000); box-shadow: 0 0 0 2px rgb(0 0 0 / 0.600), 0 5px 22px rgb(0 0 0 / 0.268)
+}
+:root[data-theme="dark"] .candidate-rank-hero {
+  background: linear-gradient(125deg, var(--rank-surface), hsl(208 28% 13% / 1.000))
+}
+:root[data-theme="dark"] .candidate-rank-unavailable { color: hsl(204 24% 73% / 1.000); border: 1px dashed hsl(204 20% 27% / 1.000)
+}
 :root[data-theme="dark"] .hf-pwa-install {background:hsl(188.6 41.2% 13% / 1.000);color:hsl(204 24% 90% / 1.000)
 }
 :root[data-theme="dark"] .hf-pwa-card {background:hsl(208 28% 13% / 1.000);border:1px solid hsl(189.0 34.5% 27% / 1.000);box-shadow:0 14px 40px rgb(0 0 0 / 0.078)
