@@ -14,5 +14,6 @@ public interface ManagementService {
     PlatformSettings changeSettings(UUID actor, BigDecimal consumer, BigDecimal provider, long min, long max, boolean enabled, int paymentWindowMinutes, int ratingDelayMinutes);
     PlatformSettings changeFacePhotoUpload(UUID actor, boolean enabled);
     PlatformSettings changeMatchingRequirements(UUID actor, boolean enabled);
+    PlatformSettings changeRegistrationEmailOtp(UUID actor, boolean enabled);
     void refund(UUID actor, UUID matchId, String reason);
 }

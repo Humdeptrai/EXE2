@@ -32,6 +32,7 @@ export interface AuthResult {
 }
 
 export interface RegisterRequest {
+  emailOtp?: string;
   fullName: string;
   identifier: string;
   password: string;

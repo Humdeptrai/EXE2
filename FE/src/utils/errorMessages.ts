@@ -2,6 +2,13 @@ import type { ApiErrorPayload } from "../types/api";
 
 // Codes are stable API contracts. Do not renumber them for presentation.
 export const errorMessages: Readonly<Record<number, string>> = {
+  40381: "Vui lòng lấy mã OTP gửi tới email và nhập mã để đăng ký.", // REGISTRATION_OTP_REQUIRED
+  40081: "Mã OTP chưa đúng, đã hết hạn hoặc đã sử dụng. Vui lòng kiểm tra hoặc gửi lại mã.", // REGISTRATION_OTP_INVALID
+  42981: "Bạn đã nhập sai mã quá nhiều lần. Vui lòng gửi lại mã mới.", // REGISTRATION_OTP_LOCKED
+  42982: "Bạn gửi mã quá nhanh hoặc đã đạt giới hạn 5 lần mỗi giờ. Vui lòng chờ rồi thử lại.", // REGISTRATION_OTP_RATE_LIMIT
+  50381: "Chưa gửi được mã xác thực email. Vui lòng thử lại sau ít phút.", // REGISTRATION_OTP_UNAVAILABLE
+  40981: "Xác thực email đang tắt. Bạn có thể đăng ký ngay mà không cần OTP.", // REGISTRATION_OTP_DISABLED
+
   40935: "Lịch công việc đã thay đổi. Vui lòng tải lại lịch mới nhất trước khi lưu.", // MATCH_SCHEDULE_CONFLICT
   40099: "Mật khẩu hiện tại chưa đúng. Vui lòng kiểm tra lại.", // PASSWORD_CURRENT_INCORRECT
   40999: "Mật khẩu mới phải khác mật khẩu hiện tại.", // PASSWORD_NEW_UNCHANGED

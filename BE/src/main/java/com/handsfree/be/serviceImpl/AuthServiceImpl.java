@@ -39,12 +39,23 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final JwtService jwtService;
     private final GoogleTokenVerifier googleTokenVerifier;
+    private final com.handsfree.be.service.RegistrationEmailService registrationEmail;
+    private final org.springframework.transaction.support.TransactionTemplate registrationTransactions;
 
     @Override
-    @Transactional
     public AuthResponse register(RegisterRequest request) {
-        Identifier identifier = normalizeIdentifier(request.identifier());
+        // Return OTP errors from the transaction so failed-attempt counters commit.
+        var outcome = registrationTransactions.execute(tx -> registerWithinTransaction(request));
+        if (outcome.error() != null) throw new AppException(outcome.error());
+        return outcome.response();
+    }
+
+    private record RegistrationOutcome(AuthResponse response, ErrorCode error) {}
+    private RegistrationOutcome registerWithinTransaction(RegisterRequest request) {
+        Identifier identifier = new Identifier(RegistrationEmailServiceImpl.normalize(request.identifier()), null);
         ensureIdentifierAvailable(identifier);
+        ErrorCode verificationError = registrationEmail.consume(identifier.email(), request.emailOtp());
+        if (verificationError != null) return new RegistrationOutcome(null, verificationError);
 
         User user = userRepository.save(User.builder()
                 .fullName(request.fullName().trim())
@@ -57,7 +68,7 @@ public class AuthServiceImpl implements AuthService {
                 .active(true)
                 .build());
 
-        return createAuthResponse(user);
+        return new RegistrationOutcome(createAuthResponse(user), null);
     }
 
     @Override

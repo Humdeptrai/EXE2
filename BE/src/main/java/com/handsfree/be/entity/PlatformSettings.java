@@ -44,5 +44,9 @@ public class PlatformSettings {
     @org.hibernate.annotations.ColumnDefault("true")
     private boolean matchingRequirementsEnabled = true;
 
+    @Column(nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
+    private boolean registrationEmailOtpEnabled;
+
     @Version private long version;
 }

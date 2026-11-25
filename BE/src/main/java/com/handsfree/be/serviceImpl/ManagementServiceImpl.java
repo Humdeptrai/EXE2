@@ -20,6 +20,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ManagementServiceImpl implements ManagementService {
     private final AccountAccess access;
+    private final com.handsfree.be.service.AccountMailService accountMail;
     private final AdminAuditRepository audit;
     private final UserRepository users;
     private final JobPostRepository jobs;
@@ -126,6 +127,19 @@ public class ManagementServiceImpl implements ManagementService {
         var current = settings.get();
         current.setMatchingRequirementsEnabled(enabled);
         log(actor, "MATCHING_REQUIREMENTS_SETTINGS", "enabled=" + enabled);
+        return current;
+    }
+
+    @Override @Transactional
+    public PlatformSettings changeRegistrationEmailOtp(UUID actor, boolean enabled) {
+        access.operator(actor, true);
+        if (enabled) {
+            try { accountMail.requireConfigured(); }
+            catch (AppException e) { throw new AppException(ErrorCode.REGISTRATION_OTP_UNAVAILABLE); }
+        }
+        var current = settings.get();
+        current.setRegistrationEmailOtpEnabled(enabled);
+        log(actor, "REGISTRATION_EMAIL_SETTINGS", "otpRequired=" + enabled);
         return current;
     }
 

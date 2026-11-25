@@ -26,10 +26,17 @@ public class AccountMailServiceImpl implements AccountMailService {
   catch(java.util.concurrent.RejectedExecutionException e){throw new AppException(ErrorCode.PASSWORD_RESET_UNAVAILABLE);}
  }
  @jakarta.annotation.PreDestroy public void shutdown(){deliveries.shutdown();try{if(!deliveries.awaitTermination(12,java.util.concurrent.TimeUnit.SECONDS))deliveries.shutdownNow();}catch(InterruptedException e){Thread.currentThread().interrupt();deliveries.shutdownNow();}}
+ public void registrationOtp(String email,String code){
+  try{requireConfigured();deliverText(email,"HandsFree — Mã xác thực đăng ký","Mã xác thực đăng ký HandsFree của bạn: "+code+"\nMã có hiệu lực 10 phút và chỉ dùng một lần. Không chia sẻ mã với người khác. Nếu không phải bạn yêu cầu, hãy bỏ qua email này.");}
+  catch(AppException e){throw new AppException(ErrorCode.REGISTRATION_OTP_UNAVAILABLE);}
+ }
  private void deliver(String email,String url){
+  deliverText(email,"HandsFree — Đặt lại mật khẩu","Bạn vừa yêu cầu đặt lại mật khẩu HandsFree. Mở liên kết sau trong 15 phút:\n"+url+"\nLiên kết chỉ dùng một lần. Nếu không phải bạn yêu cầu, hãy bỏ qua email này. Không chia sẻ liên kết với người khác.");
+ }
+ private void deliverText(String email,String subject,String content){
   try {
    String body=json.writeValueAsString(Map.of("sender",Map.of("name","HandsFree","email",from),"to",List.of(Map.of("email",email)),
-    "subject","HandsFree — Đặt lại mật khẩu","textContent","Bạn vừa yêu cầu đặt lại mật khẩu HandsFree. Mở liên kết sau trong 15 phút:\n"+url+"\nLiên kết chỉ dùng một lần. Nếu không phải bạn yêu cầu, hãy bỏ qua email này. Không chia sẻ liên kết với người khác."));
+    "subject",subject,"textContent",content));
    var request=HttpRequest.newBuilder(URI.create("https://api.brevo.com/v3/smtp/email")).timeout(Duration.ofSeconds(10)).header("api-key",apiKey).header("Content-Type","application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build();
    var response=client.send(request,HttpResponse.BodyHandlers.discarding());
    if(response.statusCode()<200||response.statusCode()>=300)throw new AppException(ErrorCode.PASSWORD_RESET_UNAVAILABLE);

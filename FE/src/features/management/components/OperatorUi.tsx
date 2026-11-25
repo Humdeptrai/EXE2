@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
 export const operatorLabels: Record<string, string> = {
+  REGISTRATION_EMAIL_SETTINGS: "Cấu hình xác thực email đăng ký",
   MATCH_SCHEDULE_CHANGE: "Điều chỉnh lịch công việc",
   MATCHING_REQUIREMENTS_SETTINGS: "Cấu hình điều kiện matching",
   IDENTITY_PHOTO_UPLOAD_SETTINGS: "Cấu hình tải ảnh khuôn mặt",

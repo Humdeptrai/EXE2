@@ -5,6 +5,13 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
+    REGISTRATION_OTP_REQUIRED(40381, HttpStatus.FORBIDDEN, "Vui lòng lấy mã OTP gửi tới email và nhập mã để đăng ký."),
+    REGISTRATION_OTP_INVALID(40081, HttpStatus.BAD_REQUEST, "Mã OTP chưa đúng, đã hết hạn hoặc đã sử dụng. Vui lòng kiểm tra hoặc gửi lại mã."),
+    REGISTRATION_OTP_LOCKED(42981, HttpStatus.TOO_MANY_REQUESTS, "Bạn đã nhập sai mã quá nhiều lần. Vui lòng gửi lại mã mới."),
+    REGISTRATION_OTP_RATE_LIMIT(42982, HttpStatus.TOO_MANY_REQUESTS, "Bạn gửi mã quá nhanh hoặc đã đạt giới hạn 5 lần mỗi giờ. Vui lòng chờ rồi thử lại."),
+    REGISTRATION_OTP_UNAVAILABLE(50381, HttpStatus.SERVICE_UNAVAILABLE, "Chưa gửi được mã xác thực email. Vui lòng thử lại sau ít phút."),
+    REGISTRATION_OTP_DISABLED(40981, HttpStatus.CONFLICT, "Xác thực email đang tắt. Bạn có thể đăng ký ngay mà không cần OTP."),
+
     MATCH_SCHEDULE_CONFLICT(40935, HttpStatus.CONFLICT, "Lịch công việc đã thay đổi. Vui lòng tải lại lịch mới nhất trước khi lưu."),
     PASSWORD_CURRENT_INCORRECT(40099, HttpStatus.BAD_REQUEST, "Mật khẩu hiện tại chưa đúng. Vui lòng kiểm tra lại."),
     PASSWORD_NEW_UNCHANGED(40999, HttpStatus.CONFLICT, "Mật khẩu mới phải khác mật khẩu hiện tại."),

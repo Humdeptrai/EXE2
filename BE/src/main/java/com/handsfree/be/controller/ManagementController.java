@@ -112,6 +112,12 @@ public class ManagementController {
         return ApiResponse.success(200, "Đã lưu điều kiện matching", management.changeMatchingRequirements(id(a), r.matchingRequirementsEnabled()));
     }
 
+    public record RegistrationEmailSettingsRequest(@NotNull Boolean registrationEmailOtpEnabled) {}
+    @PatchMapping("/admin/settings/registration-email")
+    public ApiResponse<?> registrationEmailSettings(Authentication a, @Valid @RequestBody RegistrationEmailSettingsRequest r) {
+        return ApiResponse.success(200, "Đã lưu xác thực email đăng ký", management.changeRegistrationEmailOtp(id(a), r.registrationEmailOtpEnabled()));
+    }
+
     public record IdentitySettingsRequest(@NotNull Boolean facePhotoUploadEnabled) {}
 
     @PatchMapping("/admin/settings/identity")

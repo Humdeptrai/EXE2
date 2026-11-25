@@ -1,6 +1,7 @@
 package com.handsfree.be.dto.request;
 
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -10,10 +11,12 @@ public record RegisterRequest(
         @Size(min = 2, max = 100, message = "Họ và tên phải từ 2 đến 100 ký tự")
         String fullName,
 
-        @NotBlank(message = "Email hoặc số điện thoại không được để trống")
+        @NotBlank(message = "Email không được để trống")
+        @Email(message = "Email không hợp lệ")
+        @Size(max = 254)
         @Pattern(
-                regexp = "(^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$)|(^0\\d{9}$)",
-                message = "Email hoặc số điện thoại không hợp lệ"
+                regexp = "(^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$)",
+                message = "Email không hợp lệ"
         )
         String identifier,
 
@@ -25,5 +28,7 @@ public record RegisterRequest(
         String password,
 
         @AssertTrue(message = "Bạn cần đồng ý với Điều khoản & Chính sách")
-        boolean termsAccepted
+        boolean termsAccepted,
+
+        @Size(max = 6) String emailOtp
 ) {}
