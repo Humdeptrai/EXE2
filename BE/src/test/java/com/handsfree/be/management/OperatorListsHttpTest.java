@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class OperatorListsHttpTest {
     @Value("${local.server.port}") int port;
     @Autowired UserRepository users;
+    @Autowired com.handsfree.be.repository.AdminAuditRepository audits;
     @Autowired TransactionTemplate tx;
     @Autowired JwtService jwt;
     @Autowired ObjectMapper json;
@@ -50,6 +51,25 @@ class OperatorListsHttpTest {
         var b=HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/api/v1"+path));
         if(token!=null)b.header("Authorization","Bearer "+token);
         return HttpClient.newHttpClient().send(b.GET().build(),HttpResponse.BodyHandlers.ofString());
+    }
+    @Test void auditFiltersBeforePagingAndSearchesActorEmail() throws Exception {
+        String email="audit-actor@example.invalid";
+        tx.executeWithoutResult(txStatus -> {
+            var actor=account("Audit operator",UserRole.ADMIN); actor.setEmail(email); users.saveAndFlush(actor);
+            for(int i=0;i<13;i++) audits.save(com.handsfree.be.entity.AdminAudit.builder().actorId(actor.getId())
+                .action("IDENTITY_IMAGE_VIEW").detail("sensitive diagnostic fixture").occurredAt(java.time.Instant.now()).build());
+            for(int i=0;i<6;i++) audits.save(com.handsfree.be.entity.AdminAudit.builder().actorId(actor.getId())
+                .action("MATCHING_REQUIREMENTS_SETTINGS").detail("enabled=false").occurredAt(java.time.Instant.now()).build());
+        });
+        var r=get("/admin/audit?size=5&search="+email,adminToken);
+        assertEquals(200,r.statusCode(),r.body());var page=json.readTree(r.body()).path("result");
+        assertEquals(6,page.path("totalElements").asInt()); assertEquals(5,page.path("content").size());
+        var row=page.path("content").get(0);
+        assertEquals("Audit operator",row.path("actorName").asString());assertEquals(email,row.path("actorEmail").asString());
+        assertFalse(row.path("actorId").asString().isBlank());assertTrue(row.path("detail").asString().contains("Đã tắt"));
+        assertFalse(row.path("detail").asString().contains("enabled="));
+        assertEquals(1,json.readTree(get("/admin/audit?size=5&page=1&search="+email,adminToken).body()).path("result").path("content").size());
+        assertEquals(0,json.readTree(get("/admin/audit?size=5&state=IDENTITY_IMAGE_VIEW&search="+email,adminToken).body()).path("result").path("totalElements").asInt());
     }
     @Test void allOperatorListsHonorEveryOfferedSize()throws Exception {
         for(String path:endpoints)for(int size:new int[]{5,10,15,30,50,100}){

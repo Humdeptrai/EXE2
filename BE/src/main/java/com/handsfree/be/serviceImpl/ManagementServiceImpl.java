@@ -49,6 +49,8 @@ public class ManagementServiceImpl implements ManagementService {
                 m.getPaymentDeadlineAt() == null ? "" : m.getPaymentDeadlineAt().toString(), m.getStatus().name())));
     }
     public void log(UUID actor, String action, String detail) {
+        if (!AdminAuditPolicy.shouldStore(action)) return;
+        if (action.equals("IDENTITY_REGISTRY_BACKFILL") && detail.startsWith("processed=0 ")) return;
         audit.save(
                 AdminAudit.builder()
                         .actorId(actor)
@@ -64,6 +66,7 @@ public class ManagementServiceImpl implements ManagementService {
         var job =
                 jobs.findDiscoveryForUpdate(id)
                         .orElseThrow(() -> new AppException(ErrorCode.JOB_NOT_FOUND));
+        if (job.isModerationHidden() == hidden) return;
         job.setModerationHidden(hidden);
         log(actor, "JOB_VISIBILITY", id + " hidden=" + hidden + " " + reason);
     }
@@ -75,6 +78,7 @@ public class ManagementServiceImpl implements ManagementService {
         if (user.getRole() == UserRole.ADMIN && (role != UserRole.ADMIN || !active))
             throw new AppException(ErrorCode.FORBIDDEN);
         if (actor.equals(id)) throw new AppException(ErrorCode.FORBIDDEN);
+        if (user.getRole() == role && user.isActive() == active) return;
         user.setRole(role);
         user.setActive(active);
         log(actor, "USER_ACCESS", id + " role=" + role + " active=" + active + " " + reason);
@@ -97,6 +101,10 @@ public class ManagementServiceImpl implements ManagementService {
         if (min < 1000 || max < min || max > 100000000)
             throw new AppException(ErrorCode.VALIDATION_FAILED);
         var s = settings.get();
+        boolean ratingChanged = s.getRatingDelayMinutes() != ratingDelayMinutes;
+        boolean feesChanged = s.getConsumerFee().compareTo(consumer) != 0 || s.getProviderFee().compareTo(provider) != 0
+            || s.getMinTopUp() != min || s.getMaxTopUp() != max || s.isTopUpEnabled() != enabled || s.getPaymentWindowMinutes() != paymentWindowMinutes;
+        if (!ratingChanged && !feesChanged) return s;
         s.setConsumerFee(consumer);
         s.setProviderFee(provider);
         s.setMinTopUp(min);
@@ -104,8 +112,8 @@ public class ManagementServiceImpl implements ManagementService {
         s.setTopUpEnabled(enabled);
         s.setPaymentWindowMinutes(paymentWindowMinutes);
         s.setRatingDelayMinutes(ratingDelayMinutes);
-        log(actor, "RATING_SETTINGS", "delayMinutes=" + ratingDelayMinutes + " windowDays=7");
-        log(
+        if (ratingChanged) log(actor, "RATING_SETTINGS", "delayMinutes=" + ratingDelayMinutes + " windowDays=7");
+        if (feesChanged) log(
                 actor,
                 "FEE_SETTINGS",
                 "consumer="
@@ -125,6 +133,7 @@ public class ManagementServiceImpl implements ManagementService {
     public PlatformSettings changeMatchingRequirements(UUID actor, boolean enabled) {
         access.operator(actor, true);
         var current = settings.get();
+        if (current.isMatchingRequirementsEnabled() == enabled) return current;
         current.setMatchingRequirementsEnabled(enabled);
         log(actor, "MATCHING_REQUIREMENTS_SETTINGS", "enabled=" + enabled);
         return current;
@@ -138,6 +147,7 @@ public class ManagementServiceImpl implements ManagementService {
             catch (AppException e) { throw new AppException(ErrorCode.REGISTRATION_OTP_UNAVAILABLE); }
         }
         var current = settings.get();
+        if (current.isRegistrationEmailOtpEnabled() == enabled) return current;
         current.setRegistrationEmailOtpEnabled(enabled);
         log(actor, "REGISTRATION_EMAIL_SETTINGS", "otpRequired=" + enabled);
         return current;
@@ -147,6 +157,7 @@ public class ManagementServiceImpl implements ManagementService {
     public PlatformSettings changeFacePhotoUpload(UUID actor, boolean enabled) {
         access.operator(actor, true);
         var s = settings.get();
+        if (s.isFacePhotoUploadEnabled() == enabled) return s;
         s.setFacePhotoUploadEnabled(enabled);
         log(actor, "IDENTITY_PHOTO_UPLOAD_SETTINGS", "enabled=" + enabled + " review=ADMIN");
         return s;

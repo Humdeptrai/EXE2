@@ -173,6 +173,7 @@ public class ReportServiceImpl implements ReportService {
         return response(r, user, true);
     }
     private void log(UUID actor, String action, String detail) {
+        if (!AdminAuditPolicy.shouldStore(action)) return;
         audit.save(AdminAudit.builder().actorId(actor).action(action).detail(detail).occurredAt(Instant.now()).build());
     }
     @Override @Transactional(readOnly = true)

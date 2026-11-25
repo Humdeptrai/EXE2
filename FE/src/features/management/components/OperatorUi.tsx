@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
 export const operatorLabels: Record<string, string> = {
+  REPORT_RESOLVE: "Kết quả xử lý báo cáo",
   REGISTRATION_EMAIL_SETTINGS: "Cấu hình xác thực email đăng ký",
   MATCH_SCHEDULE_CHANGE: "Điều chỉnh lịch công việc",
   MATCHING_REQUIREMENTS_SETTINGS: "Cấu hình điều kiện matching",
@@ -26,12 +27,12 @@ export function StatusBadge({ value, label }: { value: string | number | boolean
 export function PageHeading({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
   return <div className="op-page-heading"><div><p className="op-eyebrow">Vận hành HandsFree</p><h1>{title}</h1><p>{description}</p></div><div className="op-heading-actions">{actions}</div></div>;
 }
-export function FilterBar({ search, state, options, onApply, total, placeholder = "Tìm tên, mã hoặc nội dung…" }: { search: string; state: string; options: Record<string,string>; onApply: (search: string, state: string) => void; total?: number; placeholder?: string }) {
+export function FilterBar({ search, state, options, onApply, total, placeholder = "Tìm tên, mã hoặc nội dung…", allLabel = "Tất cả trạng thái" }: { search: string; state: string; options: Record<string,string>; onApply: (search: string, state: string) => void; total?: number; placeholder?: string; allLabel?: string }) {
   const [draft, setDraft] = useState(search);
   useEffect(() => setDraft(search), [search]);
   return <form className="op-table-toolbar" onSubmit={e => { e.preventDefault(); onApply(draft.trim(), state); }}>
     <label className="op-search"><span className="sr-only">Tìm kiếm</span><AppIcon name="search" className="op-icon" /><input maxLength={100} placeholder={placeholder} value={draft} onChange={e => setDraft(e.target.value)} /></label>
-    <label className="op-filter-label"><span className="sr-only">Lọc trạng thái</span><select value={state} onChange={e => onApply(draft.trim(), e.target.value)}><option value="">Tất cả trạng thái</option>{Object.entries(options).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+    <label className="op-filter-label"><span className="sr-only">Lọc trạng thái</span><select value={state} onChange={e => onApply(draft.trim(), e.target.value)}><option value="">{allLabel}</option>{Object.entries(options).map(([key,label]) => <option key={key} value={key}>{label}</option>)}</select></label>
     <button type="submit" className="op-button secondary">Tìm kiếm</button>{(search || state) && <button type="button" className="op-button quiet" onClick={() => { setDraft(""); onApply("", ""); }}>Xóa bộ lọc</button>}
     {total !== undefined && <span className="op-result-count"><strong>{total.toLocaleString("vi-VN")}</strong> kết quả</span>}
   </form>;

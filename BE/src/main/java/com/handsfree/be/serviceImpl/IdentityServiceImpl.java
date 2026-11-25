@@ -162,7 +162,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
                 request.approved() ? "Hồ sơ xác minh đã được duyệt" : "Yêu cầu xác minh chưa được duyệt",
                 reason, openAppeal.getId(), "/identity/requests/" + openAppeal.getId());
         }
-        management.log(actor, request.approved() ? "IDENTITY_APPROVE" : "IDENTITY_REJECT", user.toString());
+        if (!request.approved()) management.log(actor, "IDENTITY_REJECT", user + " | " + reason);
         return summary(active);
     }
 

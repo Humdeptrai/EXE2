@@ -54,7 +54,18 @@ public class OperatorListServiceImpl implements OperatorListService {
             case "users" -> PageResponse.from(users.findAll(filter(q,state,"role","fullName","email","phone","id"),created).map(u -> row("id",u.getId(),"fullName",u.getFullName(),"email",u.getEmail(),"role",u.getRole(),"active",u.isActive(),"balance",u.getWalletBalance())));
             case "topups" -> PageResponse.from(orders.findAll(filter(q,state,"status","orderCode","ownerId","@ownerName"),PageRequest.of(Math.max(0,page),size,Sort.by(Sort.Direction.DESC,"createdAt").and(Sort.by(Sort.Direction.DESC,"orderCode")))).map(o -> row("orderCode",o.getOrderCode(),"ownerId",o.getOwnerId(),"ownerName",name(o.getOwnerId()),"requestId",o.getRequestId(),"checkoutUrl",o.getCheckoutUrl(),"paymentLinkId",o.getPaymentLinkId(),"amount",o.getAmount(),"status",o.getStatus(),"createdAt",o.getCreatedAt(),"creditedAt",o.getCreditedAt())));
             case "ledger" -> PageResponse.from(entries.findAll(filter(q,state,"kind","id","ownerId","description","@ownerName"),occurred).map(e -> row("id",e.getId(),"ownerId",e.getOwnerId(),"ownerName",name(e.getOwnerId()),"kind",e.getKind(),"amount",e.getAmount(),"balanceAfter",e.getBalanceAfter(),"description",e.getDescription(),"dedupeKey",e.getDedupeKey(),"occurredAt",e.getOccurredAt())));
-            case "audit" -> PageResponse.from(audit.findAll(filter(q,state,"action","id","actorId","detail","@actorName"),occurred).map(a -> row("id",a.getId(),"actorId",a.getActorId(),"actorName",name(a.getActorId()),"action",a.getAction(),"detail",a.getDetail(),"occurredAt",a.getOccurredAt())));
+            case "audit" -> {
+                Specification<AdminAudit> important = (root, query, cb) -> root.get("action").in(AdminAuditPolicy.IMPORTANT);
+                var result = audit.findAll(important.and(filter(q,state,"action","id","actorId","detail","@actorName")),occurred);
+                var identities = new HashMap<UUID,UserRepository.AuditActor>();
+                var actorIds = result.getContent().stream().map(AdminAudit::getActorId).distinct().toList();
+                if (!actorIds.isEmpty()) users.findAuditActorsByIdIn(actorIds).forEach(u -> identities.put(u.getId(),u));
+                yield PageResponse.from(result.map(a -> {
+                    var u=identities.get(a.getActorId());
+                    return row("id",a.getId(),"actorId",a.getActorId(),"actorName",u==null?"Tài khoản không còn tồn tại":u.getFullName(),
+                        "actorEmail",u==null?null:u.getEmail(),"action",a.getAction(),"detail",AdminAuditPolicy.describe(a.getAction(),a.getDetail()),"occurredAt",a.getOccurredAt());
+                }));
+            }
             default -> throw new AppException(ErrorCode.VALIDATION_FAILED);
         };
     }
@@ -83,7 +94,7 @@ public class OperatorListServiceImpl implements OperatorListService {
                 for(String field:fields) {
                     if(field.startsWith("@")) {
                         var sq=query.subquery(UUID.class);var u=sq.from(User.class);sq.select(u.get("id"));
-                        sq.where(cb.like(cb.lower(u.get("fullName")),pattern,'\\'));
+                        sq.where(cb.or(cb.like(cb.lower(u.get("fullName")),pattern,'\\'), cb.like(cb.lower(u.get("email")),pattern,'\\')));
                         or.add(root.get(field.equals("@actorName")?"actorId":"ownerId").in(sq));
                     } else {
                         Path<?> path=root;
