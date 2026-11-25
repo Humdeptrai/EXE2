@@ -4,6 +4,7 @@ import { safeNext } from "../../../services/identityService";
 export function notificationDestination(item: NotificationItem): string {
   if (item.actionUrl && safeNext(item.actionUrl) === item.actionUrl) return item.actionUrl;
   const id = item.referenceId ? encodeURIComponent(item.referenceId) : null;
+  if (id && item.type === "MATCH_SCHEDULE_CHANGED") return `/matches/${id}/payment`;
   if (id && (item.type === "CANDIDATE_ACCEPTED" || item.type === "PAYMENT_RECEIVED")) return `/matches/${id}/payment`;
   if (id && item.type === "CONNECTION_SUCCEEDED") return `/messages/match/${id}`;
   if (id && item.type === "JOB_INTEREST_RECEIVED") return `/posts/${id}/candidates`;

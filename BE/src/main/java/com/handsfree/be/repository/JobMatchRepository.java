@@ -40,6 +40,14 @@ public interface JobMatchRepository extends JpaRepository<JobMatch, UUID>, org.s
         """)
     List<UUID> findPendingRatingIds(@Param("userId") UUID userId, @Param("now") java.time.Instant now, Pageable page);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from JobMatch m where m.jobPost.id = :jobId order by m.id")
+    List<JobMatch> lockAllForJob(@Param("jobId") UUID jobId);
+    @Query("select m.jobPost.id from JobMatch m where m.id = :matchId")
+    Optional<UUID> findJobIdForSchedule(@Param("matchId") UUID matchId);
+
+    long countByJobPost_Id(UUID jobId);
+
     boolean existsByJobPost_Id(UUID jobId);
 
     long countByJobPost_IdAndStatus(UUID jobId, MatchStatus status);

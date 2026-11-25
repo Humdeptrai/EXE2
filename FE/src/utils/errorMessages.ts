@@ -2,6 +2,7 @@ import type { ApiErrorPayload } from "../types/api";
 
 // Codes are stable API contracts. Do not renumber them for presentation.
 export const errorMessages: Readonly<Record<number, string>> = {
+  40935: "Lịch công việc đã thay đổi. Vui lòng tải lại lịch mới nhất trước khi lưu.", // MATCH_SCHEDULE_CONFLICT
   40099: "Mật khẩu hiện tại chưa đúng. Vui lòng kiểm tra lại.", // PASSWORD_CURRENT_INCORRECT
   40999: "Mật khẩu mới phải khác mật khẩu hiện tại.", // PASSWORD_NEW_UNCHANGED
   40399: "Tài khoản chưa có mật khẩu. Vui lòng tiếp tục đăng nhập bằng Google.", // PASSWORD_CHANGE_UNAVAILABLE

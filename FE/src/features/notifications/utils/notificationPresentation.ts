@@ -11,6 +11,7 @@ type Presentation = {
 
 // Keep literal classes so Tailwind includes every notification style in production.
 const presentations: Record<NotificationType, Presentation> = {
+  MATCH_SCHEDULE_CHANGED: { label: "Lịch công việc", icon: "calendar", iconClass: "bg-sky-100 text-sky-700", badgeClass: "bg-sky-50 text-sky-800" },
   JOB_INTEREST_RECEIVED: { label: "Ứng viên quan tâm", icon: "users", iconClass: "bg-sky-100 text-sky-700", badgeClass: "bg-sky-50 text-sky-800" },
   CANDIDATE_ACCEPTED: { label: "Ứng tuyển được chấp nhận", icon: "check", iconClass: "bg-emerald-100 text-emerald-700", badgeClass: "bg-emerald-50 text-emerald-800" },
   CANDIDATE_REJECTED: { label: "Ứng tuyển bị từ chối", icon: "close", iconClass: "bg-rose-100 text-rose-700", badgeClass: "bg-rose-50 text-rose-800" },

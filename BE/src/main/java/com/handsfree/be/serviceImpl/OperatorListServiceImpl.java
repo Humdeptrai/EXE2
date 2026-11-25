@@ -47,7 +47,9 @@ public class OperatorListServiceImpl implements OperatorListService {
                 var p=payments.findByJobMatch_Id(m.getId()).orElse(null);
                 return row("id",m.getId(),"title",m.getJobPost().getTitle(),"consumerId",m.getConsumer().getId(),"consumerName",m.getConsumer().getFullName(),"providerId",m.getProvider().getId(),"providerName",m.getProvider().getFullName(),
                     "status",m.getStatus(),"consumerPaymentStatus",p==null?null:p.getConsumerPaymentStatus(),"providerPaymentStatus",p==null?null:p.getProviderPaymentStatus(),"paymentStatus",p==null?null:p.getStatus(),
-                    "paymentDeadlineAt",m.getPaymentDeadlineAt(),"expectedEndAt",m.getExpectedEndAt());
+                    "scheduledDate",m.getJobPost().getScheduledDate(),"startTime",m.getJobPost().getStartTime(),
+                    "paymentDeadlineAt",m.getPaymentDeadlineAt(),"expectedEndAt",m.getExpectedEndAt(),
+                    "ratingOpensAt",m.getRatingOpensAt(),"ratingClosesAt",m.getRatingClosesAt());
             }));
             case "users" -> PageResponse.from(users.findAll(filter(q,state,"role","fullName","email","phone","id"),created).map(u -> row("id",u.getId(),"fullName",u.getFullName(),"email",u.getEmail(),"role",u.getRole(),"active",u.isActive(),"balance",u.getWalletBalance())));
             case "topups" -> PageResponse.from(orders.findAll(filter(q,state,"status","orderCode","ownerId","@ownerName"),PageRequest.of(Math.max(0,page),size,Sort.by(Sort.Direction.DESC,"createdAt").and(Sort.by(Sort.Direction.DESC,"orderCode")))).map(o -> row("orderCode",o.getOrderCode(),"ownerId",o.getOwnerId(),"ownerName",name(o.getOwnerId()),"requestId",o.getRequestId(),"checkoutUrl",o.getCheckoutUrl(),"paymentLinkId",o.getPaymentLinkId(),"amount",o.getAmount(),"status",o.getStatus(),"createdAt",o.getCreatedAt(),"creditedAt",o.getCreditedAt())));

@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppIcon } from "../../../components/ui/AppIcon";
 export const operatorLabels: Record<string, string> = {
+  MATCH_SCHEDULE_CHANGE: "Điều chỉnh lịch công việc",
   MATCHING_REQUIREMENTS_SETTINGS: "Cấu hình điều kiện matching",
   IDENTITY_PHOTO_UPLOAD_SETTINGS: "Cấu hình tải ảnh khuôn mặt",
   WAITING_PAYMENT: "Chờ thanh toán", CONNECTED: "Đã kết nối", ACTIVE_USER: "Tài khoản hoạt động", LOCKED_USER: "Tài khoản bị khóa", HIDDEN: "Bài đang ẩn", VISIBLE: "Bài không bị ẩn", CREATED: "Đã tạo", JOB_VISIBILITY: "Ẩn / hiện bài", USER_ACCESS: "Quyền tài khoản", FEE_SETTINGS: "Cấu hình phí", RATING_SETTINGS: "Cấu hình đánh giá", CONNECTION_REFUND: "Hoàn phí", IDENTITY_APPROVE: "Duyệt danh tính", IDENTITY_REJECT: "Từ chối danh tính", IDENTITY_CLAIM: "Nhận xét duyệt", IDENTITY_RELEASE: "Hủy nhận xét duyệt", IDENTITY_VIEW: "Xem hồ sơ danh tính", IDENTITY_IMAGE_VIEW: "Xem ảnh xác minh", REPORT_CLAIM: "Nhận báo cáo", REPORT_RELEASE: "Hủy nhận báo cáo", REPORT_RESOLVED: "Giải quyết báo cáo", REPORT_REJECTED: "Từ chối báo cáo", IDENTITY_DOCUMENT_CORRECTION: "Sửa số CCCD", OPEN: "Mới gửi", IN_REVIEW: "Đang xử lý", REQUESTED: "Chờ tiếp nhận", PROCESSING: "Đang xử lý",

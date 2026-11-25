@@ -1,6 +1,7 @@
 package com.handsfree.be.constant;
 
 public enum NotificationType {
+    MATCH_SCHEDULE_CHANGED,
     JOB_INTEREST_RECEIVED,
     CANDIDATE_ACCEPTED,
     CANDIDATE_REJECTED,

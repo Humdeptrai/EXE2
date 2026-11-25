@@ -1,4 +1,5 @@
 export type NotificationType =
+  | "MATCH_SCHEDULE_CHANGED"
   | "JOB_INTEREST_RECEIVED"
   | "CANDIDATE_ACCEPTED"
   | "CANDIDATE_REJECTED"

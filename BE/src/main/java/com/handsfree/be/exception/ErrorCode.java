@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 
 @Getter
 public enum ErrorCode {
+    MATCH_SCHEDULE_CONFLICT(40935, HttpStatus.CONFLICT, "Lịch công việc đã thay đổi. Vui lòng tải lại lịch mới nhất trước khi lưu."),
     PASSWORD_CURRENT_INCORRECT(40099, HttpStatus.BAD_REQUEST, "Mật khẩu hiện tại chưa đúng. Vui lòng kiểm tra lại."),
     PASSWORD_NEW_UNCHANGED(40999, HttpStatus.CONFLICT, "Mật khẩu mới phải khác mật khẩu hiện tại."),
     PASSWORD_CHANGE_UNAVAILABLE(40399, HttpStatus.FORBIDDEN, "Tài khoản chưa có mật khẩu. Vui lòng tiếp tục đăng nhập bằng Google."),
