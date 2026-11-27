@@ -34,6 +34,8 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
     private final JobMatchRepository matches;
     private final ContactAccess contacts;
     private final ManagementService management;
+    private final IdentityFeedbackService feedback;
+    private final IdentityProgressRepository progress;
 
 
     @Override
@@ -101,12 +103,14 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         } else {
             submissions.saveAndFlush(draft);
             if (!"VERIFIED".equals(active.getStatus())) {
-                active.setStatus(draft.getStatus()); active.setSubmittedAt(now); active.setReason(data.reason());
+                active.setStatus(draft.getStatus()); active.setSubmittedAt(now); active.setReason(draft.getReason());
                 active.setVerifiedAt(null); active.setSelfieVerifiedAt(null); active.setDocumentNumberConfirmedAt(null);
                 identities.saveAndFlush(active);
             }
         }
-        return autoApproval && assessment.allowed() ? summary(active) : draftStatus(draft);
+        var outcome=autoApproval && assessment.allowed() ? summary(active) : draftStatus(draft);
+        feedback.send(user,outcome.status(),outcome.reason(),false);
+        return outcome;
     }
 
     private void publish(IdentityVerification active, IdentitySubmission draft, String name, String reason) {
@@ -158,10 +162,13 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         if (openAppeal != null) {
             openAppeal.setStatus(request.approved() ? "RESOLVED" : "REJECTED");
             openAppeal.setReason(reason); openAppeal.setResolvedAt(Instant.now()); appeals.saveAndFlush(openAppeal);
-            notifications.create(users.findById(user).orElseThrow(), com.handsfree.be.constant.NotificationType.IDENTITY_REVIEWED,
-                request.approved() ? "Hồ sơ xác minh đã được duyệt" : "Yêu cầu xác minh chưa được duyệt",
-                reason, openAppeal.getId(), "/identity/requests/" + openAppeal.getId());
+
         }
+        progress.lockById(user).ifPresent(p -> {
+            p.setStatus(request.approved()?"VERIFIED":"REJECTED"); p.setOutcomeReason(reason);
+            p.setUpdatedAt(Instant.now()); progress.save(p);
+        });
+        feedback.send(user,request.approved()?"VERIFIED":"REJECTED",reason,true);
         if (!request.approved()) management.log(actor, "IDENTITY_REJECT", user + " | " + reason);
         return summary(active);
     }
@@ -290,7 +297,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
         try { result = provider.verify(f, b, s, v); }
         catch (Exception e) {
             transactions.executeWithoutResult(tx -> identities.lockById(user).ifPresent(i -> {
-                if (attempt.equals(i.getSubmittedAt())) { i.setStatus("ERROR"); i.setReason("Dịch vụ xác thực chưa sẵn sàng. Vui lòng gửi lại sau."); }
+                if (attempt.equals(i.getSubmittedAt())) { i.setStatus("ERROR"); i.setReason("Dịch vụ xác thực chưa sẵn sàng. Vui lòng gửi lại sau."); feedback.send(user,"ERROR",i.getReason(),false); }
             }));
             throw e;
         }
@@ -301,6 +308,7 @@ public class IdentityServiceImpl implements com.handsfree.be.service.IdentitySer
             i.setVerifiedAt(result.verified() ? Instant.now() : null);
             i.setFullName(crypto.encrypt(result.name())); i.setDocumentData(crypto.encrypt(result.document()));
             i.setSimilarity(result.similarity()); i.setLive(result.live());
+            feedback.send(user,i.getStatus(),i.getReason(),false);
             return summary(i);
         });
     }

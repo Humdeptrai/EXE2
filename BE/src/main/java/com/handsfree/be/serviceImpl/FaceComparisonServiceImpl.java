@@ -87,7 +87,7 @@ public class FaceComparisonServiceImpl implements FaceComparisonService {
     }
     @Override public SelfieCapture selfie(UUID user,UUID id,MultipartFile image) {
         var saved=progress.selfie(user,image);
-        return new SelfieCapture(saved.selfiePassed(),"Selfie đã được lưu. Tiếp tục cung cấp CCCD.",0);
+        return new SelfieCapture(saved.selfiePassed(),saved.selfiePassed()?"Selfie đã được lưu. Tiếp tục cung cấp CCCD.":"Selfie chưa đạt. Vui lòng kiểm tra thông báo và thử lại.",0);
     }
     @Override public Completion finish(UUID user,UUID id,MultipartFile front,MultipartFile back) {
         progress.document(user,"front",front);progress.document(user,"back",back);

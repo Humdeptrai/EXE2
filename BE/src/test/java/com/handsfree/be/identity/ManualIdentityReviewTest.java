@@ -26,6 +26,8 @@ class ManualIdentityReviewTest {
     AccountAccess access;
     IdentityService service;
     IdentityCrypto crypto;
+    IdentityFeedbackService feedback;
+    IdentityProgressRepository progress;
     IdentitySubmission draft;
     IdentityVerification active;
     IdentityAppeal appeal;
@@ -37,9 +39,10 @@ class ManualIdentityReviewTest {
         users=mock(UserRepository.class);access=mock(AccountAccess.class);
         var properties=new IdentityProperties();properties.setEncryptionKey(Base64.getEncoder().encodeToString(new byte[32]));
         crypto=new IdentityCrypto(properties);
+        feedback=mock(IdentityFeedbackService.class);progress=mock(IdentityProgressRepository.class);
         service=new IdentityServiceImpl(identities,mock(PlatformSettingsRepository.class),registry,submissions,appeals,mock(NotificationService.class),
                 users,access,properties,crypto,mock(FptIdentityClient.class),mock(TransactionTemplate.class),
-                mock(JobMatchRepository.class),mock(ContactAccess.class),mock(ManagementService.class));
+                mock(JobMatchRepository.class),mock(ContactAccess.class),mock(ManagementService.class),feedback,progress);
         actor=UUID.randomUUID();user=UUID.randomUUID();
         var account=User.builder().id(user).role(UserRole.USER).active(true).fullName("Synthetic User").build();
         when(users.lockById(user)).thenReturn(Optional.of(account));
@@ -119,6 +122,21 @@ class ManualIdentityReviewTest {
         when(appeals.lockById(appeal.getId())).thenReturn(Optional.of(appeal));
         assertEquals("RESOLVED",service.resolveAppeal(actor,appeal.getId(),approve()).status());noAutomaticChecks();
     }
+    @Test void directRejectionWithoutAppealUpdatesProgressAndNotifiesOwner() {
+        when(appeals.findFirstByUserIdAndStatusIn(eq(user),any())).thenReturn(Optional.empty());
+        var p=new IdentityProgress();p.setUserId(user);p.setStatus("REVIEW_REQUIRED");
+        when(progress.lockById(user)).thenReturn(Optional.of(p));
+        service.review(actor,user,new IdentityService.Review(false,draft.getSubmittedAt(),"","Ảnh chưa rõ",5L));
+        assertEquals("REJECTED",draft.getStatus());assertEquals("REJECTED",p.getStatus());
+        assertEquals("Ảnh chưa rõ",p.getOutcomeReason());verify(feedback).send(user,"REJECTED","Ảnh chưa rõ",true);
+    }
+    @Test void rejectionOfReplacementKeepsPreviouslyVerifiedIdentity() {
+        when(appeals.findFirstByUserIdAndStatusIn(eq(user),any())).thenReturn(Optional.empty());
+        active.setStatus("VERIFIED");
+        service.review(actor,user,new IdentityService.Review(false,draft.getSubmittedAt(),"","Thông tin chưa rõ",5L));
+        assertEquals("VERIFIED",active.getStatus());assertEquals("REJECTED",draft.getStatus());
+        verify(feedback).send(user,"REJECTED","Thông tin chưa rõ",true);
+    }
     @Test void rejectionStillWorks() {
         var request=new IdentityService.Review(false,draft.getSubmittedAt(),"","Missing readable evidence",5L);
         assertEquals("REJECTED",service.review(actor,user,request).status());
@@ -141,6 +159,8 @@ class ManualIdentityReviewTest {
                 "Synthetic Name","012345678901","synthetic evidence",.9,true,"automatic");
         assertEquals("REVIEW_REQUIRED",service.storeScan(user,data).status());
         verify(registry).assess(user,"012345678901","synthetic evidence");
+        assertEquals("Duplicate identity",active.getReason());
+        verify(feedback).send(user,"REVIEW_REQUIRED","Duplicate identity",false);
         verify(registry,never()).claim(any(),any(),any(),anyBoolean(),anyBoolean());
     }
     @Test void photoReferenceCannotAutoApproveOrFabricateLiveStatus() {

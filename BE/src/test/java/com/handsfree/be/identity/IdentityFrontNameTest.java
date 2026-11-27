@@ -1,4 +1,5 @@
 package com.handsfree.be.identity;
+import com.handsfree.be.serviceImpl.IdentityFeedbackService;
 
 import com.handsfree.be.constant.UserRole;
 import com.handsfree.be.entity.*;
@@ -41,7 +42,7 @@ class IdentityFrontNameTest {
         var properties=new IdentityProperties();properties.setEncryptionKey(Base64.getEncoder().encodeToString(new byte[32]));
         crypto=new IdentityCrypto(properties);
         service=new IdentityProgressServiceImpl(mock(IdentityRegistryService.class),repository,users,
-            mock(IdentityRepository.class),mock(IdentitySubmissionRepository.class),access,crypto,worker,json,identity,mock(PlatformSettingsService.class));
+            mock(IdentityRepository.class),mock(IdentitySubmissionRepository.class),access,crypto,worker,json,identity,mock(PlatformSettingsService.class),mock(IdentityFeedbackService.class));
         progress=new IdentityProgress();progress.setUserId(user);progress.setSelfiePassed(true);progress.setStatus("DRAFT");
         progress.setFrontImage(crypto.encrypt(new byte[]{1}));progress.setFrontPassed(true);
         progress.setCheckpoint(crypto.encrypt(token("AN OLD NAME")));

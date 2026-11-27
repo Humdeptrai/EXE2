@@ -88,9 +88,15 @@ public class IdentityRegistryServiceImpl implements IdentityRegistryService {
    if(c.getFaceVector()==null){incomplete=true;continue;}
    if(candidate!=null){double score=cosine(candidate,decode(c.getFaceVector()));if(score>=faceThreshold)found.add(new Conflict(c.getOwnerId(),"FACE",score));}
   }
-  if(found.stream().anyMatch(c->c.kind().equals("DOCUMENT")))return assessment(key,false,"Thông tin định danh này đã được sử dụng. Vui lòng khôi phục tài khoản hoặc gửi yêu cầu kiểm tra danh tính nếu có nhầm lẫn.",List.copyOf(found));
-  if(!found.isEmpty())return assessment(key,false,"Hồ sơ cần kiểm tra thêm trước khi xác minh. Bạn có thể gửi yêu cầu ADMIN kiểm tra danh tính.",List.copyOf(found));
-  if(incomplete)return assessment(key,false,"Hồ sơ cần kiểm tra thêm trước khi xác minh. Bạn có thể gửi yêu cầu ADMIN kiểm tra danh tính.",List.of());
+  boolean documentConflict=found.stream().anyMatch(c->c.kind().equals("DOCUMENT"));
+  boolean faceConflict=found.stream().anyMatch(c->c.kind().equals("FACE"));
+  String help=" Không thể xác minh tự động. Vui lòng khôi phục tài khoản cũ hoặc gửi yêu cầu kiểm tra danh tính nếu có nhầm lẫn.";
+  if(documentConflict&&faceConflict)return assessment(key,false,"Trùng số CCCD và trùng khuôn mặt với hồ sơ đã có."+help,List.copyOf(found));
+  if(documentConflict)return assessment(key,false,"Trùng số CCCD với hồ sơ đã có."+help,List.copyOf(found));
+  if(faceConflict)return assessment(key,false,"Trùng khuôn mặt với hồ sơ đã có."+help,List.copyOf(found));
+  if(found.stream().anyMatch(c->c.kind().equals("IMAGE")))return assessment(key,false,"Ảnh CCCD đã được sử dụng trong hồ sơ khác. Vui lòng gửi yêu cầu kiểm tra danh tính.",List.copyOf(found));
+  if(!found.isEmpty())return assessment(key,false,"Khuôn mặt mới khác với danh tính đã lưu trên tài khoản này. Vui lòng gửi yêu cầu kiểm tra danh tính.",List.copyOf(found));
+  if(incomplete)return assessment(key,false,"Dữ liệu đối chiếu danh tính chưa đầy đủ nên chưa thể xác minh tự động. Vui lòng gửi yêu cầu kiểm tra danh tính.",List.of());
   return assessment(key,true,"",List.of());
  }
  public void claim(UUID user,String number,String evidence,boolean manual,boolean transfer){claim(user,number,evidence,manual,transfer,null,null);}

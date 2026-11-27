@@ -30,11 +30,12 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
     private final ObjectMapper json;
     private final IdentityService identity;
     private final PlatformSettingsService settings;
+    private final IdentityFeedbackService feedback;
     private void user(UUID user) { if(access.active(user).getRole()!=com.handsfree.be.constant.UserRole.USER) throw new AppException(ErrorCode.FORBIDDEN); }
     private IdentityProgress locked(UUID id) {
         user(id);users.lockById(id).orElseThrow(()->new AppException(ErrorCode.USER_NOT_FOUND));
         identity.requireNoOpenAppeal(id);
-        return repository.lockById(id).orElseGet(()->{ var p=new IdentityProgress();p.setUserId(id);p.setStatus("DRAFT");return p; });
+        return repository.lockById(id).orElseGet(()->{ var p=new IdentityProgress();p.setUserId(id);p.setOutcomeReason(null);p.setStatus("DRAFT");return p; });
     }
     private void save(IdentityProgress p) { p.setUpdatedAt(Instant.now());repository.saveAndFlush(p); }
     private Progress summary(IdentityProgress p) {
@@ -105,7 +106,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         p.setFacePhotoUploaded(true);checkpoint(p,response);
         p.setFaceImage(crypto.encrypt(portrait));p.setSelfiePassed(false);p.setSelfieImage(null);
         p.setFrontPassed(false);p.setBackPassed(false);p.setFrontImage(null);p.setBackImage(null);
-        p.setDocumentNumber(null);p.setFrontReason(null);p.setBackReason(null);p.setStatus("DRAFT");
+        p.setDocumentNumber(null);p.setFrontReason(null);p.setBackReason(null);p.setOutcomeReason(null);p.setStatus("DRAFT");
         save(p);return summary(p);
     }
     private byte[] jpeg(MultipartFile file) {
@@ -143,7 +144,11 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
     @Override @Transactional(readOnly=true) public Profile profile(UUID user) {
         user(user);
         var personal = identity.mine(user);
-        return new Profile(identity.eligibility(user), personal, readProgress(user, personal));
+        var p=repository.findSnapshot(user).orElse(null);
+        var outcome=p!=null && p.getOutcomeReason()!=null
+            ? new Outcome(p.getStatus(),p.getOutcomeReason())
+            : new Outcome(personal.verification().status(),personal.verification().reason());
+        return new Profile(identity.eligibility(user), personal, readProgress(user, personal),outcome);
     }
     @Override @Transactional(readOnly=true) public Progress get(UUID user) {
         measure("progress.account", () -> { user(user); return null; });
@@ -177,15 +182,21 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         p.setCheckpoint(crypto.encrypt(token));p.setFaceImage(crypto.encrypt(java.util.Base64.getDecoder().decode(data.path("portrait").asString(""))));
         p.setFacePhotoUploaded(false);
         p.setSelfiePassed(false);p.setSelfieImage(null);p.setFrontPassed(false);p.setBackPassed(false);
-        p.setFrontImage(null);p.setBackImage(null);p.setDocumentNumber(null);p.setFrontReason(null);p.setBackReason(null);p.setStatus("DRAFT");save(p);
+        p.setFrontImage(null);p.setBackImage(null);p.setDocumentNumber(null);p.setFrontReason(null);p.setBackReason(null);p.setOutcomeReason(null);p.setStatus("DRAFT");save(p);
     }
     @Override @Transactional public Progress selfie(UUID user,MultipartFile image) {
         var p=locked(user);photoEnabled(p);if(p.getCheckpoint()==null) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
         byte[] raw=jpeg(image);
-        var response=worker.send("POST","/checkpoints/selfie",new String[]{"checkpoint","selfie"},new byte[][]{crypto.decrypt(p.getCheckpoint()),raw});
-        if(!response.path("accepted").asBoolean(false)) throw new AppException(ErrorCode.IDENTITY_SCAN_FAILED);
+        JsonNode response;
+        try { response=worker.send("POST","/checkpoints/selfie",new String[]{"checkpoint","selfie"},new byte[][]{crypto.decrypt(p.getCheckpoint()),raw}); }
+        catch(AppException e) {
+            p.setSelfiePassed(false);blocked(user,p,"ERROR","Dịch vụ kiểm tra selfie chưa sẵn sàng. Vui lòng thử lại sau.");return summary(p);
+        }
+        if(!response.path("accepted").asBoolean(false)) {
+            p.setSelfiePassed(false);blocked(user,p,"REVIEW_REQUIRED","Selfie chưa đạt đối chiếu khuôn mặt trực tiếp. Vui lòng nhìn thẳng, đủ sáng và chụp lại.");return summary(p);
+        }
         checkpoint(p,response);p.setSelfieImage(crypto.encrypt(raw));p.setSelfiePassed(true);
-        p.setFrontPassed(false);p.setBackPassed(false);p.setFrontReason(null);p.setBackReason(null);p.setStatus("DRAFT");save(p);return summary(p);
+        p.setFrontPassed(false);p.setBackPassed(false);p.setFrontReason(null);p.setBackReason(null);p.setOutcomeReason(null);p.setStatus("DRAFT");save(p);return summary(p);
     }
     @Override @Transactional public Progress replaceSelfie(UUID user,MultipartFile image) {
         var p=locked(user);
@@ -219,7 +230,7 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         } catch (AppException error) {
             String message="Ảnh đã được lưu nhưng chưa kiểm tra tự động được. Bạn có thể thử lại hoặc gửi ADMIN xét duyệt khi đủ hồ sơ.";
             if(side.equals("front")) p.setFrontReason(message); else p.setBackReason(message);
-            p.setStatus("DRAFT");save(p);return summary(p);
+            p.setOutcomeReason(message);p.setStatus("ERROR");save(p);feedback.send(user,"ERROR",message,false);return summary(p);
         }
         boolean passed=response.path("passed").asBoolean(false);String reason=response.path("reasonCode").asString("");
         if(side.equals("front")) {
@@ -227,7 +238,8 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             var info=payload(crypto.text(p.getCheckpoint())).path("documents").path("front");
             String number=info.path("documentNumber").asString("");p.setDocumentNumber(passed && number.matches("[0-9]{12}")?crypto.encrypt(number):null);
         } else { p.setBackImage(crypto.encrypt(raw));p.setBackPassed(passed);p.setBackReason(passed?null:documentRetry(reason)); }
-        p.setStatus("DRAFT");save(p);return summary(p);
+        p.setOutcomeReason(passed?null:documentRetry(reason));p.setStatus(passed?"DRAFT":"REVIEW_REQUIRED");
+        save(p);if(!passed)feedback.send(user,"REVIEW_REQUIRED",p.getOutcomeReason(),false);return summary(p);
     }
     @Override @Transactional(readOnly=true) public byte[] image(UUID user, String side) {
         user(user);
@@ -281,28 +293,42 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
                 crypto.decrypt(p.getFaceImage()),crypto.decrypt(p.getSelfieImage()),name,number,json.writeValueAsString(evidence),
                 score,false,p.isFacePhotoUploaded()?"Hồ sơ dùng ảnh khuôn mặt tải lên, không thực hiện quét động tác; cần ADMIN xét duyệt.":"Người dùng yêu cầu ADMIN xét duyệt hồ sơ đã lưu.",!p.isFacePhotoUploaded());
         var appeal=identity.submitManualReview(user,submission,note);
-        p.setStatus("REVIEW_REQUIRED");save(p);return appeal;
+        p.setStatus("REVIEW_REQUIRED");p.setOutcomeReason(submission.reason());save(p);return appeal;
     }
     @Override @Transactional public FaceComparisonService.Completion finish(UUID user) {
         registry.lock();
         var p=locked(user);
-        if(p.isFacePhotoUploaded()) throw new AppException(ErrorCode.IDENTITY_PHOTO_REVIEW_REQUIRED);
-        if(!p.isSelfiePassed() || !p.isFrontPassed() || !p.isBackPassed()) throw new AppException(ErrorCode.IDENTITY_REQUIRED);
+        if(p.isFacePhotoUploaded()) return blocked(user,p,"REVIEW_REQUIRED","Hồ sơ dùng ảnh khuôn mặt tải lên nên cần quản trị viên xét duyệt. Vui lòng gửi yêu cầu kiểm tra danh tính.");
+        if(!p.isSelfiePassed() || !p.isFrontPassed() || !p.isBackPassed()) return blocked(user,p,"REVIEW_REQUIRED","Chưa đủ các bước selfie và CCCD hai mặt đã đạt. Vui lòng hoàn thiện bước còn thiếu hoặc gửi yêu cầu kiểm tra danh tính.");
         byte[] f=crypto.decrypt(p.getFrontImage()),b=crypto.decrypt(p.getBackImage());
         if("VERIFIED".equals(p.getStatus()) && "VERIFIED".equals(identity.status(user).status()))
             return new FaceComparisonService.Completion("VERIFIED","MATCH",0,.32,true,true,true,true,"Hồ sơ đã được xác minh và lưu.");
-        var response=worker.send("POST","/checkpoints/finish",new String[]{"checkpoint","front","back"},new byte[][]{crypto.decrypt(p.getCheckpoint()),f,b});
+        JsonNode response;
+        try { response=worker.send("POST","/checkpoints/finish",new String[]{"checkpoint","front","back"},new byte[][]{crypto.decrypt(p.getCheckpoint()),f,b}); }
+        catch(AppException e) {
+            var message="Dịch vụ đối chiếu chưa sẵn sàng. Các bước đã lưu được giữ lại; vui lòng thử lại sau hoặc gửi yêu cầu kiểm tra danh tính.";
+            p.setStatus("ERROR");p.setOutcomeReason(message);save(p);feedback.send(user,"ERROR",message,false);
+            return new FaceComparisonService.Completion("ERROR","NO_MATCH",0,.32,false,false,false,false,message);
+        }
         var result=complete(user,response,f,b);
-        p.setStatus(result.status());
+        p.setStatus(result.status());p.setOutcomeReason(result.message());
+        if (!result.identityVerified()) feedback.send(user,result.status(),result.message(),false);
         if("REJECTED".equals(result.status()) && !result.documentReadable()) {
             if(!response.path("backReadable").asBoolean(true)){p.setBackPassed(false);p.setBackReason(result.message());}
             else {p.setFrontPassed(false);p.setFrontReason(result.message());}
         }
         save(p);return result;
     }
+    private FaceComparisonService.Completion blocked(UUID user,IdentityProgress p,String status,String message) {
+        p.setStatus(status);p.setOutcomeReason(message);save(p);feedback.send(user,status,message,false);
+        return failedCompletion(status,message);
+    }
+    private FaceComparisonService.Completion failedCompletion(String status,String message) {
+        return new FaceComparisonService.Completion(status,"NO_MATCH",0,.32,false,false,false,false,message);
+    }
     private FaceComparisonService.Completion complete(UUID user,JsonNode r,byte[] f,byte[] b) {
         // Legacy workers did not check document quality: never auto-approve their responses.
-        if(r.path("policyVersion").asInt(0)!=4) throw invalidResponse("finish", "policy_version_mismatch");
+        if(r.path("policyVersion").asInt(0)!=4) return failedCompletion("ERROR","Dịch vụ đối chiếu chưa tương thích nên chưa thể xác minh tự động. Vui lòng thử lại sau hoặc gửi yêu cầu kiểm tra danh tính.");
         double score=r.path("cosineScore").asDouble(Double.NaN), threshold=r.path("threshold").asDouble(Double.NaN);
         double pad=r.path("padScore").asDouble(Double.NaN);
         boolean motion=r.path("motionPassed").asBoolean(false), anti=r.path("antiSpoofPassed").asBoolean(false);
@@ -314,11 +340,11 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
             && r.path("documentNumber").asString("").matches("[0-9]{12}");
         if(!Double.isFinite(score) || score< -1 || score>1 || !Double.isFinite(threshold)
                 || threshold<.32 || threshold>=1 || !Double.isFinite(pad) || pad<.8 || pad>1 || !motion || !anti)
-            throw invalidResponse("finish", "face_or_pad_metrics_invalid");
+            return failedCompletion("REVIEW_REQUIRED","Chưa đạt kiểm tra khuôn mặt, động tác hoặc chống giả mạo. Vui lòng quét lại trong điều kiện đủ sáng hoặc gửi yêu cầu kiểm tra danh tính.");
         double selfieScore=r.path("selfieScanScore").asDouble(Double.NaN);
         double selfiePad=r.path("selfiePadScore").asDouble(Double.NaN);
         if(!r.path("selfiePassed").asBoolean(false) || !Double.isFinite(selfieScore) || selfieScore<threshold || selfieScore>1
-            || !Double.isFinite(selfiePad) || selfiePad<.8 || selfiePad>1) throw new AppException(ErrorCode.IDENTITY_SCAN_FAILED);
+            || !Double.isFinite(selfiePad) || selfiePad<.8 || selfiePad>1) return failedCompletion("REVIEW_REQUIRED","Selfie chưa đạt kiểm tra khuôn mặt trực tiếp. Vui lòng chụp lại selfie hoặc gửi yêu cầu kiểm tra danh tính.");
         boolean match=score>=threshold;
         if(!quality || !readable) return new FaceComparisonService.Completion("REJECTED",match?"MATCH":"NO_MATCH",score,threshold,motion,anti,readable,false,
             documentRetry(r.path("reasonCode").asString("")));
@@ -329,23 +355,20 @@ public class IdentityProgressServiceImpl implements IdentityProgressService {
         byte[] portrait, selfie;
         try { portrait=java.util.Base64.getDecoder().decode(r.path("faceJpeg").asString(""));
             selfie=java.util.Base64.getDecoder().decode(r.path("selfieJpeg").asString("")); }
-        catch(Exception e) { throw invalidResponse("finish", "portrait_encoding_invalid"); }
-        if(portrait.length<1000 || portrait.length>5*1024*1024 || selfie.length<1000 || selfie.length>5*1024*1024) throw invalidResponse("finish", "portrait_size_invalid");
+        catch(Exception e) { return failedCompletion("ERROR","Chưa xử lý được ảnh chân dung từ dịch vụ đối chiếu. Vui lòng thử lại hoặc gửi yêu cầu kiểm tra danh tính."); }
+        if(portrait.length<1000 || portrait.length>5*1024*1024 || selfie.length<1000 || selfie.length>5*1024*1024) return failedCompletion("ERROR","Ảnh chân dung trả về chưa hợp lệ. Vui lòng thử lại hoặc gửi yêu cầu kiểm tra danh tính.");
         String evidence;
         try {
             var document=(tools.jackson.databind.node.ObjectNode)r.deepCopy(); document.remove("faceJpeg"); document.remove("selfieJpeg");
             document.put("identityVerified",approved); document.put("verificationSource",approved?"AUTO_RGB_OCR":"MANUAL_REVIEW");
             evidence=json.writeValueAsString(document);
-        } catch(Exception e) { throw invalidResponse("finish", "evidence_serialization_failed"); }
+        } catch(Exception e) { return failedCompletion("ERROR","Chưa lưu được kết quả đối chiếu. Vui lòng thử lại sau."); }
         String reason=approved?"Đã xác minh tự động: động tác, selfie trực tiếp, PAD RGB, CCCD và so khớp"
             : !match?"Điểm so khớp CCCD chưa đủ để tự xác minh; có thể thử lại hoặc nhờ ADMIN kiểm tra"
             : "Họ tên OCR chưa đủ rõ; có thể thử lại hoặc nhờ ADMIN kiểm tra";
         var stored=identity.storeScan(user,new com.handsfree.be.service.IdentityService.ScanSubmission(
             f,b,portrait,selfie,name,r.path("documentNumber").asString(""),evidence,score,approved,reason));
-        if(approved && !"VERIFIED".equals(stored.status())) return new FaceComparisonService.Completion(stored.status(),match?"MATCH":"NO_MATCH",score,threshold,true,true,true,false,stored.reason());
-        return new FaceComparisonService.Completion(approved?"VERIFIED":score<.30?"REJECTED":"REVIEW_REQUIRED",match?"MATCH":"NO_MATCH",score,threshold,true,true,true,approved,
-            approved?"Xác minh tự động thành công. Bạn có thể đăng hoặc nhận việc khi thông tin hồ sơ đã đầy đủ."
-            : !match ? "Khuôn mặt chưa đủ khớp với ảnh CCCD. Các bước đã lưu được giữ lại; bạn có thể thử lại hoặc gửi yêu cầu ADMIN xét duyệt."
-            : "Họ tên OCR chưa đủ rõ. Các bước đã lưu được giữ lại; bạn có thể thử lại hoặc gửi yêu cầu ADMIN xét duyệt.");
+        return new FaceComparisonService.Completion(stored.status(),match?"MATCH":"NO_MATCH",score,threshold,true,true,true,
+            "VERIFIED".equals(stored.status()),stored.reason());
     }
 }

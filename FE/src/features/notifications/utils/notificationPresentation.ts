@@ -11,6 +11,12 @@ type Presentation = {
 
 // Keep literal classes so Tailwind includes every notification style in production.
 const presentations: Record<NotificationType, Presentation> = {
+  IDENTITY_DUPLICATE_DOCUMENT: { label: "Trùng CCCD", icon: "bookmark", iconClass: "bg-orange-100 text-orange-800", badgeClass: "bg-orange-50 text-orange-900" },
+  IDENTITY_DUPLICATE_FACE: { label: "Trùng khuôn mặt", icon: "user", iconClass: "bg-violet-100 text-violet-800", badgeClass: "bg-violet-50 text-violet-900" },
+  IDENTITY_DUPLICATE_BOTH: { label: "Trùng CCCD và khuôn mặt", icon: "users", iconClass: "bg-fuchsia-100 text-fuchsia-800", badgeClass: "bg-fuchsia-50 text-fuchsia-900" },
+  IDENTITY_ACTION_REQUIRED: { label: "Cần bổ sung xác minh", icon: "info", iconClass: "bg-amber-100 text-amber-800", badgeClass: "bg-amber-50 text-amber-900" },
+  IDENTITY_REJECTED: { label: "Hồ sơ bị từ chối", icon: "close", iconClass: "bg-rose-100 text-rose-800", badgeClass: "bg-rose-50 text-rose-900" },
+  IDENTITY_APPROVED: { label: "Xác minh thành công", icon: "shield-check", iconClass: "bg-emerald-100 text-emerald-800", badgeClass: "bg-emerald-50 text-emerald-900" },
   MATCH_SCHEDULE_CHANGED: { label: "Lịch công việc", icon: "calendar", iconClass: "bg-sky-100 text-sky-700", badgeClass: "bg-sky-50 text-sky-800" },
   JOB_INTEREST_RECEIVED: { label: "Ứng viên quan tâm", icon: "users", iconClass: "bg-sky-100 text-sky-700", badgeClass: "bg-sky-50 text-sky-800" },
   CANDIDATE_ACCEPTED: { label: "Ứng tuyển được chấp nhận", icon: "check", iconClass: "bg-emerald-100 text-emerald-700", badgeClass: "bg-emerald-50 text-emerald-800" },

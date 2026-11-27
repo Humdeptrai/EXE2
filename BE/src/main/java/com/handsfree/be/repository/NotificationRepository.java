@@ -19,6 +19,8 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Query("select count(n) from Notification n where n.recipient.id = :recipientId and n.readAt is null and n.type <> com.handsfree.be.constant.NotificationType.CHAT_MESSAGE_RECEIVED")
     long countByRecipient_IdAndReadAtIsNull(@Param("recipientId") UUID recipientId);
 
+    boolean existsByRecipient_IdAndTypeAndMessageAndCreatedAtAfter(UUID recipientId, com.handsfree.be.constant.NotificationType type, String message, Instant cutoff);
+
     Optional<Notification> findByIdAndRecipient_Id(UUID notificationId, UUID recipientId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)

@@ -1,3 +1,6 @@
+import IdentityOutcomeNotice from "../../identity/components/IdentityOutcomeNotice";
+import { NotificationContext } from "../../../context/NotificationContext";
+import type { IdentityOutcome } from "../../../services/identityService";
 import ChangePasswordForm from "../components/ChangePasswordForm";
 import ProfileSkills from "../components/ProfileSkills";
 import LocationField from "../../location/LocationField";
@@ -12,7 +15,7 @@ import type { MyIdentity } from "../../../services/identityService";
 import IdentityProfileCard from "../../identity/components/IdentityProfileCard";
 import { identityService, onboardingUrl, safeNext, type Eligibility } from "../../../services/identityService";
 import UserNotice from "../../../components/feedback/UserNotice";
-import { useEffect, useState, type FormEvent } from "react";
+import { useContext, useEffect, useState, type FormEvent } from "react";
 import { AppIcon } from "../../../components/ui/AppIcon";
 import { useAuth } from "../../../context/AuthContext";
 import { ratingService } from "../../../services/ratingService";
@@ -74,20 +77,27 @@ function UserProfile() {
 
   const [verificationProgress, setVerificationProgress] = useState<IdentityProgress | null>(null);
   const [identity, setIdentity] = useState<Eligibility | null>(null);
+  const [identityOutcome, setIdentityOutcome] = useState<IdentityOutcome | null>(null);
+  const notificationContext = useContext(NotificationContext);
   const [privateIdentity, setPrivateIdentity] = useState<MyIdentity | null>(null);
   const [identityError, setIdentityError] = useState("");
   const [identityLoaded, setIdentityLoaded] = useState(false);
   const [identityRefresh, setIdentityRefresh] = useState(0);
+  useEffect(() => notificationContext?.subscribeNotifications(item => {
+    if (item.type.startsWith("IDENTITY_")) setIdentityRefresh(value => value + 1);
+  }), [notificationContext]);
   useEffect(() => {
     const refresh = () => { if (document.visibilityState === "visible") setIdentityRefresh(value => value + 1); };
+    const timer = window.setInterval(refresh, 30000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
-    return () => { window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
   }, []);
   useEffect(() => {
     const controller = new AbortController();
     void identityService.profile(controller.signal).then(result => {
       if (controller.signal.aborted) return;
+      setIdentityOutcome(result.outcome || result.personal?.verification || null);
       setPrivateIdentity(result.personal); setVerificationProgress(result.progress);
       setIdentity(result.eligibility); setIdentityError(""); setIdentityLoaded(true);
     }).catch(error => {
@@ -99,8 +109,9 @@ function UserProfile() {
   }, [user?.id, user?.updatedAt, identityRefresh]);
 
   const identityFields = identityLoaded ? <>
+    <IdentityOutcomeNotice outcome={identityOutcome} previousVerified={identity?.identityVerified === true} />
     <IdentityProfileCard state={identity} error={identityError} />
-    <IdentityPrivateFields state={privateIdentity} progress={verificationProgress} onChanged={() => setIdentityRefresh(value => value + 1)} />
+    <IdentityPrivateFields state={privateIdentity} progress={verificationProgress} outcomeStatus={identityOutcome?.status} onChanged={() => setIdentityRefresh(value => value + 1)} />
     <IdentityProgressFields state={verificationProgress} verified={identity?.identityVerified === true} />
   </> : <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2" role="status">
     <p className="font-bold text-slate-600">{identityError || "Đang tải thông tin xác minh đã lưu…"}</p>

@@ -10,7 +10,8 @@ public interface IdentityProgressService {
     record Options(boolean facePhotoUploadEnabled, boolean photoRequiresAdminReview) {}
     Options options(UUID user);
     Progress uploadFace(UUID user, MultipartFile face, boolean consent);
-    record Profile(IdentityService.Eligibility eligibility, IdentityService.MyIdentity personal, Progress progress) {}
+    record Outcome(String status, String reason) {}
+    record Profile(IdentityService.Eligibility eligibility, IdentityService.MyIdentity personal, Progress progress, Outcome outcome) {}
     Profile profile(UUID user);
     Progress get(UUID user);
     void saveScan(UUID user,String checkpoint);

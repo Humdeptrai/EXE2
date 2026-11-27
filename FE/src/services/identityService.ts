@@ -20,7 +20,8 @@ export type IdentityProgress = {
   frontReason: string | null; backReason: string | null; status: string; documentNumber: string | null;
   selfieUrl: string | null; frontUrl: string | null; backUrl: string | null; updatedAt: string | null; version: number;
 };
-export type IdentityProfile = { eligibility: Eligibility; personal: MyIdentity; progress: IdentityProgress };
+export type IdentityOutcome = { status: string; reason: string | null };
+export type IdentityProfile = { outcome?: IdentityOutcome; eligibility: Eligibility; personal: MyIdentity; progress: IdentityProgress };
 export const identityService = {
   async options(signal?: AbortSignal): Promise<{ facePhotoUploadEnabled: boolean; photoRequiresAdminReview: boolean }> {
     return (await api.get<ApiResponse<{ facePhotoUploadEnabled: boolean; photoRequiresAdminReview: boolean }>>("/identity/progress/options", { signal })).data.result;

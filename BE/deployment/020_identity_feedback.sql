@@ -1,0 +1,30 @@
+-- Run before BE deploy. Keep existing identity data and notification history.
+BEGIN;
+ALTER TABLE identity_progress ADD COLUMN IF NOT EXISTS outcome_reason VARCHAR(500);
+DO $$ DECLARE c record; BEGIN
+ FOR c IN SELECT conname FROM pg_constraint WHERE conrelid='notifications'::regclass AND contype='c'
+ AND pg_get_constraintdef(oid) ~ '\mtype\M' LOOP
+  EXECUTE format('ALTER TABLE notifications DROP CONSTRAINT %I',c.conname);
+ END LOOP;
+END $$;
+ALTER TABLE notifications ADD CONSTRAINT notifications_type_check CHECK (type IN (
+ 'IDENTITY_DUPLICATE_DOCUMENT',
+ 'IDENTITY_DUPLICATE_FACE',
+ 'IDENTITY_DUPLICATE_BOTH',
+ 'IDENTITY_ACTION_REQUIRED',
+ 'IDENTITY_REJECTED',
+ 'IDENTITY_APPROVED',
+ 'MATCH_SCHEDULE_CHANGED',
+ 'JOB_INTEREST_RECEIVED',
+ 'CANDIDATE_ACCEPTED',
+ 'CANDIDATE_REJECTED',
+ 'PAYMENT_RECEIVED',
+ 'CONNECTION_SUCCEEDED',
+ 'CHAT_MESSAGE_RECEIVED',
+ 'REPORT_RESOLVED',
+ 'REPORT_REJECTED',
+ 'IDENTITY_REVIEWED',
+ 'SKILL_REVIEWED',
+ 'RATING_RECEIVED'
+));
+COMMIT;

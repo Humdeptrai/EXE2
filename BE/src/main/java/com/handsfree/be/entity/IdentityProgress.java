@@ -21,6 +21,7 @@ public class IdentityProgress {
     @Column(nullable=false) private boolean backPassed;
     @Column(length=500) private String frontReason;
     @Column(length=500) private String backReason;
+    @Column(length=500) private String outcomeReason;
     @Column(length=30) private String status;
     private Instant updatedAt;
     @Version private long version;
